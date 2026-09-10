@@ -155,9 +155,20 @@ namespace KaleidoVR.EditorTools
         public KaleidoOptimizerProfile[] profiles = new KaleidoOptimizerProfile[0];
     }
 
+    [Serializable]
+    public class KaleidoOptimizerProfileFile
+    {
+        public const string FormatId = "KaleidoVR.VRChatModelOptimizer.Profiles";
+        public string format = FormatId;
+        public int formatVersion = 1;
+        public string toolVersion = "";
+        public string exportedUtc = "";
+        public KaleidoOptimizerProfile[] profiles = new KaleidoOptimizerProfile[0];
+    }
+
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.3";
+        public static readonly string VERSION = "1.0.4";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -265,6 +276,7 @@ namespace KaleidoVR.EditorTools
         public List<KaleidoModelInventoryItem> inventory = new List<KaleidoModelInventoryItem>();
         public string inventorySignature = "";
         public Vector2 inventoryScroll;
+        public Vector2 inventoryModelFileScroll;
         public List<KaleidoTextureUsage> textureUsages = new List<KaleidoTextureUsage>();
         public Vector2 textureUsageScroll;
         public string previewTexturePath = "";
@@ -275,6 +287,7 @@ namespace KaleidoVR.EditorTools
             var window = GetWindow<KaleidoVRCOptimizer>("VRChat Model Optimizer");
             window.InitializeLocalLogo();
             window.LoadEditorPreferences();
+            window.tab = 0;
             window.minSize = new Vector2(500, 720);
             window.ApplyWindowIcon();
         }
@@ -283,6 +296,7 @@ namespace KaleidoVR.EditorTools
         {
             InitializeLocalLogo();
             LoadEditorPreferences();
+            tab = 0;
             ApplyWindowIcon();
         }
 
@@ -647,7 +661,6 @@ namespace KaleidoVR.EditorTools
         private void LoadEditorPreferences()
         {
             LoadUserProfiles();
-            tab = GetInt("Tab", 0);
             builtinPresetIndex = GetInt("Builtin", 2);
             selectedUserProfile = GetInt("UserProf", -1);
             newProfileName = EditorPrefs.HasKey(PrefsPrefix + "NewName") ? EditorPrefs.GetString(PrefsPrefix + "NewName") : "My Profile";
@@ -737,7 +750,6 @@ namespace KaleidoVR.EditorTools
 
         public void SaveEditorPreferences()
         {
-            SetInt("Tab", tab);
             SetInt("Builtin", builtinPresetIndex);
             SetInt("UserProf", selectedUserProfile);
             EditorPrefs.SetString(PrefsPrefix + "NewName", newProfileName);
@@ -901,6 +913,7 @@ namespace KaleidoVR.EditorTools
         public string typeName;
         public string category;
         public string label;
+        public bool insideModelFile;
     }
 
     [Serializable]
@@ -970,6 +983,10 @@ namespace KaleidoVR.EditorTools
         };
 
         private static GUIStyle miniWrap;
+        private static GUIStyle dropTitleStyle;
+        private static GUIStyle dropHintStyle;
+        private static GUIStyle pingLinkStyle;
+        private static bool cachedDropProSkin = true;
 
         private static GUIStyle MiniWrap()
         {
@@ -978,6 +995,62 @@ namespace KaleidoVR.EditorTools
                 miniWrap = new GUIStyle(EditorStyles.miniLabel) { wordWrap = true };
             }
             return miniWrap;
+        }
+
+        private static void EnsureDropStyles()
+        {
+            bool pro = EditorGUIUtility.isProSkin;
+            if (dropTitleStyle != null && cachedDropProSkin == pro) return;
+            cachedDropProSkin = pro;
+
+            dropTitleStyle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 13,
+                wordWrap = true
+            };
+            dropTitleStyle.normal.textColor = pro ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.38f, 0.62f, 1f);
+
+            dropHintStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true
+            };
+            dropHintStyle.normal.textColor = pro ? new Color(0.82f, 0.92f, 0.42f, 1f) : new Color(0.28f, 0.45f, 0.02f, 1f);
+        }
+
+        private static GUIStyle DropTitleStyle()
+        {
+            EnsureDropStyles();
+            return dropTitleStyle;
+        }
+
+        private static GUIStyle DropHintStyle()
+        {
+            EnsureDropStyles();
+            return dropHintStyle;
+        }
+
+        private static GUIStyle PingLinkStyle()
+        {
+            if (pingLinkStyle == null)
+            {
+                pingLinkStyle = new GUIStyle(EditorStyles.linkLabel)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    clipping = TextClipping.Clip
+                };
+            }
+            return pingLinkStyle;
+        }
+
+        private static void DrawBoxOutline(Rect rect, Color color)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 2f), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 2f, rect.width, 2f), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, 2f, rect.height), color);
+            EditorGUI.DrawRect(new Rect(rect.xMax - 2f, rect.y, 2f, rect.height), color);
         }
 
         public static void DrawHeader(Texture2D logo, string version)
@@ -1034,8 +1107,8 @@ namespace KaleidoVR.EditorTools
         private static void DrawSetupTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("VRChat Avatar Models", EditorStyles.boldLabel);
-            DrawWhy("Drop the avatar prefab, scene instance, or character FBX — same as the Organizer. The list below is only what that model uses. Nothing else in the project is scanned.");
-            DrawObjectList(window.targets, "Drag & Drop VRChat Avatar Prefab, Instance, or FBX", true, true);
+            DrawWhy("Start here. Drop one VRChat avatar. Everything this window lists or changes comes from that model only.");
+            DrawObjectList(window.targets, "Drop your VRChat avatar here", true, true, true);
 
             window.RefreshInventoryIfNeeded();
             DrawModelContents(window);
@@ -1080,7 +1153,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(10);
             GUILayout.Label("2. Or open a profile you saved", EditorStyles.boldLabel);
-            DrawWhy("Saved profiles live in this Unity project (EditorPrefs). Choosing one applies it immediately, but only overwrites the tabs ticked in step 3.");
+            DrawWhy("Saved profiles live in this Unity project (EditorPrefs). Choosing one applies it immediately, but only overwrites the tabs ticked in step 3. Use step 5 to export, back up, or import a JSON file.");
 
             string[] userNames = GetUserProfileNames(window);
             int userIndex = window.selectedUserProfile + 1;
@@ -1153,6 +1226,29 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+            GUILayout.Label("5. Share, backup, or import", EditorStyles.boldLabel);
+            DrawWhy("Save a JSON file you can send to someone else, keep as a backup, or import on another PC. Import adds profiles to this project and never overwrites a name you already have.");
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(window.selectedUserProfile < 0);
+            if (GUILayout.Button("Export selected", GUILayout.Height(24)))
+            {
+                ExportProfiles(window, false);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(window.userProfiles == null || window.userProfiles.profiles == null || window.userProfiles.profiles.Length == 0);
+            if (GUILayout.Button("Backup all", GUILayout.Height(24)))
+            {
+                ExportProfiles(window, true);
+            }
+            EditorGUI.EndDisabledGroup();
+            if (GUILayout.Button("Import…", GUILayout.Height(24)))
+            {
+                ImportProfiles(window);
+            }
+            EditorGUILayout.EndHorizontal();
         }
 
         private static string DescribeActiveProfile(KaleidoVRCOptimizer window)
@@ -1223,6 +1319,223 @@ namespace KaleidoVR.EditorTools
             window.userProfiles.profiles = list.ToArray();
             window.selectedUserProfile = -1;
             window.SaveUserProfiles();
+        }
+
+        private const string ProfileFilePrefsKey = "ProfileDir";
+
+        private static string LastProfileDirectory()
+        {
+            string stored = EditorPrefs.GetString(KaleidoVRCOptimizer.PrefsPrefix + ProfileFilePrefsKey, "");
+            if (!string.IsNullOrEmpty(stored) && Directory.Exists(stored)) return stored;
+            try
+            {
+                return KaleidoVRCOptimizerHelpers.GetProjectRootPath();
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        private static void RememberProfileDirectory(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return;
+            string dir = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir)) EditorPrefs.SetString(KaleidoVRCOptimizer.PrefsPrefix + ProfileFilePrefsKey, dir);
+        }
+
+        private static string SanitizeProfileFileName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "Profile";
+            char[] invalid = Path.GetInvalidFileNameChars();
+            StringBuilder sb = new StringBuilder(name.Trim());
+            for (int i = 0; i < sb.Length; i++)
+            {
+                for (int c = 0; c < invalid.Length; c++)
+                {
+                    if (sb[i] == invalid[c])
+                    {
+                        sb[i] = '_';
+                        break;
+                    }
+                }
+            }
+            string cleaned = sb.ToString().Trim();
+            return string.IsNullOrEmpty(cleaned) ? "Profile" : cleaned;
+        }
+
+        private static KaleidoOptimizerProfile CloneProfile(KaleidoOptimizerProfile profile)
+        {
+            if (profile == null) return null;
+            return JsonUtility.FromJson<KaleidoOptimizerProfile>(JsonUtility.ToJson(profile));
+        }
+
+        private static KaleidoOptimizerProfileFile BuildProfileFile(KaleidoOptimizerProfile[] profiles)
+        {
+            return new KaleidoOptimizerProfileFile
+            {
+                format = KaleidoOptimizerProfileFile.FormatId,
+                formatVersion = 1,
+                toolVersion = KaleidoVRCOptimizer.VERSION,
+                exportedUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                profiles = profiles ?? new KaleidoOptimizerProfile[0]
+            };
+        }
+
+        private static void ExportProfiles(KaleidoVRCOptimizer window, bool allSaved)
+        {
+            KaleidoOptimizerProfile[] toWrite;
+            string suggested;
+            if (allSaved)
+            {
+                if (window.userProfiles == null || window.userProfiles.profiles == null || window.userProfiles.profiles.Length == 0)
+                {
+                    EditorUtility.DisplayDialog("Nothing to back up", "Save a profile in step 4 first.", "OK");
+                    return;
+                }
+                toWrite = new KaleidoOptimizerProfile[window.userProfiles.profiles.Length];
+                for (int i = 0; i < window.userProfiles.profiles.Length; i++)
+                    toWrite[i] = CloneProfile(window.userProfiles.profiles[i]);
+                suggested = "KaleidoVR-Optimizer-Profiles-Backup-" + DateTime.Now.ToString("yyyy-MM-dd") + ".json";
+            }
+            else
+            {
+                if (window.selectedUserProfile < 0 || window.userProfiles == null || window.userProfiles.profiles == null
+                    || window.selectedUserProfile >= window.userProfiles.profiles.Length)
+                {
+                    EditorUtility.DisplayDialog("No profile selected", "Choose a saved profile in step 2, or save one in step 4.", "OK");
+                    return;
+                }
+                KaleidoOptimizerProfile selected = CloneProfile(window.userProfiles.profiles[window.selectedUserProfile]);
+                toWrite = new[] { selected };
+                suggested = "KaleidoVR-Optimizer-Profile-" + SanitizeProfileFileName(selected != null ? selected.name : "Profile") + ".json";
+            }
+
+            string path = EditorUtility.SaveFilePanel(
+                allSaved ? "Backup KaleidoVR optimizer profiles" : "Export KaleidoVR optimizer profile",
+                LastProfileDirectory(),
+                suggested,
+                "json");
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                File.WriteAllText(path, JsonUtility.ToJson(BuildProfileFile(toWrite), true), new UTF8Encoding(false));
+                RememberProfileDirectory(path);
+                EditorUtility.DisplayDialog(
+                    allSaved ? "Backup saved" : "Profile exported",
+                    (allSaved ? "Saved " + toWrite.Length + " profile(s) to:\n" : "Saved to:\n") + path,
+                    "OK");
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("Could not export", ex.Message, "OK");
+            }
+        }
+
+        private static KaleidoOptimizerProfile[] ParseProfileFile(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
+            KaleidoOptimizerProfileFile file = JsonUtility.FromJson<KaleidoOptimizerProfileFile>(json);
+            if (file != null && file.profiles != null && file.profiles.Length > 0)
+                return file.profiles;
+
+            KaleidoOptimizerProfileList list = JsonUtility.FromJson<KaleidoOptimizerProfileList>(json);
+            if (list != null && list.profiles != null && list.profiles.Length > 0)
+                return list.profiles;
+
+            KaleidoOptimizerProfile one = JsonUtility.FromJson<KaleidoOptimizerProfile>(json);
+            if (one != null && !string.IsNullOrWhiteSpace(one.name))
+                return new[] { one };
+
+            return null;
+        }
+
+        private static string UniqueImportedName(List<KaleidoOptimizerProfile> existing, string desired)
+        {
+            string baseName = string.IsNullOrWhiteSpace(desired) ? "Imported Profile" : desired.Trim();
+            if (!NameExists(existing, baseName)) return baseName;
+            string imported = baseName + " (imported)";
+            if (!NameExists(existing, imported)) return imported;
+            int n = 2;
+            while (NameExists(existing, baseName + " (" + n + ")")) n++;
+            return baseName + " (" + n + ")";
+        }
+
+        private static bool NameExists(List<KaleidoOptimizerProfile> existing, string name)
+        {
+            if (existing == null) return false;
+            for (int i = 0; i < existing.Count; i++)
+            {
+                KaleidoOptimizerProfile profile = existing[i];
+                if (profile != null && string.Equals(profile.name, name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private static void ImportProfiles(KaleidoVRCOptimizer window)
+        {
+            string path = EditorUtility.OpenFilePanel("Import KaleidoVR optimizer profiles", LastProfileDirectory(), "json");
+            if (string.IsNullOrEmpty(path)) return;
+
+            string json;
+            try
+            {
+                json = File.ReadAllText(path, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("Could not import", ex.Message, "OK");
+                return;
+            }
+
+            KaleidoOptimizerProfile[] incoming = ParseProfileFile(json);
+            if (incoming == null || incoming.Length == 0)
+            {
+                EditorUtility.DisplayDialog(
+                    "Not a KaleidoVR profile file",
+                    "This JSON is not an optimizer profile export. Use Export selected or Backup all from this window.",
+                    "OK");
+                return;
+            }
+
+            List<KaleidoOptimizerProfile> list = new List<KaleidoOptimizerProfile>();
+            if (window.userProfiles != null && window.userProfiles.profiles != null)
+                list.AddRange(window.userProfiles.profiles);
+
+            int added = 0;
+            int firstIndex = list.Count;
+            StringBuilder renamed = new StringBuilder();
+            for (int i = 0; i < incoming.Length; i++)
+            {
+                KaleidoOptimizerProfile clone = CloneProfile(incoming[i]);
+                if (clone == null) continue;
+                string original = string.IsNullOrWhiteSpace(clone.name) ? "Imported Profile" : clone.name.Trim();
+                clone.name = UniqueImportedName(list, original);
+                if (!string.Equals(clone.name, original, StringComparison.Ordinal))
+                    renamed.AppendLine("• " + original + " → " + clone.name);
+                list.Add(clone);
+                added++;
+            }
+
+            if (added == 0)
+            {
+                EditorUtility.DisplayDialog("Could not import", "No usable profiles were in that file.", "OK");
+                return;
+            }
+
+            window.userProfiles.profiles = list.ToArray();
+            window.selectedUserProfile = firstIndex;
+            window.LoadProfile(window.userProfiles.profiles[firstIndex], true);
+            window.newProfileName = window.userProfiles.profiles[firstIndex].name;
+            window.SaveUserProfiles();
+            RememberProfileDirectory(path);
+
+            string message = "Added " + added + " profile(s) from:\n" + path;
+            if (renamed.Length > 0) message += "\n\nNames already in use were renamed:\n" + renamed.ToString().TrimEnd();
+            EditorUtility.DisplayDialog("Profiles imported", message, "OK");
         }
 
         private static void DrawRankTab(KaleidoVRCOptimizer window)
@@ -1328,8 +1641,8 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
             DrawWhy(questPlatform
-                ? "Same textures as the Textures tab. Quest dropdowns only. Click a thumbnail for preview, materials, and objects."
-                : "Every texture this avatar actually samples. Click a thumbnail for a larger view plus the materials and objects that use it. PC dropdown is the max size that will be applied.");
+                ? "Same textures as the Textures tab. Quest dropdowns only. Click a thumbnail to preview. Click it again to close."
+                : "Every texture this avatar actually samples. Click a thumbnail for a larger view. Click the same thumbnail again to close it. PC dropdown is the max size that will be applied.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
@@ -1337,7 +1650,14 @@ namespace KaleidoVR.EditorTools
                 return;
             }
 
-            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.MinHeight(160), GUILayout.MaxHeight(360));
+            const float TextureListHeight = 320f;
+            Color listOutline = new Color(0.38f, 0.78f, 1f, 0.95f);
+            Rect listBox = EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(14);
+            EditorGUILayout.BeginVertical();
+            GUILayout.Space(6);
+            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight));
             for (int i = 0; i < window.textureUsages.Count; i++)
             {
                 KaleidoTextureUsage usage = window.textureUsages[i];
@@ -1354,8 +1674,12 @@ namespace KaleidoVR.EditorTools
                 {
                     if (GUI.Button(thumb, usage.texture))
                     {
-                        window.previewTexturePath = usage.path;
-                        EditorGUIUtility.PingObject(usage.texture);
+                        if (selected) window.previewTexturePath = "";
+                        else
+                        {
+                            window.previewTexturePath = usage.path;
+                            EditorGUIUtility.PingObject(usage.texture);
+                        }
                     }
                 }
                 else
@@ -1396,6 +1720,12 @@ namespace KaleidoVR.EditorTools
                 GUILayout.Space(2);
             }
             EditorGUILayout.EndScrollView();
+            GUILayout.Space(6);
+            EditorGUILayout.EndVertical();
+            GUILayout.Space(14);
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+            DrawBoxOutline(listBox, listOutline);
         }
 
         private static void DrawTexturePreview(KaleidoVRCOptimizer window)
@@ -1405,9 +1735,10 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(6);
             GUILayout.Label("Texture Preview", EditorStyles.boldLabel);
+            DrawWhy("Click the thumbnail again to close this preview. Linked rows are reference only — click a name to ping it in the Project or Hierarchy.");
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-            EditorGUILayout.ObjectField("Texture", usage.texture, typeof(Texture), false);
+            DrawPingableObject(usage.texture, usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path));
             GUILayout.Label(usage.path, MiniWrap());
             GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel);
 
@@ -1416,33 +1747,74 @@ namespace KaleidoVR.EditorTools
             {
                 EditorGUI.DrawPreviewTexture(preview, usage.texture, null, ScaleMode.ScaleToFit);
             }
+            if (Event.current.type == EventType.MouseDown && preview.Contains(Event.current.mousePosition))
+            {
+                window.previewTexturePath = "";
+                Event.current.Use();
+                GUI.changed = true;
+            }
 
             GUILayout.Space(4);
             GUILayout.Label("Linked Materials And Objects", EditorStyles.miniBoldLabel);
-            if (usage.links == null || usage.links.Count == 0)
+            DrawWhy("What this texture is assigned to on the dropped avatar. These are not editable here.");
+            int shown = 0;
+            if (usage.links != null)
             {
-                EditorGUILayout.HelpBox("No renderer on this avatar samples this texture (it may still be a dependency of a material or nested asset).", MessageType.None);
-            }
-            else
-            {
-                int shown = Math.Min(usage.links.Count, 16);
-                for (int i = 0; i < shown; i++)
+                for (int i = 0; i < usage.links.Count; i++)
                 {
                     KaleidoTextureLink link = usage.links[i];
                     if (link == null) continue;
+                    GameObject linkedObject = link.sceneObject as GameObject;
+                    if (!IsObjectOnSelectedAvatar(window, linkedObject)) continue;
+
                     EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.ObjectField(link.sceneObject, typeof(UnityEngine.Object), true, GUILayout.MinWidth(120));
-                    EditorGUILayout.ObjectField(link.material, typeof(Material), false, GUILayout.MinWidth(120));
+                    DrawPingableObject(linkedObject, "(object)");
+                    DrawPingableObject(link.material, "(material)");
                     GUILayout.Label(string.IsNullOrEmpty(link.propertyName) ? "(slot)" : link.propertyName, GUILayout.Width(110));
                     EditorGUILayout.EndHorizontal();
+                    shown++;
+                    if (shown >= 40) break;
                 }
-                if (usage.links.Count > shown)
+                if (shown >= 40 && usage.links.Count > shown)
                 {
-                    GUILayout.Label("… " + (usage.links.Count - shown) + " more", EditorStyles.miniLabel);
+                    GUILayout.Label("… more slots on this avatar", EditorStyles.miniLabel);
                 }
+            }
+            if (shown == 0)
+            {
+                EditorGUILayout.HelpBox("No renderer on this avatar samples this texture (it may still be a dependency of a material or nested asset).", MessageType.None);
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        private static bool IsObjectOnSelectedAvatar(KaleidoVRCOptimizer window, GameObject obj)
+        {
+            if (obj == null || window == null || window.targets == null) return false;
+            for (int i = 0; i < window.targets.Count; i++)
+            {
+                GameObject root;
+                string reason;
+                if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(window.targets[i], out root, out reason)) continue;
+                if (root == null) continue;
+                if (obj == root || obj.transform.IsChildOf(root.transform)) return true;
+            }
+            return false;
+        }
+
+        private static void DrawPingableObject(UnityEngine.Object obj, string fallback)
+        {
+            string name = obj != null ? obj.name : fallback;
+            Texture icon = obj != null ? AssetPreview.GetMiniThumbnail(obj) : null;
+            GUIContent content = new GUIContent(" " + name, icon, obj != null ? "Ping in Project / Hierarchy" : "");
+            if (GUILayout.Button(content, PingLinkStyle(), GUILayout.MinWidth(120), GUILayout.Height(18)))
+            {
+                if (obj != null)
+                {
+                    EditorGUIUtility.PingObject(obj);
+                    Selection.activeObject = obj;
+                }
+            }
         }
 
         private static string KindLabel(KaleidoTextureKind kind)
@@ -1704,7 +2076,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Space(8);
             GUILayout.Label("Contents Of Selected Model", EditorStyles.boldLabel);
-            DrawWhy("Same idea as the Organizer: only assets this avatar actually uses. Nothing else in the project is listed or optimized.");
+            DrawWhy("Only assets this avatar uses. FBX-packed meshes and materials are listed separately — many avatars assign materials on the prefab instead of using the ones inside the FBX.");
 
             if (window.inventory == null || window.inventory.Count == 0)
             {
@@ -1712,8 +2084,18 @@ namespace KaleidoVR.EditorTools
                 return;
             }
 
+            List<KaleidoModelInventoryItem> usedOnAvatar = new List<KaleidoModelInventoryItem>();
+            List<KaleidoModelInventoryItem> insideModelFile = new List<KaleidoModelInventoryItem>();
+            for (int i = 0; i < window.inventory.Count; i++)
+            {
+                KaleidoModelInventoryItem item = window.inventory[i];
+                if (item == null) continue;
+                if (item.insideModelFile) insideModelFile.Add(item);
+                else usedOnAvatar.Add(item);
+            }
+
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(SummarizeInventory(window.inventory), MiniWrap());
+            EditorGUILayout.LabelField(SummarizeInventory(usedOnAvatar), MiniWrap());
             if (GUILayout.Button("Refresh", GUILayout.Width(70)))
             {
                 window.inventorySignature = "";
@@ -1721,11 +2103,37 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUILayout.EndHorizontal();
 
-            window.inventoryScroll = EditorGUILayout.BeginScrollView(window.inventoryScroll, GUILayout.MinHeight(120), GUILayout.MaxHeight(280));
-            string lastCategory = null;
-            for (int i = 0; i < window.inventory.Count; i++)
+            GUILayout.Label("Used On The Avatar", EditorStyles.miniBoldLabel);
+            DrawWhy("Prefab, materials, textures, animators, and menus assigned on this avatar — not packed inside the FBX.");
+            DrawInventoryRows(usedOnAvatar, ref window.inventoryScroll, 120, 260);
+
+            GUILayout.Space(8);
+            GUILayout.Label("Inside The Model File (FBX)", EditorStyles.miniBoldLabel);
+            DrawWhy("Lives on the character FBX/VRM/GLB. If you swapped materials on the prefab, these FBX copies are not what the avatar is wearing.");
+            if (insideModelFile.Count == 0)
             {
-                KaleidoModelInventoryItem item = window.inventory[i];
+                EditorGUILayout.HelpBox("Nothing in this list — the dropped object is not a model file, or it has no packed sub-assets.", MessageType.None);
+            }
+            else
+            {
+                EditorGUILayout.LabelField(SummarizeInventory(insideModelFile), MiniWrap());
+                DrawInventoryRows(insideModelFile, ref window.inventoryModelFileScroll, 100, 220);
+            }
+        }
+
+        private static void DrawInventoryRows(List<KaleidoModelInventoryItem> items, ref Vector2 scroll, float minHeight, float maxHeight)
+        {
+            if (items == null || items.Count == 0)
+            {
+                EditorGUILayout.HelpBox("None on this avatar outside the model file.", MessageType.None);
+                return;
+            }
+
+            scroll = EditorGUILayout.BeginScrollView(scroll, GUILayout.MinHeight(minHeight), GUILayout.MaxHeight(maxHeight));
+            string lastCategory = null;
+            for (int i = 0; i < items.Count; i++)
+            {
+                KaleidoModelInventoryItem item = items[i];
                 if (item == null) continue;
                 if (item.category != lastCategory)
                 {
@@ -1739,7 +2147,14 @@ namespace KaleidoVR.EditorTools
                     EditorGUI.DrawRect(rowRect, i % 2 == 0 ? new Color(0.18f, 0.18f, 0.18f, 1f) : new Color(0.23f, 0.23f, 0.23f, 1f));
                 GUILayout.Space(5);
                 GUIContent icon = new GUIContent(" " + (string.IsNullOrEmpty(item.label) ? item.typeName : item.label), GetInventoryIcon(item.typeName));
-                GUILayout.Label(icon, GUILayout.Width(220), GUILayout.Height(18));
+                if (GUILayout.Button(icon, EditorStyles.label, GUILayout.Width(220), GUILayout.Height(18)))
+                {
+                    if (item.asset != null)
+                    {
+                        EditorGUIUtility.PingObject(item.asset);
+                        Selection.activeObject = item.asset;
+                    }
+                }
                 EditorGUI.BeginDisabledGroup(true);
                 EditorGUILayout.ObjectField(item.asset, typeof(UnityEngine.Object), false);
                 EditorGUI.EndDisabledGroup();
@@ -1796,11 +2211,51 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        private static void DrawObjectList(List<UnityEngine.Object> list, string dropLabel, bool striped, bool avatarModelsOnly)
+        private static void DrawProminentAvatarDrop(List<UnityEngine.Object> list, string dropLabel)
         {
-            Rect dropArea = GUILayoutUtility.GetRect(0, 30, GUILayout.ExpandWidth(true));
-            GUI.Box(dropArea, dropLabel, EditorStyles.helpBox);
-            KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, avatarModelsOnly);
+            Rect dropArea = GUILayoutUtility.GetRect(0, 78, GUILayout.ExpandWidth(true));
+            bool dragging = DragAndDrop.objectReferences != null && DragAndDrop.objectReferences.Length > 0;
+            bool hover = dragging && dropArea.Contains(Event.current.mousePosition);
+            bool pro = EditorGUIUtility.isProSkin;
+            Color fill = hover
+                ? (pro ? new Color(0.12f, 0.32f, 0.18f, 1f) : new Color(0.72f, 0.92f, 0.74f, 1f))
+                : (pro ? new Color(0.13f, 0.20f, 0.28f, 1f) : new Color(0.82f, 0.90f, 0.97f, 1f));
+            Color border = hover ? new Color(0.20f, 0.72f, 0.32f, 1f) : new Color(0.20f, 0.62f, 0.90f, 1f);
+
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(dropArea, fill);
+                DrawBoxOutline(dropArea, border);
+            }
+
+            int ready = 0;
+            if (list != null)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i] != null) ready++;
+                }
+            }
+
+            Rect titleRect = new Rect(dropArea.x + 10, dropArea.y + 10, dropArea.width - 20, 24);
+            Rect hintRect = new Rect(dropArea.x + 12, dropArea.y + 34, dropArea.width - 24, 36);
+            GUI.Label(titleRect, dropLabel, DropTitleStyle());
+            string hint = ready == 0
+                ? "Prefab, scene instance, or character FBX  ·  not folders, worlds, or loose textures"
+                : (ready == 1 ? "1 avatar ready  ·  drop another, or use the slots below" : ready + " avatars ready  ·  drop another, or use the slots below");
+            GUI.Label(hintRect, hint, DropHintStyle());
+            KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, true);
+        }
+
+        private static void DrawObjectList(List<UnityEngine.Object> list, string dropLabel, bool striped, bool avatarModelsOnly, bool prominentDrop = false)
+        {
+            if (prominentDrop) DrawProminentAvatarDrop(list, dropLabel);
+            else
+            {
+                Rect dropArea = GUILayoutUtility.GetRect(0, 30, GUILayout.ExpandWidth(true));
+                GUI.Box(dropArea, dropLabel, EditorStyles.helpBox);
+                KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, avatarModelsOnly);
+            }
 
             for (int i = 0; i < list.Count; i++)
             {
@@ -2033,6 +2488,14 @@ namespace KaleidoVR.EditorTools
         {
             if (string.IsNullOrWhiteSpace(path)) return string.Empty;
             return path.Replace("\\", "/").Trim().TrimEnd('/');
+        }
+
+        public static bool IsModelFilePath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string lower = path.ToLowerInvariant();
+            return lower.EndsWith(".fbx") || lower.EndsWith(".blend") || lower.EndsWith(".dae")
+                || lower.EndsWith(".vrm") || lower.EndsWith(".glb") || lower.EndsWith(".gltf") || lower.EndsWith(".obj");
         }
 
         public static bool ShouldIgnoreAsset(string path)
@@ -2405,7 +2868,8 @@ namespace KaleidoVR.EditorTools
                         path = path,
                         typeName = asset.GetType().Name,
                         category = KaleidoVRCOptimizerHelpers.CategorizeInventoryAsset(asset),
-                        label = asset.name
+                        label = asset.name,
+                        insideModelFile = KaleidoVRCOptimizerHelpers.IsModelFilePath(path)
                     });
                 }
             }
