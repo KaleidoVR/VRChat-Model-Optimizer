@@ -40,5 +40,6 @@ crashlytics-build.properties
 *.unitypackage
 *.app
 
+
 # Never ignore .meta files for tracked assets: they hold the GUIDs Unity uses
 # to link references, plus per-asset import settings.

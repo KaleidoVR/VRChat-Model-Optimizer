@@ -1,7 +1,7 @@
 # KaleidoVR VRChat Model Optimizer
 
 <p align="center">
-  <img src="Unity VRChat Optimizer Tool/Editor/Icons/Kali_Logo.png" alt="KaleidoVR" width="300">
+  <img src="KaleidoVR/Editor/Icons/Kali_Logo.png" alt="KaleidoVR" width="300">
 </p>
 
 A Unity editor tool that scans a VRChat avatar and applies optional texture, mesh, renderer, audio, and animator optimizations. Every option can be left off. Built-in PC, Quest, and Dual profiles are included, plus user-saved profiles.
@@ -11,14 +11,16 @@ Drop a `VRCAvatarDescriptor` avatar (or a skinned character FBX/VRM/GLB) into th
 - Unity **2022.3.22f1** or newer, including Unity 6 (6000.x)
 - VRChat SDK3 Avatars is optional (needed for descriptor-based targeting and PhysBone / contact counts)
 
+KaleidoVR Unity editor tools live in `KaleidoVR/Editor/` in source and install to `Assets/KaleidoVR/Editor/`.
+
 ## Install
 
 1. Download the latest `.unitypackage` from [Releases](https://github.com/KaleidoVR/VRChat-Model-Optimizer/releases).
 2. In Unity, choose **Assets > Import Package > Custom Package...** and select the file.
-3. Import everything. Files land in `Assets/Unity VRChat Optimizer Tool/`.
+3. Import everything. Files land in `Assets/KaleidoVR/Editor/`.
 4. Open the tool from the menu bar: **KaleidoVR > VRChat Model Optimizer**.
 
-To install from source instead, copy the `Unity VRChat Optimizer Tool` folder (including its `.meta` files) into `Assets/` in your project.
+To install from source instead, copy the `KaleidoVR` folder (including its `.meta` files) into `Assets/` in your project.
 
 It appears in the same **KaleidoVR** menu as Asset Organizer.
 
