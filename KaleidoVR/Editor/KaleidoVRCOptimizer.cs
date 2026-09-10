@@ -157,7 +157,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.2";
+        public static readonly string VERSION = "1.0.3";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -180,6 +180,7 @@ namespace KaleidoVR.EditorTools
         public bool dryRun = true;
         public bool writeLog = true;
         public bool applyToPrefabAssets = true;
+        public bool readyToApply;
 
         public bool applyAlbedoSize = true;
         public int albedoPc = 2048;
@@ -212,38 +213,38 @@ namespace KaleidoVR.EditorTools
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
-        public bool autoDetectNormalMaps = true;
+        public bool autoDetectNormalMaps = false;
         public bool autoLinearMaskMaps = true;
         public bool higherQualityNormalMaps = true;
-        public bool alphaIsTransparencyOnAlbedo = true;
+        public bool alphaIsTransparencyOnAlbedo = false;
 
         public bool optimizeMeshes = true;
         public bool meshEnableReadWrite = true;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
-        public bool meshWeldVertices = true;
+        public bool meshWeldVertices = false;
         public bool meshKeepBlendShapes = true;
         public bool meshDisableQuads = true;
         public bool meshDisableLightmapUVs = true;
         public bool meshDisableImportLightsCameras = true;
-        public bool meshOptimizeAnimation = true;
-        public bool applySkinWeights = true;
+        public bool meshOptimizeAnimation = false;
+        public bool applySkinWeights = false;
         public KaleidoSkinWeightChoice skinWeights = KaleidoSkinWeightChoice.FourBones;
 
         public bool optimizeRenderers = true;
         public bool rendererDisableUpdateWhenOffscreen = true;
-        public bool rendererDisableShadows = true;
-        public bool rendererDisableReceiveShadows = true;
-        public bool rendererDisableProbes = true;
+        public bool rendererDisableShadows = false;
+        public bool rendererDisableReceiveShadows = false;
+        public bool rendererDisableProbes = false;
         public bool rendererDisableMotionVectors = true;
-        public bool rendererForceBone4 = true;
+        public bool rendererForceBone4 = false;
         public bool rendererRecalculateBounds = false;
-        public bool optimizeParticles = true;
+        public bool optimizeParticles = false;
         public bool disableLightsOnAvatar = false;
 
         public bool optimizeAudio = true;
         public bool audioLoadInBackground = true;
-        public bool audioApplyVorbis = true;
+        public bool audioApplyVorbis = false;
         public float audioQuality = 0.7f;
 
         public bool optimizeAnimators = true;
@@ -264,6 +265,9 @@ namespace KaleidoVR.EditorTools
         public List<KaleidoModelInventoryItem> inventory = new List<KaleidoModelInventoryItem>();
         public string inventorySignature = "";
         public Vector2 inventoryScroll;
+        public List<KaleidoTextureUsage> textureUsages = new List<KaleidoTextureUsage>();
+        public Vector2 textureUsageScroll;
+        public string previewTexturePath = "";
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
         public static void ShowWindow()
@@ -363,22 +367,22 @@ namespace KaleidoVR.EditorTools
             textureEnableCrunch = false;
             textureApplyAniso = true;
             textureAniso = 1;
-            autoDetectNormalMaps = true;
+            autoDetectNormalMaps = false;
             autoLinearMaskMaps = true;
             higherQualityNormalMaps = true;
-            alphaIsTransparencyOnAlbedo = true;
+            alphaIsTransparencyOnAlbedo = false;
 
             optimizeMeshes = true;
             meshEnableReadWrite = true;
             meshOptimizePolygons = true;
             meshOptimizeVertices = true;
-            meshWeldVertices = true;
+            meshWeldVertices = false;
             meshKeepBlendShapes = true;
             meshDisableQuads = true;
             meshDisableLightmapUVs = true;
             meshDisableImportLightsCameras = true;
-            meshOptimizeAnimation = true;
-            applySkinWeights = true;
+            meshOptimizeAnimation = false;
+            applySkinWeights = false;
             applyMeshCompression = false;
             meshCompression = KaleidoMeshCompressionChoice.Off;
             meshForceHumanoid = false;
@@ -386,18 +390,20 @@ namespace KaleidoVR.EditorTools
 
             optimizeRenderers = true;
             rendererDisableUpdateWhenOffscreen = true;
-            rendererDisableReceiveShadows = true;
-            rendererDisableProbes = true;
+            rendererDisableShadows = false;
+            rendererDisableReceiveShadows = false;
+            rendererDisableProbes = false;
             rendererDisableMotionVectors = true;
+            rendererForceBone4 = false;
             rendererRecalculateBounds = false;
             applyToPrefabAssets = true;
-            optimizeParticles = true;
-            disableLightsOnAvatar = true;
+            optimizeParticles = false;
+            disableLightsOnAvatar = false;
 
             optimizeAudio = true;
             audioForceToMono = false;
             audioLoadInBackground = true;
-            audioApplyVorbis = true;
+            audioApplyVorbis = false;
             audioQuality = 0.7f;
 
             optimizeAnimators = true;
@@ -406,6 +412,8 @@ namespace KaleidoVR.EditorTools
             materialEnableGpuInstancing = false;
             disableCamerasOnAvatar = false;
             optimizeSceneExtras = false;
+            dryRun = true;
+            readyToApply = false;
 
             if (index == 0)
             {
@@ -417,22 +425,17 @@ namespace KaleidoVR.EditorTools
             else if (index == 1)
             {
                 SetTypeSizes(1024, 1024, 1024, 1024, 512, 512, 512, 512, 256, 256, 512, 512);
+                applySkinWeights = true;
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = true;
                 rendererForceBone4 = true;
-                disableCamerasOnAvatar = true;
-                optimizeMaterials = true;
-                materialEnableGpuInstancing = true;
             }
             else
             {
                 SetTypeSizes(2048, 1024, 2048, 1024, 1024, 512, 1024, 512, 512, 256, 1024, 512);
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
-                rendererDisableShadows = true;
-                rendererForceBone4 = true;
-                disableCamerasOnAvatar = true;
-                optimizeMaterials = true;
-                materialEnableGpuInstancing = true;
+                rendererDisableShadows = false;
+                rendererForceBone4 = false;
             }
         }
 
@@ -563,13 +566,8 @@ namespace KaleidoVR.EditorTools
                 rendererDisableProbes = p.rendererDisableProbes;
                 rendererDisableMotionVectors = p.rendererDisableMotionVectors;
                 rendererForceBone4 = p.rendererForceBone4;
-                rendererRecalculateBounds = p.rendererRecalculateBounds;
                 applyToPrefabAssets = p.applyToPrefabAssets;
                 optimizeParticles = p.optimizeParticles;
-                disableLightsOnAvatar = p.disableLightsOnAvatar;
-                optimizeMaterials = p.optimizeMaterials;
-                materialEnableGpuInstancing = p.materialEnableGpuInstancing;
-                disableCamerasOnAvatar = p.disableCamerasOnAvatar;
             }
             if (aud)
             {
@@ -589,6 +587,11 @@ namespace KaleidoVR.EditorTools
                 meshCompression = p.meshCompression;
                 meshForceHumanoid = p.meshForceHumanoid;
                 meshStripBlendShapes = p.meshStripBlendShapes;
+                rendererRecalculateBounds = p.rendererRecalculateBounds;
+                optimizeMaterials = p.optimizeMaterials;
+                materialEnableGpuInstancing = p.materialEnableGpuInstancing;
+                disableLightsOnAvatar = p.disableLightsOnAvatar;
+                disableCamerasOnAvatar = p.disableCamerasOnAvatar;
                 audioForceToMono = p.audioForceToMono;
                 textureEnableCrunch = p.textureEnableCrunch;
             }
@@ -597,6 +600,11 @@ namespace KaleidoVR.EditorTools
                 applyMeshCompression = false;
                 meshForceHumanoid = false;
                 meshStripBlendShapes = false;
+                rendererRecalculateBounds = false;
+                optimizeMaterials = false;
+                materialEnableGpuInstancing = false;
+                disableLightsOnAvatar = false;
+                disableCamerasOnAvatar = false;
                 audioForceToMono = false;
                 textureEnableCrunch = false;
             }
@@ -643,7 +651,7 @@ namespace KaleidoVR.EditorTools
             builtinPresetIndex = GetInt("Builtin", 2);
             selectedUserProfile = GetInt("UserProf", -1);
             newProfileName = EditorPrefs.HasKey(PrefsPrefix + "NewName") ? EditorPrefs.GetString(PrefsPrefix + "NewName") : "My Profile";
-            dryRun = GetBool("DryRun", true);
+            dryRun = true;
             writeLog = GetBool("WriteLog", true);
             applyToPrefabAssets = GetBool("ApplyPrefabs", true);
             includeTextures = GetBool("IncTex", true);
@@ -678,10 +686,10 @@ namespace KaleidoVR.EditorTools
             textureEnableCrunch = GetBool("TexCrunchOn", false);
             textureApplyAniso = GetBool("TexAnisoOn", true);
             textureAniso = GetInt("TexAniso", 1);
-            autoDetectNormalMaps = GetBool("TexNorm", true);
+            autoDetectNormalMaps = GetBool("TexNorm", false);
             autoLinearMaskMaps = GetBool("TexLinear", true);
             higherQualityNormalMaps = GetBool("TexNormHQ", true);
-            alphaIsTransparencyOnAlbedo = GetBool("TexAlpha", true);
+            alphaIsTransparencyOnAlbedo = GetBool("TexAlpha", false);
 
             optimizeMeshes = GetBool("OptMesh", true);
             applyMeshCompression = GetBool("MeshCompOn", false);
@@ -689,30 +697,30 @@ namespace KaleidoVR.EditorTools
             meshEnableReadWrite = GetBool("MeshEnableRW", true);
             meshOptimizePolygons = GetBool("MeshPoly", true);
             meshOptimizeVertices = GetBool("MeshVert", true);
-            meshWeldVertices = GetBool("MeshWeld", true);
+            meshWeldVertices = GetBool("MeshWeld", false);
             meshKeepBlendShapes = GetBool("MeshBS", true);
             meshStripBlendShapes = GetBool("MeshBSOff", false);
             meshDisableQuads = GetBool("MeshQuads", true);
             meshDisableLightmapUVs = GetBool("MeshLM", true);
             meshDisableImportLightsCameras = GetBool("MeshLC", true);
-            meshOptimizeAnimation = GetBool("MeshAnim", true);
-            applySkinWeights = GetBool("SkinOn", true);
+            meshOptimizeAnimation = GetBool("MeshAnim", false);
+            applySkinWeights = GetBool("SkinOn", false);
             skinWeights = (KaleidoSkinWeightChoice)GetInt("SkinW", (int)KaleidoSkinWeightChoice.FourBones);
             meshForceHumanoid = GetBool("MeshHum", false);
 
             optimizeRenderers = GetBool("OptRend", true);
             rendererDisableUpdateWhenOffscreen = GetBool("RendOff", true);
-            rendererDisableShadows = GetBool("RendShad", true);
-            rendererDisableReceiveShadows = GetBool("RendRecv", true);
-            rendererDisableProbes = GetBool("RendProbe", true);
+            rendererDisableShadows = GetBool("RendShad", false);
+            rendererDisableReceiveShadows = GetBool("RendRecv", false);
+            rendererDisableProbes = GetBool("RendProbe", false);
             rendererDisableMotionVectors = GetBool("RendMV", true);
-            rendererForceBone4 = GetBool("RendBone4", true);
+            rendererForceBone4 = GetBool("RendBone4", false);
             rendererRecalculateBounds = GetBool("RendBounds", false);
 
             optimizeAudio = GetBool("OptAud", true);
             audioForceToMono = GetBool("AudMono", false);
             audioLoadInBackground = GetBool("AudBG", true);
-            audioApplyVorbis = GetBool("AudVorb", true);
+            audioApplyVorbis = GetBool("AudVorb", false);
             audioQuality = EditorPrefs.HasKey(PrefsPrefix + "AudQ") ? EditorPrefs.GetFloat(PrefsPrefix + "AudQ") : 0.7f;
 
             optimizeAnimators = GetBool("OptAnim", true);
@@ -722,9 +730,9 @@ namespace KaleidoVR.EditorTools
             materialEnableGpuInstancing = GetBool("MatGPU", false);
 
             optimizeSceneExtras = GetBool("OptExtra", false);
-            disableLightsOnAvatar = GetBool("ExtraLight", true);
+            disableLightsOnAvatar = GetBool("ExtraLight", false);
             disableCamerasOnAvatar = GetBool("ExtraCam", false);
-            optimizeParticles = GetBool("ExtraPart", true);
+            optimizeParticles = GetBool("ExtraPart", false);
         }
 
         public void SaveEditorPreferences()
@@ -848,6 +856,7 @@ namespace KaleidoVR.EditorTools
             if (EditorGUI.EndChangeCheck())
             {
                 inventorySignature = "";
+                readyToApply = false;
                 SaveEditorPreferences();
             }
         }
@@ -895,6 +904,31 @@ namespace KaleidoVR.EditorTools
     }
 
     [Serializable]
+    public class KaleidoTextureLink
+    {
+        public UnityEngine.Object sceneObject;
+        public Material material;
+        public string propertyName;
+    }
+
+    [Serializable]
+    public class KaleidoTextureUsage
+    {
+        public string path;
+        public Texture texture;
+        public KaleidoTextureKind kind;
+        public int sourceWidth;
+        public int sourceHeight;
+        public int currentPc;
+        public int currentQuest;
+        public int pcSize;
+        public int questSize;
+        public bool usedCustomPc;
+        public bool usedCustomQuest;
+        public List<KaleidoTextureLink> links = new List<KaleidoTextureLink>();
+    }
+
+    [Serializable]
     public class KaleidoOptimizerReport
     {
         public int targetRoots;
@@ -928,6 +962,12 @@ namespace KaleidoVR.EditorTools
         private static readonly int[] TextureSizes = { 256, 512, 1024, 2048, 4096 };
         private static readonly string[] TextureSizeLabels = { "256", "512", "1024", "2048", "4096" };
         private static readonly string[] BuiltinNames = { "PC", "Quest", "Dual Platform" };
+        private static readonly string[] BuiltinSummaries =
+        {
+            "Booth-safe PC start. Caps maps at 2K, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
+            "Quest start. 1K body maps, ASTC, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
+            "Booth-safe dual start. 2K PC / 1K Quest body maps. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off."
+        };
 
         private static GUIStyle miniWrap;
 
@@ -955,7 +995,7 @@ namespace KaleidoVR.EditorTools
         public static void DrawTabs(KaleidoVRCOptimizer window)
         {
             DrawTabRow(window, new[] { "Setup", "Profiles", "Rank", "Textures" }, 0);
-            DrawTabRow(window, new[] { "Meshes", "Scene", "Special" }, 4);
+            DrawTabRow(window, new[] { "Quest", "Meshes", "Scene", "Special" }, 4);
         }
 
         private static void DrawTabRow(KaleidoVRCOptimizer window, string[] names, int offset)
@@ -983,8 +1023,9 @@ namespace KaleidoVR.EditorTools
                 case 1: DrawProfilesTab(window); break;
                 case 2: DrawRankTab(window); break;
                 case 3: DrawTexturesTab(window); break;
-                case 4: DrawMeshesTab(window); break;
-                case 5: DrawSceneTab(window); break;
+                case 4: DrawQuestTab(window); break;
+                case 5: DrawMeshesTab(window); break;
+                case 6: DrawSceneTab(window); break;
                 default: DrawSpecialTab(window); break;
             }
             EditorGUIUtility.labelWidth = originalLabelWidth;
@@ -1006,32 +1047,44 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Run Safety", EditorStyles.boldLabel);
-            window.dryRun = DrawToggle(window.dryRun, "Dry Run (log only, no writes)", "Use this first. Lists every importer/renderer change without touching files.");
+            DrawWhy("Always dry-run first. Apply Optimizations only appears after a dry run finishes. Special-tab options stay off unless you turn them on.");
             window.writeLog = DrawToggle(window.writeLog, "Write Log File", "Saves a timestamped report under Logs/KaleidoVR/Optimizer.");
             window.applyToPrefabAssets = DrawToggle(window.applyToPrefabAssets, "Apply renderer changes to prefab assets", "Writes Scene-tab renderer edits onto the .prefab, not only the scene instance. Turn off to test on the instance first.");
         }
 
         private static void DrawProfilesTab(KaleidoVRCOptimizer window)
         {
-            GUILayout.Label("Profile Selector", EditorStyles.boldLabel);
-            DrawWhy("Built-in profiles load recommended values. User profiles remember which options you ticked and which categories to apply.");
+            GUILayout.Label("Profiles", EditorStyles.boldLabel);
+            DrawWhy("A profile is a saved set of tab settings. Pick a built-in to start, tick which tabs it should change, then save your own if you want to reuse it.");
 
-            int builtin = EditorGUILayout.Popup("Built-in Profile", window.builtinPresetIndex, BuiltinNames);
-            if (builtin != window.builtinPresetIndex)
-            {
-                window.ApplyBuiltinPreset(builtin);
-            }
-            EditorGUILayout.LabelField(
-                builtin == 0 ? "PC: 2K maps, HQ compression, shadows allowed, unlimited bone weights."
-                : builtin == 1 ? "Quest: 1K body maps, 512 masks, ASTC, 4 bone weights, shadows off."
-                : "Dual: 2K PC / 1K Quest on body maps. Masks one step smaller. Cross-platform default.",
-                MiniWrap());
+            EditorGUILayout.HelpBox(DescribeActiveProfile(window), MessageType.Info);
 
             GUILayout.Space(8);
-            GUILayout.Label("User Profiles", EditorStyles.boldLabel);
+            GUILayout.Label("1. Start from a built-in", EditorStyles.boldLabel);
+            DrawWhy("Click one to fill every tab with that recipe. Special stays off. You can still tweak tabs afterward.");
+
+            EditorGUILayout.BeginHorizontal();
+            for (int i = 0; i < BuiltinNames.Length; i++)
+            {
+                bool on = window.selectedUserProfile < 0 && window.builtinPresetIndex == i;
+                if (GUILayout.Toggle(on, BuiltinNames[i], EditorStyles.miniButton, GUILayout.Height(26), GUILayout.ExpandWidth(true)))
+                {
+                    if (window.selectedUserProfile >= 0 || window.builtinPresetIndex != i)
+                    {
+                        window.ApplyBuiltinPreset(i);
+                    }
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField(BuiltinSummaries[Mathf.Clamp(window.builtinPresetIndex, 0, BuiltinSummaries.Length - 1)], MiniWrap());
+
+            GUILayout.Space(10);
+            GUILayout.Label("2. Or open a profile you saved", EditorStyles.boldLabel);
+            DrawWhy("Saved profiles live in this Unity project (EditorPrefs). Choosing one applies it immediately, but only overwrites the tabs ticked in step 3.");
+
             string[] userNames = GetUserProfileNames(window);
             int userIndex = window.selectedUserProfile + 1;
-            int picked = EditorGUILayout.Popup("Saved Profile", userIndex, userNames);
+            int picked = EditorGUILayout.Popup("Your profiles", userIndex, userNames);
             if (picked != userIndex)
             {
                 window.selectedUserProfile = picked - 1;
@@ -1042,49 +1095,89 @@ namespace KaleidoVR.EditorTools
                 }
             }
 
-            window.newProfileName = EditorGUILayout.TextField("Profile Name", window.newProfileName);
+            if (window.selectedUserProfile >= 0)
+            {
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Apply again", GUILayout.Height(22)))
+                {
+                    window.LoadProfile(window.userProfiles.profiles[window.selectedUserProfile], true);
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(10);
+            GUILayout.Label("3. When this profile loads, change these tabs", EditorStyles.boldLabel);
+            DrawWhy("Unchecked tabs keep whatever you already set. Tick only what this recipe should overwrite. Special never runs unless you tick it.");
+
+            window.includeTextures = EditorGUILayout.ToggleLeft("Textures tab  —  PC sizes, compression, mip maps, and Quest max sizes", window.includeTextures);
+            window.includeMeshes = EditorGUILayout.ToggleLeft("Meshes tab  —  read/write, weld, blend shapes, skin weights", window.includeMeshes);
+            window.includeRenderers = EditorGUILayout.ToggleLeft("Scene + Quest renderer options  —  offscreen, probes, particles, Quest shadows, 4-bone quality", window.includeRenderers);
+            window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
+            window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
+            DrawSpecialUseCaseHeader();
+            window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
+            DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
+
+            GUILayout.Space(10);
+            GUILayout.Label("4. Save the current tabs as your profile", EditorStyles.boldLabel);
+            DrawWhy("Stores the settings that are on the tabs right now, plus the checkboxes above.");
+
+            window.newProfileName = EditorGUILayout.TextField("Name", window.newProfileName);
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Save Current As New"))
+            if (GUILayout.Button("Save as new", GUILayout.Height(24)))
             {
                 SaveNewProfile(window);
             }
             EditorGUI.BeginDisabledGroup(window.selectedUserProfile < 0);
-            if (GUILayout.Button("Overwrite Selected"))
+            if (GUILayout.Button("Overwrite selected", GUILayout.Height(24)))
             {
-                OverwriteSelectedProfile(window);
+                if (EditorUtility.DisplayDialog(
+                    "Overwrite profile?",
+                    "Replace \"" + SelectedProfileName(window) + "\" with the settings currently on the tabs?",
+                    "Overwrite",
+                    "Cancel"))
+                {
+                    OverwriteSelectedProfile(window);
+                }
             }
-            if (GUILayout.Button("Delete Selected"))
+            if (GUILayout.Button("Delete selected", GUILayout.Height(24)))
             {
-                DeleteSelectedProfile(window);
+                if (EditorUtility.DisplayDialog(
+                    "Delete profile?",
+                    "Delete \"" + SelectedProfileName(window) + "\"? This cannot be undone.",
+                    "Delete",
+                    "Cancel"))
+                {
+                    DeleteSelectedProfile(window);
+                }
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+        }
 
-            GUILayout.Space(8);
-            GUILayout.Label("Designer — categories this profile applies", EditorStyles.boldLabel);
-            DrawWhy("Unchecked categories are left as they currently are when you load this profile. Special Use Case stays off unless you include it.");
-            window.includeTextures = EditorGUILayout.ToggleLeft("Textures (sizes, compression, mip maps)", window.includeTextures);
-            window.includeMeshes = EditorGUILayout.ToggleLeft("Meshes (read/write, weld, skin weights)", window.includeMeshes);
-            window.includeRenderers = EditorGUILayout.ToggleLeft("Scene renderers (shadows, probes, offscreen)", window.includeRenderers);
-            window.includeAudio = EditorGUILayout.ToggleLeft("Audio importers", window.includeAudio);
-            window.includeAnimators = EditorGUILayout.ToggleLeft("Animator culling", window.includeAnimators);
-            DrawSpecialUseCaseHeader();
-            window.includeSpecial = EditorGUILayout.ToggleLeft("Special Use Case options", window.includeSpecial);
-            DrawWhy("Includes mesh compression, force Humanoid, strip blend shapes, GPU instancing, disable cameras, force mono, crunch.");
-
-            GUILayout.Space(6);
-            if (GUILayout.Button("Load Profile Into Editor Tabs", GUILayout.Height(26)))
+        private static string DescribeActiveProfile(KaleidoVRCOptimizer window)
+        {
+            if (window.selectedUserProfile >= 0)
             {
-                if (window.selectedUserProfile >= 0)
-                    window.LoadProfile(window.userProfiles.profiles[window.selectedUserProfile], true);
-                else
-                    window.ApplyBuiltinPreset(window.builtinPresetIndex);
+                return "Active: your profile \"" + SelectedProfileName(window) + "\". Other tabs match this save, except tabs you left unticked in step 3.";
             }
+            string builtin = BuiltinNames[Mathf.Clamp(window.builtinPresetIndex, 0, BuiltinNames.Length - 1)];
+            return "Active: built-in " + builtin + ". Special is off. Use step 4 if you want to keep your tweaks.";
+        }
+
+        private static string SelectedProfileName(KaleidoVRCOptimizer window)
+        {
+            if (window.selectedUserProfile < 0 || window.userProfiles == null || window.userProfiles.profiles == null)
+                return "";
+            if (window.selectedUserProfile >= window.userProfiles.profiles.Length) return "";
+            KaleidoOptimizerProfile profile = window.userProfiles.profiles[window.selectedUserProfile];
+            if (profile == null || string.IsNullOrEmpty(profile.name)) return "(unnamed)";
+            return profile.name;
         }
 
         private static string[] GetUserProfileNames(KaleidoVRCOptimizer window)
         {
-            var names = new List<string> { "(none — using built-in)" };
+            var names = new List<string> { "None — using the built-in above" };
             if (window.userProfiles != null && window.userProfiles.profiles != null)
             {
                 foreach (KaleidoOptimizerProfile profile in window.userProfiles.profiles)
@@ -1097,12 +1190,19 @@ namespace KaleidoVR.EditorTools
 
         private static void SaveNewProfile(KaleidoVRCOptimizer window)
         {
+            string name = window.newProfileName != null ? window.newProfileName.Trim() : "";
+            if (string.IsNullOrEmpty(name))
+            {
+                EditorUtility.DisplayDialog("Name this profile", "Type a name before saving.", "OK");
+                return;
+            }
             List<KaleidoOptimizerProfile> list = new List<KaleidoOptimizerProfile>();
             if (window.userProfiles != null && window.userProfiles.profiles != null) list.AddRange(window.userProfiles.profiles);
-            KaleidoOptimizerProfile created = window.CaptureProfile(window.newProfileName);
+            KaleidoOptimizerProfile created = window.CaptureProfile(name);
             list.Add(created);
             window.userProfiles.profiles = list.ToArray();
             window.selectedUserProfile = list.Count - 1;
+            window.newProfileName = name;
             window.SaveUserProfiles();
         }
 
@@ -1134,32 +1234,39 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawTexturesTab(KaleidoVRCOptimizer window)
         {
-            window.optimizeTextures = DrawToggle(window.optimizeTextures, "Process texture importers", "Master switch for this tab. Off = skip every texture even if rows below are ticked.");
+            window.RefreshInventoryIfNeeded();
+            KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
+
+            window.optimizeTextures = DrawToggle(window.optimizeTextures, "Process texture importers", "Master switch for PC and Quest texture writes. Off = skip every texture even if rows below are ticked.");
             EditorGUI.BeginDisabledGroup(!window.optimizeTextures);
 
             GUILayout.Space(6);
-            GUILayout.Label("Max Size By Texture Type", EditorStyles.boldLabel);
-            DrawWhy("Unity downscales on import. VRChat counts the imported size toward texture memory. Uncheck a type to leave that type's resolution alone.");
+            GUILayout.Label("PC Max Size By Texture Type", EditorStyles.boldLabel);
+            DrawWhy("PC defaults. Changing them updates textures you have not customized in the list. Quest sizes live on the Quest tab.");
 
-            DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. VRChat Android docs: stay at 1024 or below. Suggested PC 1024–2048, Quest 512–1024.", ref window.albedoPc, ref window.albedoQuest);
-            DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Bump maps. Match albedo, or one step below if memory is tight. Suggested PC 1024–2048, Quest 512–1024.", ref window.normalPc, ref window.normalQuest);
-            DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Packed masks are blur-tolerant. Suggested PC 512–1024, Quest 256–512.", ref window.maskPc, ref window.maskQuest);
-            DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Glow maps. Suggested PC 512–1024, Quest 256–512.", ref window.emissionPc, ref window.emissionQuest);
-            DrawTypeSizeRow(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512 on both platforms.", ref window.matcapPc, ref window.matcapQuest);
-            DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested PC 512–1024, Quest 512.", ref window.otherPc, ref window.otherQuest);
+            DrawTypeSizeRowPc(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. Suggested PC 1024–2048.", ref window.albedoPc);
+            DrawTypeSizeRowPc(ref window.applyNormalSize, "Normal", "Bump maps. Match albedo, or one step below if memory is tight.", ref window.normalPc);
+            DrawTypeSizeRowPc(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Packed masks are blur-tolerant. Suggested PC 512–1024.", ref window.maskPc);
+            DrawTypeSizeRowPc(ref window.applyEmissionSize, "Emission", "Glow maps. Suggested PC 512–1024.", ref window.emissionPc);
+            DrawTypeSizeRowPc(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512.", ref window.matcapPc);
+            DrawTypeSizeRowPc(ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested PC 512–1024.", ref window.otherPc);
+
+            KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
 
             GUILayout.Space(8);
-            GUILayout.Label("Importer Settings", EditorStyles.boldLabel);
+            DrawTextureUsageList(window, false);
+            DrawTexturePreview(window);
+
+            GUILayout.Space(8);
+            GUILayout.Label("PC Importer Settings", EditorStyles.boldLabel);
             window.applyPcTexFormat = DrawToggle(window.applyPcTexFormat, "Set PC compression", "Compressed HQ / BC7 is the usual PC choice. Leave off to keep each texture's current PC format.");
             if (window.applyPcTexFormat) window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.EnumPopup("PC Format", window.pcTexFormat);
-            window.applyAndroidTexFormat = DrawToggle(window.applyAndroidTexFormat, "Set Android / Quest format", "ASTC 6x6 is the usual Quest balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
-            if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Android Format", window.androidTexFormat);
 
             window.textureDisableReadWrite = DrawToggle(window.textureDisableReadWrite, "Disable Read / Write", "Saves RAM. Turn off only if a script or editor tool reads pixels from the texture.");
             window.textureApplyMipmaps = DrawToggle(window.textureApplyMipmaps, "Set mip maps", "Avatars in 3D should generate mip maps. Uncheck to leave each texture as-is.");
             if (window.textureApplyMipmaps) window.textureEnableMipmaps = EditorGUILayout.Toggle("Generate Mip Maps", window.textureEnableMipmaps);
             window.textureDisableStreamingMipmaps = DrawToggle(window.textureDisableStreamingMipmaps, "Disable streaming mip maps", "Avatar textures should stay resident. Streaming is for large world textures.");
-            window.textureDisableCrunch = DrawToggle(window.textureDisableCrunch, "Disable crunch compression", "Crunch does not reduce VRChat texture memory (the rank metric). It only shrinks download size and costs CPU. Keep it off.");
+            window.textureDisableCrunch = DrawToggle(window.textureDisableCrunch, "Disable crunch compression", "Crunch does not reduce VRChat texture memory. Enable crunch only on the Special tab.");
             window.textureApplyAniso = DrawToggle(window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
             if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
             window.autoDetectNormalMaps = DrawToggle(window.autoDetectNormalMaps, "Detect normal maps by name", "Sets Texture Type to Normal Map when the file looks like _n / _norm / _normal. Prevents sRGB lighting errors.");
@@ -1169,7 +1276,189 @@ namespace KaleidoVR.EditorTools
             EditorGUI.EndDisabledGroup();
         }
 
-        private static void DrawTypeSizeRow(ref bool apply, string title, string why, ref int pc, ref int quest)
+        private static void DrawQuestTab(KaleidoVRCOptimizer window)
+        {
+            window.RefreshInventoryIfNeeded();
+            KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
+
+            GUILayout.Label("Quest / Android", EditorStyles.boldLabel);
+            DrawWhy("Android and Quest overrides only. PC sizes stay on the Textures tab. GPU instancing, lights, cameras, and crunch are Special Use Case.");
+
+            if (window.lastReport != null)
+            {
+                EditorGUILayout.LabelField("Quest Rank", window.lastReport.questRank);
+            }
+
+            window.optimizeTextures = DrawToggle(window.optimizeTextures, "Process texture importers", "Same master switch as Textures. Off = skip Quest max-size writes too.");
+            EditorGUI.BeginDisabledGroup(!window.optimizeTextures);
+
+            GUILayout.Space(6);
+            GUILayout.Label("Quest Max Size By Texture Type", EditorStyles.boldLabel);
+            DrawWhy("VRChat Android docs: stay at 1024 or below. Changing these updates textures you have not customized in the list.");
+
+            DrawTypeSizeRowQuest(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Suggested Quest 512–1024.", ref window.albedoQuest);
+            DrawTypeSizeRowQuest(ref window.applyNormalSize, "Normal", "Suggested Quest 512–1024.", ref window.normalQuest);
+            DrawTypeSizeRowQuest(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Suggested Quest 256–512.", ref window.maskQuest);
+            DrawTypeSizeRowQuest(ref window.applyEmissionSize, "Emission", "Suggested Quest 256–512.", ref window.emissionQuest);
+            DrawTypeSizeRowQuest(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Suggested 256–512.", ref window.matcapQuest);
+            DrawTypeSizeRowQuest(ref window.applyOtherSize, "Other / Unclassified", "Suggested Quest 512.", ref window.otherQuest);
+
+            KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
+
+            GUILayout.Space(8);
+            DrawTextureUsageList(window, true);
+            DrawTexturePreview(window);
+
+            GUILayout.Space(8);
+            GUILayout.Label("Android / Quest Format", EditorStyles.boldLabel);
+            window.applyAndroidTexFormat = DrawToggle(window.applyAndroidTexFormat, "Set Android / Quest format", "ASTC 6x6 is the usual Quest balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
+            if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Android Format", window.androidTexFormat);
+            EditorGUI.EndDisabledGroup();
+
+            GUILayout.Space(8);
+            GUILayout.Label("Quest Renderers", EditorStyles.boldLabel);
+            window.optimizeRenderers = DrawToggle(window.optimizeRenderers, "Process skinned / mesh renderers", "Master switch shared with the Scene tab.");
+            EditorGUI.BeginDisabledGroup(!window.optimizeRenderers);
+            window.rendererDisableShadows = DrawToggle(window.rendererDisableShadows, "Disable shadow casting", "Quest default. Uncheck on a PC-only avatar if you want it to cast shadows.");
+            window.rendererForceBone4 = DrawToggle(window.rendererForceBone4, "Force 4 bone quality on skinned meshes", "Caps GPU skinning at 4 influences. Match Quest. Uncheck on a PC-only avatar if you authored more weights.");
+            EditorGUI.EndDisabledGroup();
+        }
+
+        private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
+        {
+            GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
+            DrawWhy(questPlatform
+                ? "Same textures as the Textures tab. Quest dropdowns only. Click a thumbnail for preview, materials, and objects."
+                : "Every texture this avatar actually samples. Click a thumbnail for a larger view plus the materials and objects that use it. PC dropdown is the max size that will be applied.");
+
+            if (window.textureUsages == null || window.textureUsages.Count == 0)
+            {
+                EditorGUILayout.HelpBox("Drop an avatar on Setup. Its textures will list here.", MessageType.None);
+                return;
+            }
+
+            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.MinHeight(160), GUILayout.MaxHeight(360));
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null) continue;
+
+                bool selected = !string.IsNullOrEmpty(window.previewTexturePath)
+                    && string.Equals(window.previewTexturePath, usage.path, StringComparison.OrdinalIgnoreCase);
+
+                EditorGUILayout.BeginVertical(selected ? EditorStyles.helpBox : GUI.skin.box);
+                EditorGUILayout.BeginHorizontal();
+
+                Rect thumb = GUILayoutUtility.GetRect(52, 52, GUILayout.Width(52), GUILayout.Height(52));
+                if (usage.texture != null)
+                {
+                    if (GUI.Button(thumb, usage.texture))
+                    {
+                        window.previewTexturePath = usage.path;
+                        EditorGUIUtility.PingObject(usage.texture);
+                    }
+                }
+                else
+                {
+                    GUI.Box(thumb, "?");
+                }
+
+                EditorGUILayout.BeginVertical();
+                GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel);
+                GUILayout.Label(KindLabel(usage.kind) + "  ·  now PC " + usage.currentPc + " / Quest " + usage.currentQuest
+                    + (usage.sourceWidth > 0 ? "  ·  " + usage.sourceWidth + "×" + usage.sourceHeight : ""), MiniWrap());
+                EditorGUILayout.BeginHorizontal();
+                if (questPlatform)
+                {
+                    GUILayout.Label("Quest", GUILayout.Width(40));
+                    int quest = SizePopup(usage.questSize);
+                    if (quest != usage.questSize)
+                    {
+                    usage.questSize = quest;
+                    usage.usedCustomQuest = true;
+                    }
+                }
+                else
+                {
+                    GUILayout.Label("PC", GUILayout.Width(28));
+                    int pc = SizePopup(usage.pcSize);
+                    if (pc != usage.pcSize)
+                    {
+                    usage.pcSize = pc;
+                    usage.usedCustomPc = true;
+                    }
+                }
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                GUILayout.Space(2);
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawTexturePreview(KaleidoVRCOptimizer window)
+        {
+            KaleidoTextureUsage usage = KaleidoVRCOptimizerLogic.FindTextureUsage(window, window.previewTexturePath);
+            if (usage == null) return;
+
+            GUILayout.Space(6);
+            GUILayout.Label("Texture Preview", EditorStyles.boldLabel);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            EditorGUILayout.ObjectField("Texture", usage.texture, typeof(Texture), false);
+            GUILayout.Label(usage.path, MiniWrap());
+            GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel);
+
+            Rect preview = GUILayoutUtility.GetRect(16, 220, GUILayout.ExpandWidth(true), GUILayout.Height(220));
+            if (usage.texture != null)
+            {
+                EditorGUI.DrawPreviewTexture(preview, usage.texture, null, ScaleMode.ScaleToFit);
+            }
+
+            GUILayout.Space(4);
+            GUILayout.Label("Linked Materials And Objects", EditorStyles.miniBoldLabel);
+            if (usage.links == null || usage.links.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No renderer on this avatar samples this texture (it may still be a dependency of a material or nested asset).", MessageType.None);
+            }
+            else
+            {
+                int shown = Math.Min(usage.links.Count, 16);
+                for (int i = 0; i < shown; i++)
+                {
+                    KaleidoTextureLink link = usage.links[i];
+                    if (link == null) continue;
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.ObjectField(link.sceneObject, typeof(UnityEngine.Object), true, GUILayout.MinWidth(120));
+                    EditorGUILayout.ObjectField(link.material, typeof(Material), false, GUILayout.MinWidth(120));
+                    GUILayout.Label(string.IsNullOrEmpty(link.propertyName) ? "(slot)" : link.propertyName, GUILayout.Width(110));
+                    EditorGUILayout.EndHorizontal();
+                }
+                if (usage.links.Count > shown)
+                {
+                    GUILayout.Label("… " + (usage.links.Count - shown) + " more", EditorStyles.miniLabel);
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private static string KindLabel(KaleidoTextureKind kind)
+        {
+            switch (kind)
+            {
+                case KaleidoTextureKind.Albedo: return "Albedo";
+                case KaleidoTextureKind.Normal: return "Normal";
+                case KaleidoTextureKind.Mask: return "Mask";
+                case KaleidoTextureKind.Emission: return "Emission";
+                case KaleidoTextureKind.Matcap: return "Matcap";
+                default: return "Other";
+            }
+        }
+
+        private static void DrawTypeSizeRowPc(ref bool apply, string title, string why, ref int pc)
         {
             apply = EditorGUILayout.ToggleLeft(title, apply);
             DrawWhy(why);
@@ -1178,8 +1467,20 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(18);
             GUILayout.Label("PC", GUILayout.Width(36));
             pc = SizePopup(pc);
-            GUILayout.Space(16);
-            GUILayout.Label("Quest", GUILayout.Width(36));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.EndDisabledGroup();
+            GUILayout.Space(4);
+        }
+
+        private static void DrawTypeSizeRowQuest(ref bool apply, string title, string why, ref int quest)
+        {
+            apply = EditorGUILayout.ToggleLeft(title, apply);
+            DrawWhy(why);
+            EditorGUI.BeginDisabledGroup(!apply);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(18);
+            GUILayout.Label("Quest", GUILayout.Width(40));
             quest = SizePopup(quest);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
@@ -1211,11 +1512,9 @@ namespace KaleidoVR.EditorTools
             window.optimizeRenderers = DrawToggle(window.optimizeRenderers, "Process skinned / mesh renderers", "Master switch for this section.");
             EditorGUI.BeginDisabledGroup(!window.optimizeRenderers);
             window.rendererDisableUpdateWhenOffscreen = DrawToggle(window.rendererDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Big CPU win. Unity keeps animating skinned meshes that are culled if this stays on. Turn off only for meshes that must stay posed while hidden.");
-            window.rendererDisableShadows = DrawToggle(window.rendererDisableShadows, "Disable shadow casting", "Quest default. On PC, uncheck if you want the avatar to cast shadows.");
             window.rendererDisableReceiveShadows = DrawToggle(window.rendererDisableReceiveShadows, "Disable receive shadows", "Avatars often skip receiving world shadows. Uncheck if you want contact shadows on the body.");
             window.rendererDisableProbes = DrawToggle(window.rendererDisableProbes, "Disable light / reflection probes", "Stops per-renderer probe sampling. Worlds still light the avatar through VRChat's lighting; this cuts extra probe work.");
             window.rendererDisableMotionVectors = DrawToggle(window.rendererDisableMotionVectors, "Disable motion vectors", "VRChat does not use camera motion blur on avatars. Safe to force off.");
-            window.rendererForceBone4 = DrawToggle(window.rendererForceBone4, "Force 4 bone quality on skinned meshes", "Caps GPU skinning at 4 influences. Match Quest. Uncheck on a PC-only avatar if you authored more weights.");
             EditorGUI.EndDisabledGroup();
 
             GUILayout.Space(8);
@@ -1237,16 +1536,13 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Particles", EditorStyles.boldLabel);
             window.optimizeParticles = DrawToggle(window.optimizeParticles, "Strip particle shadows / motion vectors", "Particles on avatars rarely need shadows. Uncheck if a VFX specifically uses them.");
-            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat PC Excellent allows 0 lights. Android/Quest strips avatar lights entirely.");
-            window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Set GPU instancing on materials", "VRChat Android docs: enable GPU instancing on materials. Has little effect on skinned meshes but is the recommended default for Quest.");
-            if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
         }
 
         private static void DrawSpecialTab(KaleidoVRCOptimizer window)
         {
             DrawSpecialUseCaseHeader();
-            EditorGUILayout.HelpBox("These can break visemes, custom bounds, lighting, or audio. Leave them off unless you know you need them.", MessageType.Warning);
+            EditorGUILayout.HelpBox("These can break visemes, custom bounds, lighting, audio, or Quest-only material writes. Leave them off unless you know you need them. They only apply when Special is included on the profile.", MessageType.Warning);
 
             window.applyMeshCompression = DrawToggle(window.applyMeshCompression, "Apply mesh compression", "Unity's mesh compressor distorts blend shapes. Only for static props with no visemes.");
             if (window.applyMeshCompression) window.meshCompression = (KaleidoMeshCompressionChoice)EditorGUILayout.EnumPopup("Compression Level", window.meshCompression);
@@ -1254,6 +1550,11 @@ namespace KaleidoVR.EditorTools
             window.meshForceHumanoid = DrawToggle(window.meshForceHumanoid, "Force Humanoid rig", "Rewrites the FBX avatar to Humanoid. Can destroy a working Generic/Humanoid mapping. Prefer the Rig tab in the importer.");
             window.meshStripBlendShapes = DrawToggle(window.meshStripBlendShapes, "Disable blend shape import", "Turns blend shapes off on the model. Breaks visemes and face tracking. Only for meshes that truly have none you need.");
             window.rendererRecalculateBounds = DrawToggle(window.rendererRecalculateBounds, "Recalculate skinned bounds", "Resets local bounds from the mesh AABB. Breaks meshes that used oversized bounds so toggled parts stay visible.");
+
+            window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Set GPU instancing on materials", "Writes enableInstancing on .mat files. VRChat Android docs recommend this. Little effect on skinned meshes.");
+            if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
+
+            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat PC Excellent allows 0 lights. Android/Quest strips avatar lights entirely. Can change how the avatar looks.");
             window.disableCamerasOnAvatar = DrawToggle(window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Android/Quest disable avatar cameras. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
             window.audioForceToMono = DrawToggle(window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX. Audio sources are disabled on Android avatars.");
             window.textureEnableCrunch = DrawToggle(window.textureEnableCrunch, "Enable crunch compression", "Does not lower VRChat texture memory rank. Only download size. VRChat says the package should fit limits without Crunch.");
@@ -1263,29 +1564,48 @@ namespace KaleidoVR.EditorTools
         public static void DrawActions(KaleidoVRCOptimizer window)
         {
             GUILayout.Space(6);
+            EditorGUILayout.HelpBox(
+                window.readyToApply
+                    ? "Dry run finished. Review the Rank tab list, then Apply Optimizations to write those changes."
+                    : "Step 1: Dry Run Optimizations (no files change). Step 2: Apply Optimizations appears after the dry run.",
+                window.readyToApply ? MessageType.Info : MessageType.None);
+
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Scan Performance", GUILayout.Height(32)))
             {
                 window.lastReport = KaleidoVRCOptimizerLogic.Scan(window, false);
                 window.tab = 2;
             }
-            if (GUILayout.Button(window.dryRun ? "Dry Run Optimizations" : "Apply Optimizations", GUILayout.Height(32)))
+            if (GUILayout.Button("Dry Run Optimizations", GUILayout.Height(32)))
             {
-                if (!window.dryRun)
-                {
-                    if (!EditorUtility.DisplayDialog(
-                        "KaleidoVR VRChat Model Optimizer",
-                        "This reimports textures/meshes and edits renderer settings on the selected VRChat avatar models only. Worlds are not touched. Continue?",
-                        "Apply",
-                        "Cancel"))
-                    {
-                        return;
-                    }
-                }
+                window.dryRun = true;
                 window.lastReport = KaleidoVRCOptimizerLogic.Scan(window, true);
+                window.readyToApply = window.lastReport != null
+                    && window.lastReport.summary != null
+                    && !window.lastReport.summary.StartsWith("Optimizer failed", StringComparison.Ordinal);
                 window.tab = 2;
             }
             EditorGUILayout.EndHorizontal();
+
+            EditorGUI.BeginDisabledGroup(!window.readyToApply);
+            if (GUILayout.Button("Apply Optimizations", GUILayout.Height(32)))
+            {
+                if (!EditorUtility.DisplayDialog(
+                    "KaleidoVR VRChat Model Optimizer",
+                    "This writes the dry-run changes: reimport textures/meshes and edit renderer settings on the selected VRChat avatar only. Worlds are not touched. Continue?",
+                    "Apply",
+                    "Cancel"))
+                {
+                    EditorGUI.EndDisabledGroup();
+                    return;
+                }
+                window.dryRun = false;
+                window.lastReport = KaleidoVRCOptimizerLogic.Scan(window, true);
+                window.dryRun = true;
+                window.readyToApply = false;
+                window.tab = 2;
+            }
+            EditorGUI.EndDisabledGroup();
         }
 
         private static void DrawSpecialUseCaseHeader()
@@ -1938,6 +2258,7 @@ namespace KaleidoVR.EditorTools
 
                 report.targetRoots = roots.Count;
                 PopulateInventory(window, assetPaths);
+                PopulateTextureUsages(window, roots, assetPaths);
 
                 GatherStats(roots, assetPaths, report, logEntries);
                 BuildHints(report);
@@ -2058,6 +2379,7 @@ namespace KaleidoVR.EditorTools
             KaleidoOptimizerReport unused = new KaleidoOptimizerReport();
             CollectFromTargets(window.targets, ignorePaths, roots, assetPaths, new List<string>(), unused);
             PopulateInventory(window, assetPaths);
+            PopulateTextureUsages(window, roots, assetPaths);
         }
 
         private static void PopulateInventory(KaleidoVRCOptimizer window, HashSet<string> assetPaths)
@@ -2093,6 +2415,200 @@ namespace KaleidoVR.EditorTools
                 int cat = KaleidoVRCOptimizerHelpers.InventoryCategoryOrder(a.category).CompareTo(KaleidoVRCOptimizerHelpers.InventoryCategoryOrder(b.category));
                 if (cat != 0) return cat;
                 return string.Compare(a.label, b.label, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        public static void SyncTextureRowDefaults(KaleidoVRCOptimizer window)
+        {
+            if (window == null || window.textureUsages == null) return;
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null) continue;
+                bool apply;
+                int pc;
+                int quest;
+                GetTypeSizes(window, usage.kind, out apply, out pc, out quest);
+                if (!usage.usedCustomPc) usage.pcSize = pc;
+                if (!usage.usedCustomQuest) usage.questSize = quest;
+            }
+        }
+
+        public static KaleidoTextureUsage FindTextureUsage(KaleidoVRCOptimizer window, string path)
+        {
+            if (window == null || window.textureUsages == null || string.IsNullOrEmpty(path)) return null;
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage != null && string.Equals(usage.path, path, StringComparison.OrdinalIgnoreCase)) return usage;
+            }
+            return null;
+        }
+
+        private static void PopulateTextureUsages(KaleidoVRCOptimizer window, List<GameObject> roots, HashSet<string> assetPaths)
+        {
+            Dictionary<string, KaleidoTextureUsage> previous = new Dictionary<string, KaleidoTextureUsage>(StringComparer.OrdinalIgnoreCase);
+            if (window.textureUsages != null)
+            {
+                for (int i = 0; i < window.textureUsages.Count; i++)
+                {
+                    KaleidoTextureUsage old = window.textureUsages[i];
+                    if (old == null || string.IsNullOrEmpty(old.path)) continue;
+                    previous[old.path] = old;
+                }
+            }
+
+            if (window.textureUsages == null) window.textureUsages = new List<KaleidoTextureUsage>();
+            window.textureUsages.Clear();
+            Dictionary<string, KaleidoTextureUsage> map = new Dictionary<string, KaleidoTextureUsage>(StringComparer.OrdinalIgnoreCase);
+
+            HashSet<int> seenRoots = new HashSet<int>();
+            if (roots != null)
+            {
+                for (int r = 0; r < roots.Count; r++)
+                {
+                    GameObject root = roots[r];
+                    if (root == null || !seenRoots.Add(root.GetInstanceID())) continue;
+                    Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+                    for (int i = 0; i < renderers.Length; i++)
+                    {
+                        Renderer renderer = renderers[i];
+                        if (renderer == null || renderer.sharedMaterials == null) continue;
+                        for (int m = 0; m < renderer.sharedMaterials.Length; m++)
+                        {
+                            Material material = renderer.sharedMaterials[m];
+                            if (material == null) continue;
+                            CollectMaterialTextures(window, map, previous, renderer.gameObject, material);
+                        }
+                    }
+                }
+            }
+
+            if (assetPaths != null)
+            {
+                foreach (string path in assetPaths)
+                {
+                    Texture texture = AssetDatabase.LoadAssetAtPath<Texture>(path);
+                    if (texture == null) continue;
+                    GetOrAddTextureUsage(window, map, previous, texture);
+                }
+            }
+
+            window.textureUsages.Sort(delegate (KaleidoTextureUsage a, KaleidoTextureUsage b)
+            {
+                int kind = ((int)a.kind).CompareTo((int)b.kind);
+                if (kind != 0) return kind;
+                string an = a.texture != null ? a.texture.name : a.path;
+                string bn = b.texture != null ? b.texture.name : b.path;
+                return string.Compare(an, bn, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        private static void CollectMaterialTextures(
+            KaleidoVRCOptimizer window,
+            Dictionary<string, KaleidoTextureUsage> map,
+            Dictionary<string, KaleidoTextureUsage> previous,
+            GameObject sceneObject,
+            Material material)
+        {
+            Shader shader = material.shader;
+            if (shader != null)
+            {
+                int count = ShaderUtil.GetPropertyCount(shader);
+                for (int i = 0; i < count; i++)
+                {
+                    if (ShaderUtil.GetPropertyType(shader, i) != ShaderUtil.ShaderPropertyType.TexEnv) continue;
+                    string prop = ShaderUtil.GetPropertyName(shader, i);
+                    Texture texture = material.GetTexture(prop);
+                    if (texture == null) continue;
+                    KaleidoTextureUsage usage = GetOrAddTextureUsage(window, map, previous, texture);
+                    AddTextureLink(usage, sceneObject, material, prop);
+                }
+            }
+
+            if (material.mainTexture != null)
+            {
+                KaleidoTextureUsage main = GetOrAddTextureUsage(window, map, previous, material.mainTexture);
+                AddTextureLink(main, sceneObject, material, "_MainTex");
+            }
+        }
+
+        private static KaleidoTextureUsage GetOrAddTextureUsage(
+            KaleidoVRCOptimizer window,
+            Dictionary<string, KaleidoTextureUsage> map,
+            Dictionary<string, KaleidoTextureUsage> previous,
+            Texture texture)
+        {
+            if (texture == null) return null;
+            string path = KaleidoVRCOptimizerHelpers.NormalizeAssetPath(AssetDatabase.GetAssetPath(texture));
+            if (string.IsNullOrEmpty(path) || KaleidoVRCOptimizerHelpers.ShouldIgnoreAsset(path)) return null;
+
+            KaleidoTextureUsage usage;
+            if (map.TryGetValue(path, out usage)) return usage;
+
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, importer);
+            bool apply;
+            int pc;
+            int quest;
+            GetTypeSizes(window, kind, out apply, out pc, out quest);
+
+            usage = new KaleidoTextureUsage
+            {
+                path = path,
+                texture = texture,
+                kind = kind,
+                sourceWidth = texture.width,
+                sourceHeight = texture.height,
+                currentPc = importer != null ? importer.maxTextureSize : texture.width,
+                currentQuest = importer != null ? importer.maxTextureSize : texture.height,
+                pcSize = pc,
+                questSize = quest,
+                links = new List<KaleidoTextureLink>()
+            };
+            if (importer != null)
+            {
+                TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
+                if (android != null && android.overridden) usage.currentQuest = android.maxTextureSize;
+            }
+
+            KaleidoTextureUsage old;
+            if (previous != null && previous.TryGetValue(path, out old) && (old.usedCustomPc || old.usedCustomQuest))
+            {
+                if (old.usedCustomPc)
+                {
+                    usage.pcSize = old.pcSize;
+                    usage.usedCustomPc = true;
+                }
+                if (old.usedCustomQuest)
+                {
+                    usage.questSize = old.questSize;
+                    usage.usedCustomQuest = true;
+                }
+            }
+
+            map[path] = usage;
+            window.textureUsages.Add(usage);
+            return usage;
+        }
+
+        private static void AddTextureLink(KaleidoTextureUsage usage, GameObject sceneObject, Material material, string propertyName)
+        {
+            if (usage == null) return;
+            if (usage.links == null) usage.links = new List<KaleidoTextureLink>();
+            for (int i = 0; i < usage.links.Count; i++)
+            {
+                KaleidoTextureLink existing = usage.links[i];
+                if (existing == null) continue;
+                if (existing.sceneObject == sceneObject && existing.material == material
+                    && string.Equals(existing.propertyName, propertyName, StringComparison.Ordinal))
+                    return;
+            }
+            usage.links.Add(new KaleidoTextureLink
+            {
+                sceneObject = sceneObject,
+                material = material,
+                propertyName = propertyName
             });
         }
 
@@ -2531,6 +3047,13 @@ namespace KaleidoVR.EditorTools
             int pcSize;
             int questSize;
             GetTypeSizes(window, kind, out applySize, out pcSize, out questSize);
+            KaleidoTextureUsage row = FindTextureUsage(window, path);
+            if (row != null)
+            {
+                pcSize = row.pcSize;
+                questSize = row.questSize;
+                if (row.usedCustomPc || row.usedCustomQuest) applySize = true;
+            }
 
             bool dirty = false;
             if (window.autoDetectNormalMaps && normal && importer.textureType != TextureImporterType.NormalMap)
