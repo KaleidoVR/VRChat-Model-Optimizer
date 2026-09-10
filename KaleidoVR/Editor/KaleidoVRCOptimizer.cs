@@ -106,7 +106,7 @@ namespace KaleidoVR.EditorTools
         public bool alphaIsTransparencyOnAlbedo = true;
 
         public bool optimizeMeshes = true;
-        public bool meshDisableReadWrite = true;
+        public bool meshEnableReadWrite = true;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
         public bool meshWeldVertices = true;
@@ -157,7 +157,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.1";
+        public static readonly string VERSION = "1.0.2";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -218,7 +218,7 @@ namespace KaleidoVR.EditorTools
         public bool alphaIsTransparencyOnAlbedo = true;
 
         public bool optimizeMeshes = true;
-        public bool meshDisableReadWrite = true;
+        public bool meshEnableReadWrite = true;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
         public bool meshWeldVertices = true;
@@ -369,7 +369,7 @@ namespace KaleidoVR.EditorTools
             alphaIsTransparencyOnAlbedo = true;
 
             optimizeMeshes = true;
-            meshDisableReadWrite = true;
+            meshEnableReadWrite = true;
             meshOptimizePolygons = true;
             meshOptimizeVertices = true;
             meshWeldVertices = true;
@@ -392,7 +392,7 @@ namespace KaleidoVR.EditorTools
             rendererRecalculateBounds = false;
             applyToPrefabAssets = true;
             optimizeParticles = true;
-            disableLightsOnAvatar = false;
+            disableLightsOnAvatar = true;
 
             optimizeAudio = true;
             audioForceToMono = false;
@@ -420,6 +420,9 @@ namespace KaleidoVR.EditorTools
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = true;
                 rendererForceBone4 = true;
+                disableCamerasOnAvatar = true;
+                optimizeMaterials = true;
+                materialEnableGpuInstancing = true;
             }
             else
             {
@@ -427,6 +430,9 @@ namespace KaleidoVR.EditorTools
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = true;
                 rendererForceBone4 = true;
+                disableCamerasOnAvatar = true;
+                optimizeMaterials = true;
+                materialEnableGpuInstancing = true;
             }
         }
 
@@ -473,7 +479,7 @@ namespace KaleidoVR.EditorTools
                 textureApplyAniso = textureApplyAniso, textureAniso = textureAniso,
                 autoDetectNormalMaps = autoDetectNormalMaps, autoLinearMaskMaps = autoLinearMaskMaps,
                 higherQualityNormalMaps = higherQualityNormalMaps, alphaIsTransparencyOnAlbedo = alphaIsTransparencyOnAlbedo,
-                optimizeMeshes = optimizeMeshes, meshDisableReadWrite = meshDisableReadWrite,
+                optimizeMeshes = optimizeMeshes, meshEnableReadWrite = meshEnableReadWrite,
                 meshOptimizePolygons = meshOptimizePolygons, meshOptimizeVertices = meshOptimizeVertices,
                 meshWeldVertices = meshWeldVertices, meshKeepBlendShapes = meshKeepBlendShapes,
                 meshDisableQuads = meshDisableQuads, meshDisableLightmapUVs = meshDisableLightmapUVs,
@@ -486,13 +492,14 @@ namespace KaleidoVR.EditorTools
                 rendererForceBone4 = rendererForceBone4, rendererRecalculateBounds = rendererRecalculateBounds,
                 applyToPrefabAssets = applyToPrefabAssets, optimizeParticles = optimizeParticles,
                 disableLightsOnAvatar = disableLightsOnAvatar,
+                optimizeMaterials = optimizeMaterials, materialEnableGpuInstancing = materialEnableGpuInstancing,
+                disableCamerasOnAvatar = disableCamerasOnAvatar,
                 optimizeAudio = optimizeAudio, audioLoadInBackground = audioLoadInBackground,
                 audioApplyVorbis = audioApplyVorbis, audioQuality = audioQuality,
                 optimizeAnimators = optimizeAnimators, animatorCullWhenOffscreen = animatorCullWhenOffscreen,
                 applyMeshCompression = applyMeshCompression, meshCompression = meshCompression,
                 meshForceHumanoid = meshForceHumanoid, meshStripBlendShapes = meshStripBlendShapes,
-                optimizeMaterials = optimizeMaterials, materialEnableGpuInstancing = materialEnableGpuInstancing,
-                disableCamerasOnAvatar = disableCamerasOnAvatar, audioForceToMono = audioForceToMono
+                audioForceToMono = audioForceToMono
             };
         }
 
@@ -535,7 +542,7 @@ namespace KaleidoVR.EditorTools
             if (mesh)
             {
                 optimizeMeshes = p.optimizeMeshes;
-                meshDisableReadWrite = p.meshDisableReadWrite;
+                meshEnableReadWrite = p.meshEnableReadWrite;
                 meshOptimizePolygons = p.meshOptimizePolygons;
                 meshOptimizeVertices = p.meshOptimizeVertices;
                 meshWeldVertices = p.meshWeldVertices;
@@ -560,6 +567,9 @@ namespace KaleidoVR.EditorTools
                 applyToPrefabAssets = p.applyToPrefabAssets;
                 optimizeParticles = p.optimizeParticles;
                 disableLightsOnAvatar = p.disableLightsOnAvatar;
+                optimizeMaterials = p.optimizeMaterials;
+                materialEnableGpuInstancing = p.materialEnableGpuInstancing;
+                disableCamerasOnAvatar = p.disableCamerasOnAvatar;
             }
             if (aud)
             {
@@ -579,9 +589,6 @@ namespace KaleidoVR.EditorTools
                 meshCompression = p.meshCompression;
                 meshForceHumanoid = p.meshForceHumanoid;
                 meshStripBlendShapes = p.meshStripBlendShapes;
-                optimizeMaterials = p.optimizeMaterials;
-                materialEnableGpuInstancing = p.materialEnableGpuInstancing;
-                disableCamerasOnAvatar = p.disableCamerasOnAvatar;
                 audioForceToMono = p.audioForceToMono;
                 textureEnableCrunch = p.textureEnableCrunch;
             }
@@ -590,8 +597,6 @@ namespace KaleidoVR.EditorTools
                 applyMeshCompression = false;
                 meshForceHumanoid = false;
                 meshStripBlendShapes = false;
-                optimizeMaterials = false;
-                disableCamerasOnAvatar = false;
                 audioForceToMono = false;
                 textureEnableCrunch = false;
             }
@@ -681,7 +686,7 @@ namespace KaleidoVR.EditorTools
             optimizeMeshes = GetBool("OptMesh", true);
             applyMeshCompression = GetBool("MeshCompOn", false);
             meshCompression = (KaleidoMeshCompressionChoice)GetInt("MeshComp", (int)KaleidoMeshCompressionChoice.Off);
-            meshDisableReadWrite = GetBool("MeshRW", true);
+            meshEnableReadWrite = GetBool("MeshEnableRW", true);
             meshOptimizePolygons = GetBool("MeshPoly", true);
             meshOptimizeVertices = GetBool("MeshVert", true);
             meshWeldVertices = GetBool("MeshWeld", true);
@@ -717,7 +722,7 @@ namespace KaleidoVR.EditorTools
             materialEnableGpuInstancing = GetBool("MatGPU", false);
 
             optimizeSceneExtras = GetBool("OptExtra", false);
-            disableLightsOnAvatar = GetBool("ExtraLight", false);
+            disableLightsOnAvatar = GetBool("ExtraLight", true);
             disableCamerasOnAvatar = GetBool("ExtraCam", false);
             optimizeParticles = GetBool("ExtraPart", true);
         }
@@ -765,7 +770,7 @@ namespace KaleidoVR.EditorTools
             SetBool("OptMesh", optimizeMeshes);
             SetBool("MeshCompOn", applyMeshCompression);
             SetInt("MeshComp", (int)meshCompression);
-            SetBool("MeshRW", meshDisableReadWrite);
+            SetBool("MeshEnableRW", meshEnableReadWrite);
             SetBool("MeshPoly", meshOptimizePolygons);
             SetBool("MeshVert", meshOptimizeVertices);
             SetBool("MeshWeld", meshWeldVertices);
@@ -905,6 +910,12 @@ namespace KaleidoVR.EditorTools
         public int constraints;
         public int blendShapes;
         public int bones;
+        public int animators;
+        public int lights;
+        public int audioSources;
+        public int particleSystems;
+        public int physBoneColliders;
+        public bool meshReadWriteDisabled;
         public string pcRank = "—";
         public string questRank = "—";
         public string summary = "Drop a VRChat avatar model and press Scan Performance.";
@@ -1117,7 +1128,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("VRChat Performance Snapshot", EditorStyles.boldLabel);
-            DrawWhy("Avatar Performance Rank for the dropped VRChat model only. Worlds are not scanned. PhysBones/contacts need the VRChat SDK.");
+            DrawWhy("Avatar Performance Rank using VRChat's published PC and mobile (Quest/Android/iOS) limits. Worlds are not scanned. PhysBones/contacts need the VRChat SDK. This is an estimate, not the SDK's upload-time rank.");
             DrawStats(window);
         }
 
@@ -1130,7 +1141,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("Max Size By Texture Type", EditorStyles.boldLabel);
             DrawWhy("Unity downscales on import. VRChat counts the imported size toward texture memory. Uncheck a type to leave that type's resolution alone.");
 
-            DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. Suggested PC 1024–2048, Quest 512–1024.", ref window.albedoPc, ref window.albedoQuest);
+            DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. VRChat Android docs: stay at 1024 or below. Suggested PC 1024–2048, Quest 512–1024.", ref window.albedoPc, ref window.albedoQuest);
             DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Bump maps. Match albedo, or one step below if memory is tight. Suggested PC 1024–2048, Quest 512–1024.", ref window.normalPc, ref window.normalQuest);
             DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Packed masks are blur-tolerant. Suggested PC 512–1024, Quest 256–512.", ref window.maskPc, ref window.maskQuest);
             DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Glow maps. Suggested PC 512–1024, Quest 256–512.", ref window.emissionPc, ref window.emissionQuest);
@@ -1148,7 +1159,7 @@ namespace KaleidoVR.EditorTools
             window.textureApplyMipmaps = DrawToggle(window.textureApplyMipmaps, "Set mip maps", "Avatars in 3D should generate mip maps. Uncheck to leave each texture as-is.");
             if (window.textureApplyMipmaps) window.textureEnableMipmaps = EditorGUILayout.Toggle("Generate Mip Maps", window.textureEnableMipmaps);
             window.textureDisableStreamingMipmaps = DrawToggle(window.textureDisableStreamingMipmaps, "Disable streaming mip maps", "Avatar textures should stay resident. Streaming is for large world textures.");
-            window.textureDisableCrunch = DrawToggle(window.textureDisableCrunch, "Disable crunch compression", "Crunch looks poor and costs CPU. VRChat creators almost always leave this off.");
+            window.textureDisableCrunch = DrawToggle(window.textureDisableCrunch, "Disable crunch compression", "Crunch does not reduce VRChat texture memory (the rank metric). It only shrinks download size and costs CPU. Keep it off.");
             window.textureApplyAniso = DrawToggle(window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
             if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
             window.autoDetectNormalMaps = DrawToggle(window.autoDetectNormalMaps, "Detect normal maps by name", "Sets Texture Type to Normal Map when the file looks like _n / _norm / _normal. Prevents sRGB lighting errors.");
@@ -1180,7 +1191,7 @@ namespace KaleidoVR.EditorTools
         {
             window.optimizeMeshes = DrawToggle(window.optimizeMeshes, "Process model importers", "Master switch for FBX/GLB import settings. Off = skip every model.");
             EditorGUI.BeginDisabledGroup(!window.optimizeMeshes);
-            window.meshDisableReadWrite = DrawToggle(window.meshDisableReadWrite, "Disable mesh Read / Write", "Saves RAM after import. Leave off if a script reads mesh data or you still need MeshCollider cooking from CPU.");
+            window.meshEnableReadWrite = DrawToggle(window.meshEnableReadWrite, "Enable mesh Read / Write", "Required by VRChat. If any mesh on the avatar has Read/Write off, the SDK ranks the avatar Very Poor and blocks upload.");
             window.meshOptimizePolygons = DrawToggle(window.meshOptimizePolygons, "Optimize mesh polygons", "Reorders triangles for the GPU. Safe for avatars. Does not reduce triangle count.");
             window.meshOptimizeVertices = DrawToggle(window.meshOptimizeVertices, "Optimize mesh vertices", "Reorders vertices for cache locality. Safe. Does not decimate.");
             window.meshWeldVertices = DrawToggle(window.meshWeldVertices, "Weld vertices", "Merges duplicates on import. Usually wanted. Uncheck if a mesh relies on split verts for UV islands/sharp edges you already authored.");
@@ -1226,7 +1237,9 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Particles", EditorStyles.boldLabel);
             window.optimizeParticles = DrawToggle(window.optimizeParticles, "Strip particle shadows / motion vectors", "Particles on avatars rarely need shadows. Uncheck if a VFX specifically uses them.");
-            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "Realtime lights on avatars are expensive and often banned in worlds. Uncheck if the avatar's look depends on its own light.");
+            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat PC Excellent allows 0 lights. Android/Quest strips avatar lights entirely.");
+            window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Set GPU instancing on materials", "VRChat Android docs: enable GPU instancing on materials. Has little effect on skinned meshes but is the recommended default for Quest.");
+            if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
         }
 
@@ -1241,11 +1254,9 @@ namespace KaleidoVR.EditorTools
             window.meshForceHumanoid = DrawToggle(window.meshForceHumanoid, "Force Humanoid rig", "Rewrites the FBX avatar to Humanoid. Can destroy a working Generic/Humanoid mapping. Prefer the Rig tab in the importer.");
             window.meshStripBlendShapes = DrawToggle(window.meshStripBlendShapes, "Disable blend shape import", "Turns blend shapes off on the model. Breaks visemes and face tracking. Only for meshes that truly have none you need.");
             window.rendererRecalculateBounds = DrawToggle(window.rendererRecalculateBounds, "Recalculate skinned bounds", "Resets local bounds from the mesh AABB. Breaks meshes that used oversized bounds so toggled parts stay visible.");
-            window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Touch materials (GPU instancing)", "Writes enableInstancing on .mat files. Does nothing for skinned meshes. Only for static MeshRenderers.");
-            if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
-            window.disableCamerasOnAvatar = DrawToggle(window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Turns off Camera components. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
-            window.audioForceToMono = DrawToggle(window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX.");
-            window.textureEnableCrunch = DrawToggle(window.textureEnableCrunch, "Enable crunch compression", "Opposite of the Textures tab. Looks worse and costs CPU. Almost never what you want for VRChat.");
+            window.disableCamerasOnAvatar = DrawToggle(window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Android/Quest disable avatar cameras. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
+            window.audioForceToMono = DrawToggle(window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX. Audio sources are disabled on Android avatars.");
+            window.textureEnableCrunch = DrawToggle(window.textureEnableCrunch, "Enable crunch compression", "Does not lower VRChat texture memory rank. Only download size. VRChat says the package should fit limits without Crunch.");
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
         }
 
@@ -1324,16 +1335,25 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
             EditorGUILayout.LabelField("PC Rank", report.pcRank);
             EditorGUILayout.LabelField("Quest Rank", report.questRank);
+            if (report.meshReadWriteDisabled)
+            {
+                EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor until Read/Write is enabled.", MessageType.Error);
+            }
             EditorGUILayout.LabelField("Triangles", report.triangles.ToString("N0"));
             EditorGUILayout.LabelField("Material Slots", report.materialSlots.ToString("N0"));
             EditorGUILayout.LabelField("Unique Materials", report.uniqueMaterials.ToString("N0"));
             EditorGUILayout.LabelField("Skinned Meshes", report.skinnedMeshes.ToString("N0"));
-            EditorGUILayout.LabelField("Mesh Renderers", report.meshRenderers.ToString("N0"));
+            EditorGUILayout.LabelField("Basic Meshes", report.meshRenderers.ToString("N0"));
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
             EditorGUILayout.LabelField("Texture Memory (est.)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureBytesEstimate));
             EditorGUILayout.LabelField("Blend Shapes", report.blendShapes.ToString("N0"));
             EditorGUILayout.LabelField("Bones (max on one mesh)", report.bones.ToString("N0"));
+            EditorGUILayout.LabelField("Animators", report.animators.ToString("N0"));
+            EditorGUILayout.LabelField("Lights", report.lights.ToString("N0"));
+            EditorGUILayout.LabelField("Audio Sources", report.audioSources.ToString("N0"));
+            EditorGUILayout.LabelField("Particle Systems", report.particleSystems.ToString("N0"));
             EditorGUILayout.LabelField("PhysBones", report.physBones.ToString("N0"));
+            EditorGUILayout.LabelField("PhysBone Colliders", report.physBoneColliders.ToString("N0"));
             EditorGUILayout.LabelField("Contacts", report.contacts.ToString("N0"));
             EditorGUILayout.LabelField("Constraints", report.constraints.ToString("N0"));
 
@@ -1861,7 +1881,16 @@ namespace KaleidoVR.EditorTools
         public static int CountUnityConstraints(GameObject root)
         {
             if (root == null) return 0;
-            return root.GetComponentsInChildren<IConstraint>(true).Length;
+            int count = root.GetComponentsInChildren<IConstraint>(true).Length;
+            foreach (Component component in root.GetComponentsInChildren<Component>(true))
+            {
+                if (component == null) continue;
+                string fullName = component.GetType().FullName ?? "";
+                if (fullName.IndexOf("VRC", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (fullName.IndexOf("Constraint", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                count++;
+            }
+            return count;
         }
     }
 
@@ -2131,6 +2160,7 @@ namespace KaleidoVR.EditorTools
             Type physBoneType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
             Type contactType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.Contact.Components.VRCContactReceiver");
             Type contactSenderType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.Contact.Components.VRCContactSender");
+            Type physBoneColliderType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBoneCollider");
 
             List<GameObject> statRoots = new List<GameObject>(roots);
             if (statRoots.Count == 0)
@@ -2166,9 +2196,14 @@ namespace KaleidoVR.EditorTools
                 }
 
                 report.physBones += KaleidoVRCOptimizerHelpers.CountComponents(root, physBoneType);
+                report.physBoneColliders += KaleidoVRCOptimizerHelpers.CountComponents(root, physBoneColliderType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactSenderType);
                 report.constraints += KaleidoVRCOptimizerHelpers.CountUnityConstraints(root);
+                report.animators += root.GetComponentsInChildren<Animator>(true).Length;
+                report.lights += root.GetComponentsInChildren<Light>(true).Length;
+                report.audioSources += root.GetComponentsInChildren<AudioSource>(true).Length;
+                report.particleSystems += root.GetComponentsInChildren<ParticleSystem>(true).Length;
             }
 
             foreach (string path in assetPaths)
@@ -2199,6 +2234,7 @@ namespace KaleidoVR.EditorTools
             if (mesh == null) return;
             report.triangles += mesh.triangles.Length / 3;
             report.blendShapes += mesh.blendShapeCount;
+            if (!mesh.isReadable) report.meshReadWriteDisabled = true;
         }
 
         private static void AccumulateMaterials(Material[] materials, HashSet<Material> uniqueMats, HashSet<Texture> uniqueTex, KaleidoOptimizerReport report)
@@ -2251,28 +2287,43 @@ namespace KaleidoVR.EditorTools
 
         private static string RankAvatar(KaleidoOptimizerReport report, bool quest)
         {
-            int triExcellent = quest ? 7500 : 32000;
-            int triGood = quest ? 10000 : 70000;
-            int triMedium = quest ? 15000 : 70000;
-            int triPoor = quest ? 20000 : 70000;
-            long texExcellent = quest ? 10L * 1024 * 1024 : 40L * 1024 * 1024;
-            long texGood = quest ? 18L * 1024 * 1024 : 75L * 1024 * 1024;
-            long texMedium = quest ? 25L * 1024 * 1024 : 110L * 1024 * 1024;
-            long texPoor = quest ? 40L * 1024 * 1024 : 150L * 1024 * 1024;
-            int skinExcellent = quest ? 1 : 1;
-            int skinGood = quest ? 1 : 2;
-            int skinMedium = quest ? 2 : 8;
-            int skinPoor = quest ? 2 : 16;
-            int matExcellent = quest ? 1 : 4;
-            int matGood = quest ? 1 : 8;
-            int matMedium = quest ? 2 : 16;
-            int matPoor = quest ? 4 : 24;
+            // Limits from VRChat Creation docs: Avatar Performance Ranking System (PC and mobile tables).
+            if (report.meshReadWriteDisabled) return "Very Poor";
 
             int rank = 0;
-            rank = Math.Max(rank, LimitRank(report.triangles, triExcellent, triGood, triMedium, triPoor));
-            rank = Math.Max(rank, LimitRankBytes(report.textureBytesEstimate, texExcellent, texGood, texMedium, texPoor));
-            rank = Math.Max(rank, LimitRank(report.skinnedMeshes, skinExcellent, skinGood, skinMedium, skinPoor));
-            rank = Math.Max(rank, LimitRank(report.materialSlots, matExcellent, matGood, matMedium, matPoor));
+            if (quest)
+            {
+                rank = Math.Max(rank, LimitRank(report.triangles, 7500, 10000, 15000, 20000));
+                rank = Math.Max(rank, LimitRankBytes(report.textureBytesEstimate, 10L * 1024 * 1024, 18L * 1024 * 1024, 25L * 1024 * 1024, 40L * 1024 * 1024));
+                rank = Math.Max(rank, LimitRank(report.skinnedMeshes, 1, 1, 2, 2));
+                rank = Math.Max(rank, LimitRank(report.meshRenderers, 1, 1, 2, 2));
+                rank = Math.Max(rank, LimitRank(report.materialSlots, 1, 1, 2, 4));
+                rank = Math.Max(rank, LimitRank(report.animators, 1, 1, 1, 2));
+                rank = Math.Max(rank, LimitRank(report.bones, 75, 90, 150, 150));
+                rank = Math.Max(rank, LimitRank(report.physBones, 0, 4, 6, 8));
+                rank = Math.Max(rank, LimitRank(report.physBoneColliders, 0, 4, 8, 16));
+                rank = Math.Max(rank, LimitRank(report.contacts, 2, 4, 8, 16));
+                rank = Math.Max(rank, LimitRank(report.constraints, 30, 60, 120, 150));
+                rank = Math.Max(rank, LimitRank(report.particleSystems, 0, 0, 0, 2));
+            }
+            else
+            {
+                rank = Math.Max(rank, LimitRank(report.triangles, 32000, 70000, 70000, 70000));
+                rank = Math.Max(rank, LimitRankBytes(report.textureBytesEstimate, 40L * 1024 * 1024, 75L * 1024 * 1024, 110L * 1024 * 1024, 150L * 1024 * 1024));
+                rank = Math.Max(rank, LimitRank(report.skinnedMeshes, 1, 2, 8, 16));
+                rank = Math.Max(rank, LimitRank(report.meshRenderers, 4, 8, 16, 24));
+                rank = Math.Max(rank, LimitRank(report.materialSlots, 4, 8, 16, 32));
+                rank = Math.Max(rank, LimitRank(report.animators, 1, 4, 16, 32));
+                rank = Math.Max(rank, LimitRank(report.bones, 75, 150, 256, 400));
+                rank = Math.Max(rank, LimitRank(report.physBones, 4, 8, 16, 32));
+                rank = Math.Max(rank, LimitRank(report.physBoneColliders, 4, 8, 16, 32));
+                rank = Math.Max(rank, LimitRank(report.contacts, 8, 16, 24, 32));
+                rank = Math.Max(rank, LimitRank(report.constraints, 100, 250, 300, 350));
+                rank = Math.Max(rank, LimitRank(report.lights, 0, 0, 0, 1));
+                rank = Math.Max(rank, LimitRank(report.audioSources, 1, 4, 8, 8));
+                rank = Math.Max(rank, LimitRank(report.particleSystems, 0, 4, 8, 16));
+            }
+
             return RankName(rank);
         }
 
@@ -2308,13 +2359,20 @@ namespace KaleidoVR.EditorTools
 
         private static void BuildHints(KaleidoOptimizerReport report)
         {
-            if (report.triangles > 70000) report.notes.Add("Triangle count is above VRChat's Poor/Very Poor cutoff. Decimate in Blender.");
-            else if (report.triangles > 32000) report.notes.Add("Triangle count is above Excellent (32k PC / 7.5k Quest). Consider a Quest mesh.");
-            if (report.materialSlots > 8) report.notes.Add("Material slots are high. Atlas or merge slots to drop the rank.");
-            if (report.skinnedMeshes > 2) report.notes.Add("Multiple skinned meshes add draw calls. Combine body meshes if you can.");
-            if (report.textureBytesEstimate > 75L * 1024 * 1024) report.notes.Add("Estimated texture memory is heavy. Drop max size and use ASTC on Android.");
-            if (report.physBones > 8) report.notes.Add("PhysBone component count is high. Collapse chains where possible.");
-            if (report.constraints > 0) report.notes.Add("Unity constraints are counted toward VRChat Poor/Very Poor quickly. Prefer Animation jobs / parenting.");
+            if (report.meshReadWriteDisabled) report.notes.Add("Enable Mesh Read/Write. VRChat ranks any avatar with it off as Very Poor and the SDK blocks upload.");
+            if (report.triangles > 70000) report.notes.Add("PC triangles are above 70k (Poor/Very Poor cutoff). Decimate in Blender.");
+            if (report.triangles > 20000) report.notes.Add("Quest Poor allows 20k triangles. Over that, mobile viewers cannot see the avatar without Show Avatar.");
+            else if (report.triangles > 10000) report.notes.Add("VRChat recommends under 10k triangles on Android. Quest Good is 10k, Excellent is 7.5k.");
+            if (report.triangles > 32000 && report.triangles <= 70000) report.notes.Add("Above PC Excellent (32k triangles).");
+            if (report.materialSlots > 32) report.notes.Add("PC material slots are above Poor (32).");
+            else if (report.materialSlots > 4) report.notes.Add("Quest Poor allows 4 material slots. Atlas toward 1 material for Excellent/Good on mobile.");
+            if (report.skinnedMeshes > 2) report.notes.Add("Quest Poor allows 2 skinned meshes. Aim for 1 skinned mesh on mobile.");
+            if (report.textureBytesEstimate > 40L * 1024 * 1024) report.notes.Add("Quest texture memory Poor is 40 MB. Drop max size; Crunch does not reduce this number.");
+            else if (report.textureBytesEstimate > 75L * 1024 * 1024) report.notes.Add("PC texture memory is past Good (75 MB). Drop max size.");
+            if (report.physBones > 8) report.notes.Add("Quest strips PhysBones if you exceed 8 components. PC Poor allows 32.");
+            if (report.lights > 0) report.notes.Add("Any realtime light is already worse than PC Excellent (0). Android disables avatar lights.");
+            if (report.constraints > 0) report.notes.Add("Unity constraints are disabled on Android avatars. Use VRChat Constraints; they still count toward rank.");
+            if (report.audioSources > 0) report.notes.Add("Audio sources are disabled on Android avatars. PC Excellent allows 1.");
         }
 
         private static void ApplyOptimizations(
@@ -2650,9 +2708,9 @@ namespace KaleidoVR.EditorTools
                     dirty = true;
                 }
             }
-            if (window.meshDisableReadWrite && importer.isReadable)
+            if (window.meshEnableReadWrite && !importer.isReadable)
             {
-                if (write) importer.isReadable = false;
+                if (write) importer.isReadable = true;
                 dirty = true;
             }
             if (window.meshOptimizePolygons && !importer.optimizeMeshPolygons)
@@ -2707,12 +2765,22 @@ namespace KaleidoVR.EditorTools
 
             if (window.applySkinWeights)
             {
-                ModelImporterSkinWeights wantedWeights = window.skinWeights == KaleidoSkinWeightChoice.Unlimited
-                    ? ModelImporterSkinWeights.Unlimited
-                    : ModelImporterSkinWeights.Standard;
-                if (importer.skinWeights != wantedWeights)
+                // 2022.3 LTS only has Standard (4 bones) and Custom. Custom + a high cap is the Unlimited equivalent.
+                if (window.skinWeights == KaleidoSkinWeightChoice.Unlimited)
                 {
-                    if (write) importer.skinWeights = wantedWeights;
+                    if (importer.skinWeights != ModelImporterSkinWeights.Custom || importer.maxBonesPerVertex < 32)
+                    {
+                        if (write)
+                        {
+                            importer.skinWeights = ModelImporterSkinWeights.Custom;
+                            importer.maxBonesPerVertex = 255;
+                        }
+                        dirty = true;
+                    }
+                }
+                else if (importer.skinWeights != ModelImporterSkinWeights.Standard)
+                {
+                    if (write) importer.skinWeights = ModelImporterSkinWeights.Standard;
                     dirty = true;
                 }
             }
