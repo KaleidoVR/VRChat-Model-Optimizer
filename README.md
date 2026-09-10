@@ -13,9 +13,12 @@ Drop a `VRCAvatarDescriptor` avatar (or a skinned character FBX/VRM/GLB) into th
 
 ## Install
 
-1. Copy the `Unity VRChat Optimizer Tool` folder (including its `.meta` files) into your Unity project, typically under `Assets/`.
-2. Wait for Unity to compile.
-3. Open the tool from the menu bar: **KaleidoVR > VRChat Model Optimizer**.
+1. Download the latest `.unitypackage` from [Releases](https://github.com/KaleidoVR/KaleidoVR-VRChat-Model-Optimizer/releases).
+2. In Unity, choose **Assets > Import Package > Custom Package...** and select the file.
+3. Import everything. Files land in `Assets/Unity VRChat Optimizer Tool/`.
+4. Open the tool from the menu bar: **KaleidoVR > VRChat Model Optimizer**.
+
+To install from source instead, copy the `Unity VRChat Optimizer Tool` folder (including its `.meta` files) into `Assets/` in your project.
 
 It appears in the same **KaleidoVR** menu as Asset Organizer.
 
