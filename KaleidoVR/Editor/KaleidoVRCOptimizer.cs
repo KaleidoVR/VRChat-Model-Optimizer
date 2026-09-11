@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.15";
+        public static readonly string VERSION = "1.0.16";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -930,7 +930,6 @@ namespace KaleidoVR.EditorTools
             {
                 inventorySignature = "";
                 WorkspaceReadyToApply = false;
-                ReadyToApplyMaxSizesOnly = false;
                 SaveEditorPreferences();
             }
         }
@@ -1723,6 +1722,7 @@ namespace KaleidoVR.EditorTools
                     : "PC workspace only writes Standalone / default importer sizes. Off = skip every PC texture write.");
             EditorGUI.BeginDisabledGroup(!window.optimizeTextures);
 
+            EditorGUI.BeginChangeCheck();
             GUILayout.Space(6);
             if (quest)
             {
@@ -1746,6 +1746,7 @@ namespace KaleidoVR.EditorTools
                 DrawTypeSizeRow(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512.", ref window.matcapPc);
                 DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested 512–1024.", ref window.otherPc);
             }
+            if (EditorGUI.EndChangeCheck()) window.ReadyToApplyMaxSizesOnly = false;
 
             KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
 
@@ -1798,6 +1799,7 @@ namespace KaleidoVR.EditorTools
                 string preview;
                 KaleidoVRCOptimizerLogic.PreviewMaxSizesOnly(window, quest, out count, out preview);
                 window.ReadyToApplyMaxSizesOnly = count > 0;
+                GUI.changed = false;
                 EditorUtility.DisplayDialog(
                     platform + " max sizes only",
                     count == 0
@@ -2056,6 +2058,7 @@ namespace KaleidoVR.EditorTools
             int selected = questPlatform ? usage.questSize : usage.pcSize;
             int picked = SizePopup(selected);
             if (picked == selected) return;
+            window.ReadyToApplyMaxSizesOnly = false;
 
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
             if (picked > selected)
@@ -2348,6 +2351,7 @@ namespace KaleidoVR.EditorTools
                 window.WorkspaceReadyToApply = report != null
                     && report.summary != null
                     && !report.summary.StartsWith("Optimizer failed", StringComparison.Ordinal);
+                GUI.changed = false;
                 window.tab = 2;
             }
             EditorGUILayout.EndHorizontal();
