@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.11";
+        public static readonly string VERSION = "1.0.12";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1069,6 +1069,7 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle sizeCaptionStyle;
         private static GUIStyle sizeValueStyle;
         private static GUIStyle sizeNewStyle;
+        private static GUIStyle sizeUpStyle;
         private static bool cachedDropProSkin = true;
 
         private static GUIStyle MiniWrap()
@@ -1133,6 +1134,9 @@ namespace KaleidoVR.EditorTools
 
             sizeNewStyle = new GUIStyle(sizeValueStyle);
             sizeNewStyle.normal.textColor = pro ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.42f, 0.70f, 1f);
+
+            sizeUpStyle = new GUIStyle(sizeValueStyle);
+            sizeUpStyle.normal.textColor = pro ? new Color(1f, 0.72f, 0.28f, 1f) : new Color(0.72f, 0.38f, 0.04f, 1f);
         }
 
         private static GUIStyle PingLinkStyle()
@@ -1720,25 +1724,25 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(6);
             if (quest)
             {
-                GUILayout.Label("Quest Max Size By Texture Type", EditorStyles.boldLabel);
-                DrawWhy("VRChat Android docs: stay at 1024 or below. Unticked types keep their current Quest size unless you change that row's selector.");
-                DrawTypeSizeRowQuest(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Suggested Quest 512–1024.", ref window.albedoQuest);
-                DrawTypeSizeRowQuest(ref window.applyNormalSize, "Normal", "Suggested Quest 512–1024.", ref window.normalQuest);
-                DrawTypeSizeRowQuest(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Suggested Quest 256–512.", ref window.maskQuest);
-                DrawTypeSizeRowQuest(ref window.applyEmissionSize, "Emission", "Suggested Quest 256–512.", ref window.emissionQuest);
-                DrawTypeSizeRowQuest(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Suggested 256–512.", ref window.matcapQuest);
-                DrawTypeSizeRowQuest(ref window.applyOtherSize, "Other / Unclassified", "Suggested Quest 512.", ref window.otherQuest);
+                GUILayout.Label("Max Size By Type", EditorStyles.boldLabel);
+                DrawWhy("Caps each type at this size. Textures already smaller stay as they are. Unticked types keep their current size unless you change that row's selector.");
+                DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Suggested Quest 512–1024.", ref window.albedoQuest);
+                DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Suggested Quest 512–1024.", ref window.normalQuest);
+                DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Suggested Quest 256–512.", ref window.maskQuest);
+                DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Suggested Quest 256–512.", ref window.emissionQuest);
+                DrawTypeSizeRow(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Suggested 256–512.", ref window.matcapQuest);
+                DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Suggested Quest 512.", ref window.otherQuest);
             }
             else
             {
-                GUILayout.Label("PC Max Size By Texture Type", EditorStyles.boldLabel);
-                DrawWhy("PC defaults. Unticked types keep their current PC size unless you change that row's selector.");
-                DrawTypeSizeRowPc(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. Suggested PC 1024–2048.", ref window.albedoPc);
-                DrawTypeSizeRowPc(ref window.applyNormalSize, "Normal", "Bump maps. Match albedo, or one step below if memory is tight.", ref window.normalPc);
-                DrawTypeSizeRowPc(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Packed masks are blur-tolerant. Suggested PC 512–1024.", ref window.maskPc);
-                DrawTypeSizeRowPc(ref window.applyEmissionSize, "Emission", "Glow maps. Suggested PC 512–1024.", ref window.emissionPc);
-                DrawTypeSizeRowPc(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512.", ref window.matcapPc);
-                DrawTypeSizeRowPc(ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested PC 512–1024.", ref window.otherPc);
+                GUILayout.Label("Max Size By Type", EditorStyles.boldLabel);
+                DrawWhy("Caps each type at this size. Textures already smaller stay as they are. Unticked types keep their current size unless you change that row's selector.");
+                DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Body color maps. Suggested 1024–2048.", ref window.albedoPc);
+                DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Bump maps. Match albedo, or one step below if memory is tight.", ref window.normalPc);
+                DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Packed masks are blur-tolerant. Suggested 512–1024.", ref window.maskPc);
+                DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Glow maps. Suggested 512–1024.", ref window.emissionPc);
+                DrawTypeSizeRow(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512.", ref window.matcapPc);
+                DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested 512–1024.", ref window.otherPc);
             }
 
             KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
@@ -1783,7 +1787,7 @@ namespace KaleidoVR.EditorTools
         {
             string platform = quest ? "Quest" : "PC";
             GUILayout.Label(platform + " Max Sizes Only", EditorStyles.boldLabel);
-            DrawWhy("Runs only the max-size-by-type settings above (and any per-texture selector you already changed). Compression, mip maps, meshes, scene, and Special are not touched.");
+            DrawWhy("Runs only the max-size-by-type settings above (and any per-texture selector you already changed). Type caps never raise a texture. Compression, mip maps, meshes, scene, and Special are not touched.");
 
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Dry Run " + platform + " Max Sizes Only", GUILayout.Height(26)))
@@ -1994,6 +1998,8 @@ namespace KaleidoVR.EditorTools
             int planned = questPlatform ? usage.questSize : usage.pcSize;
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
             bool changing = willWrite && planned != current;
+            bool increasing = changing && planned > current;
+            GUIStyle changeStyle = increasing ? sizeUpStyle : sizeNewStyle;
 
             GUIStyle currentCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleRight };
             GUIStyle currentValue = new GUIStyle(sizeValueStyle) { alignment = TextAnchor.MiddleRight };
@@ -2001,8 +2007,8 @@ namespace KaleidoVR.EditorTools
             GUIStyle midArrow = new GUIStyle(sizeValueStyle) { alignment = TextAnchor.MiddleCenter };
             if (changing)
             {
-                midCaption.normal.textColor = sizeNewStyle.normal.textColor;
-                midArrow.normal.textColor = sizeNewStyle.normal.textColor;
+                midCaption.normal.textColor = changeStyle.normal.textColor;
+                midArrow.normal.textColor = changeStyle.normal.textColor;
             }
 
             const float SizeCol = 100f;
@@ -2023,7 +2029,7 @@ namespace KaleidoVR.EditorTools
 
             EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
             GUILayout.Label("New", sizeCaptionStyle, GUILayout.Width(SizeCol));
-            GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle, GUILayout.Width(SizeCol));
+            GUILayout.Label((willWrite ? planned : current) + " px", changing ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
             EditorGUILayout.EndVertical();
         }
 
@@ -2140,30 +2146,15 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        private static void DrawTypeSizeRowPc(ref bool apply, string title, string why, ref int pc)
+        private static void DrawTypeSizeRow(ref bool apply, string title, string why, ref int size)
         {
             apply = EditorGUILayout.ToggleLeft(title, apply);
             DrawWhy(why);
             EditorGUI.BeginDisabledGroup(!apply);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(18);
-            GUILayout.Label("PC", GUILayout.Width(36));
-            pc = SizePopup(pc);
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
-            EditorGUI.EndDisabledGroup();
-            GUILayout.Space(4);
-        }
-
-        private static void DrawTypeSizeRowQuest(ref bool apply, string title, string why, ref int quest)
-        {
-            apply = EditorGUILayout.ToggleLeft(title, apply);
-            DrawWhy(why);
-            EditorGUI.BeginDisabledGroup(!apply);
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(18);
-            GUILayout.Label("Quest", GUILayout.Width(40));
-            quest = SizePopup(quest);
+            GUILayout.Label("Set", GUILayout.Width(28));
+            size = SizePopup(size);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
             EditorGUI.EndDisabledGroup();
@@ -3249,8 +3240,8 @@ namespace KaleidoVR.EditorTools
                 int pc;
                 int quest;
                 GetTypeSizes(window, usage.kind, out apply, out pc, out quest);
-                if (!usage.usedCustomPc) usage.pcSize = apply ? pc : usage.currentPc;
-                if (!usage.usedCustomQuest) usage.questSize = apply ? quest : usage.currentQuest;
+                if (!usage.usedCustomPc) usage.pcSize = CapTypeMaxSize(apply, pc, usage.currentPc);
+                if (!usage.usedCustomQuest) usage.questSize = CapTypeMaxSize(apply, quest, usage.currentQuest);
             }
         }
 
@@ -3396,6 +3387,13 @@ namespace KaleidoVR.EditorTools
             window.Repaint();
         }
 
+        private static int CapTypeMaxSize(bool typeApply, int typeSize, int current)
+        {
+            if (!typeApply || typeSize <= 0) return current;
+            if (current > 0 && typeSize > current) return current;
+            return typeSize;
+        }
+
         public static bool TryGetPlannedMaxSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform, out int current, out int planned)
         {
             current = 0;
@@ -3409,7 +3407,9 @@ namespace KaleidoVR.EditorTools
             bool custom = questPlatform ? usage.usedCustomQuest : usage.usedCustomPc;
             if (!typeApply && !custom) return false;
             planned = questPlatform ? usage.questSize : usage.pcSize;
-            return planned > 0;
+            if (planned <= 0) return false;
+            if (!custom && current > 0 && planned > current) return false;
+            return true;
         }
 
         public static void PreviewMaxSizesOnly(KaleidoVRCOptimizer window, bool questPlatform, out int count, out string preview)
@@ -4139,7 +4139,11 @@ namespace KaleidoVR.EditorTools
             }
             bool applyPcSize = applySize || (row != null && row.usedCustomPc);
             bool applyQuestSize = applySize || (row != null && row.usedCustomQuest);
+            bool customPc = row != null && row.usedCustomPc;
+            bool customQuest = row != null && row.usedCustomQuest;
             bool questWorkspace = window.IsQuestWorkspace;
+            bool writePcSize = applyPcSize && AllowMaxSizeWrite(CurrentPlatformMaxSize(importer, false), pcSize, customPc);
+            bool writeQuestSize = applyQuestSize && AllowMaxSizeWrite(CurrentPlatformMaxSize(importer, true), questSize, customQuest);
 
             bool dirty = false;
             bool normalHq = normal && window.higherQualityNormalMaps;
@@ -4147,7 +4151,7 @@ namespace KaleidoVR.EditorTools
             if (questWorkspace)
             {
                 TextureImporterFormat androidFormat = ToAndroidFormat(window.androidTexFormat, normalHq);
-                if (ApplyPlatform(importer, "Android", applyQuestSize, questSize, window.applyAndroidTexFormat, androidFormat, TextureImporterCompression.Compressed, false, write))
+                if (ApplyPlatform(importer, "Android", writeQuestSize, questSize, window.applyAndroidTexFormat, androidFormat, TextureImporterCompression.Compressed, false, write))
                     dirty = true;
                 return dirty;
             }
@@ -4214,17 +4218,33 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            if (applyPcSize && importer.maxTextureSize != pcSize)
+            if (writePcSize && importer.maxTextureSize != pcSize)
             {
                 if (write) importer.maxTextureSize = pcSize;
                 dirty = true;
             }
 
             TextureImporterFormat pcFormat = ToPcFormat(window.pcTexFormat, normalHq);
-            if (ApplyPlatform(importer, "Standalone", applyPcSize, pcSize, window.applyPcTexFormat, pcFormat, wantedCompression, window.textureDisableCrunch && !window.textureEnableCrunch, write))
+            if (ApplyPlatform(importer, "Standalone", writePcSize, pcSize, window.applyPcTexFormat, pcFormat, wantedCompression, window.textureDisableCrunch && !window.textureEnableCrunch, write))
                 dirty = true;
 
             return dirty;
+        }
+
+        private static int CurrentPlatformMaxSize(TextureImporter importer, bool questPlatform)
+        {
+            if (importer == null) return 0;
+            string platform = questPlatform ? "Android" : "Standalone";
+            TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings(platform);
+            if (settings != null && settings.overridden) return settings.maxTextureSize;
+            return importer.maxTextureSize;
+        }
+
+        private static bool AllowMaxSizeWrite(int current, int planned, bool custom)
+        {
+            if (planned <= 0) return false;
+            if (!custom && current > 0 && planned > current) return false;
+            return true;
         }
 
         public static void GetTypeSizes(KaleidoVRCOptimizer window, KaleidoTextureKind kind, out bool apply, out int pc, out int quest)
