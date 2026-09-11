@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.6";
+        public static readonly string VERSION = "1.0.7";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1111,10 +1111,9 @@ namespace KaleidoVR.EditorTools
 
         private static void BeginOutlinedPanel()
         {
-            pendingOutlineRect = EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(84);
-            EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.ExpandWidth(true));
             GUILayout.Space(6);
         }
 
@@ -1122,10 +1121,11 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Space(6);
             EditorGUILayout.EndVertical();
+            if (Event.current.type == EventType.Repaint)
+                pendingOutlineRect = GUILayoutUtility.GetLastRect();
+            DrawBoxOutline(pendingOutlineRect, new Color(0.38f, 0.78f, 1f, 0.95f));
             GUILayout.Space(84);
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.EndVertical();
-            DrawBoxOutline(pendingOutlineRect, new Color(0.38f, 0.78f, 1f, 0.95f));
         }
 
         public static void DrawHeader(Texture2D logo, string version)
@@ -1730,8 +1730,8 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
             DrawWhy(questPlatform
-                ? "Quest / Android max size only. Each row shows the current Quest size and, if a write is enabled, what this run will change it to. Changing a row's selector always applies that texture."
-                : "PC max size only. Each row shows the current PC size and, if a write is enabled, what this run will change it to. Changing a row's selector always applies that texture.");
+                ? "Quest / Android max size only. Changing a row's selector writes that Android size now and reimports the texture."
+                : "PC max size only. Changing a row's selector writes that PC size now and reimports the texture.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
@@ -1790,6 +1790,7 @@ namespace KaleidoVR.EditorTools
                     {
                         usage.questSize = quest;
                         usage.usedCustomQuest = true;
+                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, quest, true);
                     }
                 }
                 else
@@ -1800,6 +1801,7 @@ namespace KaleidoVR.EditorTools
                     {
                         usage.pcSize = pc;
                         usage.usedCustomPc = true;
+                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, pc, false);
                     }
                 }
                 GUILayout.FlexibleSpace();
@@ -3088,6 +3090,62 @@ namespace KaleidoVR.EditorTools
                 if (!usage.usedCustomPc) usage.pcSize = apply ? pc : usage.currentPc;
                 if (!usage.usedCustomQuest) usage.questSize = apply ? quest : usage.currentQuest;
             }
+        }
+
+        public static void QueueImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform)
+        {
+            if (window == null || string.IsNullOrEmpty(path) || size <= 0) return;
+            EditorApplication.delayCall += () => ApplyImmediateTextureSize(window, path, size, questPlatform);
+        }
+
+        private static void ApplyImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform)
+        {
+            if (window == null || string.IsNullOrEmpty(path)) return;
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return;
+
+            try
+            {
+                if (questPlatform)
+                {
+                    TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
+                    android.overridden = true;
+                    android.name = "Android";
+                    android.maxTextureSize = size;
+                    importer.SetPlatformTextureSettings(android);
+                }
+                else
+                {
+                    importer.maxTextureSize = size;
+                    TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
+                    standalone.overridden = true;
+                    standalone.name = "Standalone";
+                    standalone.maxTextureSize = size;
+                    importer.SetPlatformTextureSettings(standalone);
+                }
+
+                EditorUtility.SetDirty(importer);
+                importer.SaveAndReimport();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[KaleidoVR] Could not apply texture size for " + path + ": " + ex.Message);
+                return;
+            }
+
+            KaleidoTextureUsage usage = FindTextureUsage(window, path);
+            if (usage != null)
+            {
+                if (questPlatform) usage.currentQuest = size;
+                else usage.currentPc = size;
+                if (usage.texture != null)
+                {
+                    usage.sourceWidth = usage.texture.width;
+                    usage.sourceHeight = usage.texture.height;
+                }
+            }
+
+            window.Repaint();
         }
 
         public static KaleidoTextureUsage FindTextureUsage(KaleidoVRCOptimizer window, string path)
