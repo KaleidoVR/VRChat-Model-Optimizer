@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.9";
+        public static readonly string VERSION = "1.0.10";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1069,7 +1069,6 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle sizeCaptionStyle;
         private static GUIStyle sizeValueStyle;
         private static GUIStyle sizeNewStyle;
-        private static GUIStyle sizeKeepStyle;
         private static bool cachedDropProSkin = true;
 
         private static GUIStyle MiniWrap()
@@ -1134,13 +1133,6 @@ namespace KaleidoVR.EditorTools
 
             sizeNewStyle = new GUIStyle(sizeValueStyle);
             sizeNewStyle.normal.textColor = pro ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.42f, 0.70f, 1f);
-
-            sizeKeepStyle = new GUIStyle(EditorStyles.miniLabel)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                wordWrap = true
-            };
-            sizeKeepStyle.normal.textColor = pro ? new Color(0.62f, 0.82f, 0.58f, 1f) : new Color(0.18f, 0.48f, 0.16f, 1f);
         }
 
         private static GUIStyle PingLinkStyle()
@@ -1879,7 +1871,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.MinWidth(120));
             GUILayout.FlexibleSpace();
             GUILayout.Label("Current max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
-            GUILayout.Label("", GUILayout.Width(22));
+            GUILayout.Label("", GUILayout.Width(72));
             GUILayout.Label("New max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
             GUILayout.Space(8);
             EditorGUILayout.EndHorizontal();
@@ -2001,31 +1993,31 @@ namespace KaleidoVR.EditorTools
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
             bool changing = willWrite && planned != current;
 
-            EditorGUILayout.BeginVertical(GUILayout.Width(230));
+            GUIStyle midCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleCenter };
+            GUIStyle midArrow = new GUIStyle(sizeValueStyle) { alignment = TextAnchor.MiddleCenter };
+            if (changing)
+            {
+                midCaption.normal.textColor = sizeNewStyle.normal.textColor;
+                midArrow.normal.textColor = sizeNewStyle.normal.textColor;
+            }
+
+            EditorGUILayout.BeginVertical(GUILayout.Width(272));
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.BeginVertical(GUILayout.Width(100));
             GUILayout.Label("Current", sizeCaptionStyle);
             GUILayout.Label(current > 0 ? current + " px" : "—", sizeValueStyle);
             EditorGUILayout.EndVertical();
 
-            GUIStyle arrow = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter };
-            arrow.normal.textColor = changing
-                ? (EditorGUIUtility.isProSkin ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.42f, 0.70f, 1f))
-                : GUI.skin.label.normal.textColor;
-            GUILayout.Label("→", arrow, GUILayout.Width(22), GUILayout.Height(32));
+            EditorGUILayout.BeginVertical(GUILayout.Width(72));
+            GUILayout.Label(changing ? "Will apply" : " ", midCaption);
+            GUILayout.Label("→", midArrow);
+            EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical(GUILayout.Width(100));
             GUILayout.Label("New", sizeCaptionStyle);
             GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle);
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
-
-            if (changing)
-                GUILayout.Label("Will apply " + current + " → " + planned, sizeNewStyle);
-            else if (willWrite)
-                GUILayout.Label("Already " + current + " — no change", sizeKeepStyle);
-            else
-                GUILayout.Label("Type size above is off — current stays " + current, MiniWrap());
             EditorGUILayout.EndVertical();
         }
 
