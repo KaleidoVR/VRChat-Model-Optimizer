@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.14";
+        public static readonly string VERSION = "1.0.15";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1045,8 +1045,8 @@ namespace KaleidoVR.EditorTools
 
     public static class KaleidoVRCOptimizerUI
     {
-        private static readonly int[] TextureSizes = { 256, 512, 1024, 2048, 4096 };
-        private static readonly string[] TextureSizeLabels = { "256", "512", "1024", "2048", "4096" };
+        private static readonly int[] TextureSizes = { 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
+        private static readonly string[] TextureSizeLabels = { "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
         private static readonly string[] TextureSortLabels =
         {
             "Largest resolution first",
@@ -1976,7 +1976,7 @@ namespace KaleidoVR.EditorTools
             int typeQuest;
             KaleidoVRCOptimizerLogic.GetTypeSizes(window, usage.kind, out typeApply, out typePc, out typeQuest);
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
-            int planned = questPlatform ? usage.questSize : usage.pcSize;
+            int planned = KaleidoVRCOptimizerLogic.GetPlannedRowSize(window, usage, questPlatform);
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
             int revert = questPlatform ? usage.questRevertSize : usage.pcRevertSize;
             bool increasing = revert > 0 && planned > revert;
@@ -2401,10 +2401,21 @@ namespace KaleidoVR.EditorTools
 
         private static int SizePopup(int current)
         {
-            int index = 2;
+            int index = 5;
+            int nearestDelta = int.MaxValue;
             for (int i = 0; i < TextureSizes.Length; i++)
             {
-                if (TextureSizes[i] == current) index = i;
+                if (TextureSizes[i] == current)
+                {
+                    index = i;
+                    break;
+                }
+                int delta = Math.Abs(TextureSizes[i] - current);
+                if (current > 0 && delta < nearestDelta)
+                {
+                    nearestDelta = delta;
+                    index = i;
+                }
             }
             int picked = EditorGUILayout.Popup(index, TextureSizeLabels, GUILayout.Width(70));
             return TextureSizes[picked];
@@ -3294,12 +3305,8 @@ namespace KaleidoVR.EditorTools
             {
                 KaleidoTextureUsage usage = window.textureUsages[i];
                 if (usage == null) continue;
-                bool apply;
-                int pc;
-                int quest;
-                GetTypeSizes(window, usage.kind, out apply, out pc, out quest);
-                if (!usage.usedCustomPc) usage.pcSize = CapTypeMaxSize(apply, pc, usage.currentPc);
-                if (!usage.usedCustomQuest) usage.questSize = CapTypeMaxSize(apply, quest, usage.currentQuest);
+                if (!usage.usedCustomPc) usage.pcSize = usage.currentPc > 0 ? usage.currentPc : usage.pcSize;
+                if (!usage.usedCustomQuest) usage.questSize = usage.currentQuest > 0 ? usage.currentQuest : usage.questSize;
             }
         }
 
@@ -3452,6 +3459,22 @@ namespace KaleidoVR.EditorTools
             return typeSize;
         }
 
+        public static int GetPlannedRowSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
+        {
+            if (usage == null) return 0;
+            bool typeApply;
+            int typePc;
+            int typeQuest;
+            GetTypeSizes(window, usage.kind, out typeApply, out typePc, out typeQuest);
+            if (questPlatform)
+            {
+                if (usage.usedCustomQuest) return usage.questSize;
+                return CapTypeMaxSize(typeApply, typeQuest, usage.currentQuest);
+            }
+            if (usage.usedCustomPc) return usage.pcSize;
+            return CapTypeMaxSize(typeApply, typePc, usage.currentPc);
+        }
+
         public static bool TryGetPlannedMaxSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform, out int current, out int planned)
         {
             current = 0;
@@ -3464,7 +3487,7 @@ namespace KaleidoVR.EditorTools
             current = questPlatform ? usage.currentQuest : usage.currentPc;
             bool custom = questPlatform ? usage.usedCustomQuest : usage.usedCustomPc;
             if (!typeApply && !custom) return false;
-            planned = questPlatform ? usage.questSize : usage.pcSize;
+            planned = GetPlannedRowSize(window, usage, questPlatform);
             if (planned <= 0) return false;
             if (!custom && current > 0 && planned > current) return false;
             return true;
@@ -3703,8 +3726,8 @@ namespace KaleidoVR.EditorTools
                 sourceHeight = texture.height,
                 currentPc = importer != null ? importer.maxTextureSize : texture.width,
                 currentQuest = importer != null ? importer.maxTextureSize : texture.height,
-                pcSize = pc,
-                questSize = quest,
+                pcSize = 0,
+                questSize = 0,
                 links = new List<KaleidoTextureLink>()
             };
             if (importer != null)
@@ -3714,6 +3737,8 @@ namespace KaleidoVR.EditorTools
                 TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
                 if (android != null && android.overridden) usage.currentQuest = android.maxTextureSize;
             }
+            usage.pcSize = usage.currentPc > 0 ? usage.currentPc : pc;
+            usage.questSize = usage.currentQuest > 0 ? usage.currentQuest : quest;
 
             KaleidoTextureUsage old;
             if (previous != null && previous.TryGetValue(path, out old) && (old.usedCustomPc || old.usedCustomQuest))
@@ -4196,8 +4221,8 @@ namespace KaleidoVR.EditorTools
             KaleidoTextureUsage row = FindTextureUsage(window, path);
             if (row != null)
             {
-                pcSize = row.pcSize;
-                questSize = row.questSize;
+                pcSize = GetPlannedRowSize(window, row, false);
+                questSize = GetPlannedRowSize(window, row, true);
             }
             bool applyPcSize = applySize || (row != null && row.usedCustomPc);
             bool applyQuestSize = applySize || (row != null && row.usedCustomQuest);
