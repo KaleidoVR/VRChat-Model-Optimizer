@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.13";
+        public static readonly string VERSION = "1.0.14";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1000,6 +1000,8 @@ namespace KaleidoVR.EditorTools
         public int questSize;
         public bool usedCustomPc;
         public bool usedCustomQuest;
+        public int pcRevertSize;
+        public int questRevertSize;
         public List<KaleidoTextureLink> links = new List<KaleidoTextureLink>();
     }
 
@@ -1976,8 +1978,9 @@ namespace KaleidoVR.EditorTools
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
             int planned = questPlatform ? usage.questSize : usage.pcSize;
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
-            bool changing = willWrite && planned != current;
-            bool increasing = changing && planned > current;
+            int revert = questPlatform ? usage.questRevertSize : usage.pcRevertSize;
+            bool increasing = revert > 0 && planned > revert;
+            bool changing = (willWrite && planned != current) || increasing;
             GUIStyle changeStyle = increasing ? sizeUpStyle : sizeNewStyle;
 
             GUIStyle currentCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleRight };
@@ -2010,9 +2013,13 @@ namespace KaleidoVR.EditorTools
                     : new Color(1f, 0.78f, 0.40f, 1f);
                 if (GUILayout.Button("Confirm", GUILayout.Width(MidCol), GUILayout.Height(18)))
                 {
+                    if (questPlatform) usage.questRevertSize = 0;
+                    else usage.pcRevertSize = 0;
                     KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, planned, questPlatform, current);
                 }
                 GUI.backgroundColor = prev;
+                if (GUILayout.Button("Cancel", GUILayout.Width(MidCol), GUILayout.Height(18)))
+                    CancelPendingTextureIncrease(usage, questPlatform);
             }
             else
             {
@@ -2023,8 +2030,25 @@ namespace KaleidoVR.EditorTools
 
             EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
             GUILayout.Label("New", sizeCaptionStyle, GUILayout.Width(SizeCol));
-            GUILayout.Label((willWrite ? planned : current) + " px", changing ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
+            GUILayout.Label(((willWrite || increasing) ? planned : current) + " px", changing ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
             EditorGUILayout.EndVertical();
+        }
+
+        private static void CancelPendingTextureIncrease(KaleidoTextureUsage usage, bool questPlatform)
+        {
+            if (usage == null) return;
+            if (questPlatform)
+            {
+                int revert = usage.questRevertSize > 0 ? usage.questRevertSize : usage.currentQuest;
+                if (revert > 0) usage.questSize = revert;
+                usage.questRevertSize = 0;
+            }
+            else
+            {
+                int revert = usage.pcRevertSize > 0 ? usage.pcRevertSize : usage.currentPc;
+                if (revert > 0) usage.pcSize = revert;
+                usage.pcRevertSize = 0;
+            }
         }
 
         private static void HandleTextureSizePopup(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
@@ -2034,18 +2058,35 @@ namespace KaleidoVR.EditorTools
             if (picked == selected) return;
 
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
+            if (picked > selected)
+            {
+                if (questPlatform)
+                {
+                    if (usage.questRevertSize <= 0) usage.questRevertSize = selected;
+                    usage.questSize = picked;
+                    usage.usedCustomQuest = true;
+                }
+                else
+                {
+                    if (usage.pcRevertSize <= 0) usage.pcRevertSize = selected;
+                    usage.pcSize = picked;
+                    usage.usedCustomPc = true;
+                }
+                return;
+            }
+
             if (questPlatform)
             {
                 usage.questSize = picked;
                 usage.usedCustomQuest = true;
+                usage.questRevertSize = 0;
             }
             else
             {
                 usage.pcSize = picked;
                 usage.usedCustomPc = true;
+                usage.pcRevertSize = 0;
             }
-
-            if (current > 0 && picked > current) return;
             if (picked == current) return;
             KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, picked, questPlatform, current);
         }
@@ -3668,6 +3709,8 @@ namespace KaleidoVR.EditorTools
             };
             if (importer != null)
             {
+                TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
+                if (standalone != null && standalone.overridden) usage.currentPc = standalone.maxTextureSize;
                 TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
                 if (android != null && android.overridden) usage.currentQuest = android.maxTextureSize;
             }
@@ -3679,11 +3722,13 @@ namespace KaleidoVR.EditorTools
                 {
                     usage.pcSize = old.pcSize;
                     usage.usedCustomPc = true;
+                    usage.pcRevertSize = old.pcRevertSize;
                 }
                 if (old.usedCustomQuest)
                 {
                     usage.questSize = old.questSize;
                     usage.usedCustomQuest = true;
+                    usage.questRevertSize = old.questRevertSize;
                 }
             }
 
