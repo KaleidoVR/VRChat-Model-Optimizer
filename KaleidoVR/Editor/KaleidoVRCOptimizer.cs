@@ -10,6 +10,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Animations;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEditor.Animations;
 using System;
 using System.IO;
 using System.Reflection;
@@ -23,7 +24,10 @@ namespace KaleidoVR.EditorTools
         Automatic = 0,
         HighQuality = 1,
         BC7 = 2,
-        DXT5 = 3
+        DXT5 = 3,
+        AutoBc7Dxt1 = 4,
+        DXT1 = 5,
+        BC5 = 6
     }
 
     public enum KaleidoAndroidTexFormat
@@ -90,7 +94,7 @@ namespace KaleidoVR.EditorTools
         public int otherPc = 1024;
         public int otherQuest = 512;
         public bool applyPcTexFormat = true;
-        public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.HighQuality;
+        public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
         public bool applyAndroidTexFormat = true;
         public KaleidoAndroidTexFormat androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
         public bool textureDisableReadWrite = true;
@@ -168,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.16";
+        public static readonly string VERSION = "1.0.18";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -220,7 +224,7 @@ namespace KaleidoVR.EditorTools
 
         public bool optimizeTextures = true;
         public bool applyPcTexFormat = true;
-        public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.HighQuality;
+        public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
         public bool applyAndroidTexFormat = true;
         public KaleidoAndroidTexFormat androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
         public bool textureDisableReadWrite = true;
@@ -230,7 +234,7 @@ namespace KaleidoVR.EditorTools
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
-        public bool autoDetectNormalMaps = false;
+        public bool autoDetectNormalMaps = true;
         public bool autoLinearMaskMaps = true;
         public bool higherQualityNormalMaps = true;
         public bool alphaIsTransparencyOnAlbedo = false;
@@ -426,7 +430,7 @@ namespace KaleidoVR.EditorTools
             applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
             applyPcTexFormat = true;
             applyAndroidTexFormat = true;
-            pcTexFormat = KaleidoPcTexFormat.HighQuality;
+            pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
             androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
             textureDisableReadWrite = true;
             textureApplyMipmaps = true;
@@ -436,7 +440,7 @@ namespace KaleidoVR.EditorTools
             textureEnableCrunch = false;
             textureApplyAniso = true;
             textureAniso = 1;
-            autoDetectNormalMaps = false;
+            autoDetectNormalMaps = true;
             autoLinearMaskMaps = true;
             higherQualityNormalMaps = true;
             alphaIsTransparencyOnAlbedo = false;
@@ -507,6 +511,13 @@ namespace KaleidoVR.EditorTools
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = false;
                 rendererForceBone4 = false;
+                if (index == 3)
+                {
+                    meshOptimizeAnimation = true;
+                    audioApplyVorbis = true;
+                    optimizeParticles = true;
+                    optimizeSceneExtras = true;
+                }
             }
         }
 
@@ -748,7 +759,7 @@ namespace KaleidoVR.EditorTools
             otherPc = GetInt("OPc", 1024); otherQuest = GetInt("OQ", 512);
             applyPcTexFormat = GetBool("PcFmtOn", true);
             applyAndroidTexFormat = GetBool("AndFmtOn", true);
-            pcTexFormat = (KaleidoPcTexFormat)GetInt("PcFmt", (int)KaleidoPcTexFormat.HighQuality);
+            pcTexFormat = (KaleidoPcTexFormat)GetInt("PcFmt", (int)KaleidoPcTexFormat.AutoBc7Dxt1);
             androidTexFormat = (KaleidoAndroidTexFormat)GetInt("AndFmt", (int)KaleidoAndroidTexFormat.ASTC_6x6);
             textureDisableReadWrite = GetBool("TexRW", true);
             textureApplyMipmaps = GetBool("TexMipsOn", true);
@@ -758,7 +769,7 @@ namespace KaleidoVR.EditorTools
             textureEnableCrunch = GetBool("TexCrunchOn", false);
             textureApplyAniso = GetBool("TexAnisoOn", true);
             textureAniso = GetInt("TexAniso", 1);
-            autoDetectNormalMaps = GetBool("TexNorm", false);
+            autoDetectNormalMaps = GetBool("TexNorm", true);
             autoLinearMaskMaps = GetBool("TexLinear", true);
             higherQualityNormalMaps = GetBool("TexNormHQ", true);
             alphaIsTransparencyOnAlbedo = GetBool("TexAlpha", false);
@@ -805,10 +816,31 @@ namespace KaleidoVR.EditorTools
             disableLightsOnAvatar = GetBool("ExtraLight", false);
             disableCamerasOnAvatar = GetBool("ExtraCam", false);
             optimizeParticles = GetBool("ExtraPart", false);
+
+            MigrateEditorPreferences();
+        }
+
+        private void MigrateEditorPreferences()
+        {
+            const int currentSchema = 2;
+            int schema = GetInt("Schema", 1);
+            if (schema >= currentSchema) return;
+
+            if (schema < 2)
+            {
+                if (pcTexFormat == KaleidoPcTexFormat.HighQuality)
+                    pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
+                autoDetectNormalMaps = true;
+            }
+
+            SetInt("Schema", currentSchema);
+            SetInt("PcFmt", (int)pcTexFormat);
+            SetBool("TexNorm", autoDetectNormalMaps);
         }
 
         public void SaveEditorPreferences()
         {
+            SetInt("Schema", 2);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -1002,6 +1034,11 @@ namespace KaleidoVR.EditorTools
         public int pcRevertSize;
         public int questRevertSize;
         public List<KaleidoTextureLink> links = new List<KaleidoTextureLink>();
+        public long vramBytes;
+        public string formatLabel = "";
+        public bool isActive;
+        public bool fromAnimationSwap;
+        public bool crunched;
     }
 
     [Serializable]
@@ -1040,6 +1077,33 @@ namespace KaleidoVR.EditorTools
         public string summary = "Drop a VRChat avatar model and press Scan Performance.";
         public List<string> notes = new List<string>();
         public List<string> planned = new List<string>();
+        public long textureVramAll;
+        public long textureVramActive;
+        public long textureVramPlanned;
+        public long meshVramAll;
+        public long meshVramActive;
+        public long vramAll;
+        public long vramActive;
+        public string textureVramQuality = "—";
+        public string meshVramQuality = "—";
+        public int grabPasses;
+        public string grabPassQuality = "—";
+        public List<string> grabPassShaders = new List<string>();
+        public long blendshapeTriangles;
+        public int blendshapeMeshes;
+        public string blendshapeQuality = "—";
+        public List<string> blendshapeMeshLines = new List<string>();
+        public int anyStateTransitions;
+        public string anyStateQuality = "—";
+        public int animatorLayers;
+        public string layerCountQuality = "—";
+        public bool writeDefaultsMixed;
+        public bool writeDefaultsMostlyOn;
+        public List<string> writeDefaultOutliers = new List<string>();
+        public List<string> emptyStates = new List<string>();
+        public List<string> crunchedTextures = new List<string>();
+        public List<string> nonBc5Normals = new List<string>();
+        public List<string> materialSwapNames = new List<string>();
     }
 
     public static class KaleidoVRCOptimizerUI
@@ -1052,17 +1116,46 @@ namespace KaleidoVR.EditorTools
             "Smallest resolution first",
             "Name A–Z",
             "Name Z–A",
-            "Type, then name"
+            "Type, then name",
+            "Largest VRAM first"
         };
         private static Rect pendingOutlineRect;
-        private static readonly string[] BuiltinNames = { "PC", "Quest", "Dual Platform" };
+        private static readonly string[] BuiltinNames = { "PC", "Quest", "Dual Platform", "Everything" };
         private static readonly string[] BuiltinSummaries =
         {
-            "Booth-safe PC start. Caps maps at 2K, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
-            "Quest start. 1K body maps, ASTC, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
-            "Booth-safe dual start. 2K PC / 1K Quest body maps. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off."
+            "Booth-safe PC start. Caps maps at 2K, Auto BC7/DXT1 (BC5 normals), keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
+            "Quest start. 1K body maps, ASTC 6x6, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
+            "Booth-safe dual start. 2K PC / 1K Quest body maps, Auto BC7/DXT1 on PC and ASTC 6x6 on Quest. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off.",
+            "Full pack. Dual 2K/1K caps, Auto BC7/DXT1, ASTC 6x6, BC5 normals, Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
+        };
+        private static readonly string[] PcFormatLabels =
+        {
+            "Auto (BC7 / DXT1)",
+            "Unity Compressed HQ",
+            "BC7",
+            "DXT5",
+            "DXT1",
+            "BC5",
+            "Unity Automatic"
+        };
+        private static readonly int[] PcFormatValues =
+        {
+            (int)KaleidoPcTexFormat.AutoBc7Dxt1,
+            (int)KaleidoPcTexFormat.HighQuality,
+            (int)KaleidoPcTexFormat.BC7,
+            (int)KaleidoPcTexFormat.DXT5,
+            (int)KaleidoPcTexFormat.DXT1,
+            (int)KaleidoPcTexFormat.BC5,
+            (int)KaleidoPcTexFormat.Automatic
         };
 
+        private static bool evalVramOpen = true;
+        private static bool evalHiddenOpen = true;
+        private static bool evalFlagsOpen = true;
+        private static bool evalWdOpen;
+        private static bool evalEmptyOpen;
+        private static bool evalGrabOpen;
+        private static bool evalBlendOpen;
         private static GUIStyle miniWrap;
         private static GUIStyle dropTitleStyle;
         private static GUIStyle dropHintStyle;
@@ -1289,8 +1382,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("1. Start from a built-in", EditorStyles.boldLabel);
-            DrawWhy("Click one to fill every tab with that recipe. Special stays off. You can still tweak tabs afterward.");
-
+            DrawWhy("Click one to fill every tab with that recipe. Everything is the full recommended pack. Special stays off. You can still uncheck options afterward.");
             EditorGUILayout.BeginHorizontal();
             for (int i = 0; i < BuiltinNames.Length; i++)
             {
@@ -1698,12 +1790,12 @@ namespace KaleidoVR.EditorTools
             if (window.IsQuestWorkspace)
             {
                 GUILayout.Label("Quest / Android Performance Snapshot", EditorStyles.boldLabel);
-                DrawWhy("Quest rank using VRChat's published mobile limits. This scan is from the Quest workspace. PC rank lives on the PC workspace.");
+                DrawWhy("VRChat mobile rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
             }
             else
             {
                 GUILayout.Label("PC Performance Snapshot", EditorStyles.boldLabel);
-                DrawWhy("PC rank using VRChat's published PC limits. This scan is from the PC workspace. Quest rank lives on the Quest workspace.");
+                DrawWhy("VRChat PC rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
             }
             DrawStats(window);
         }
@@ -1768,8 +1860,17 @@ namespace KaleidoVR.EditorTools
             else
             {
                 GUILayout.Label("PC Importer Settings", EditorStyles.boldLabel);
-                window.applyPcTexFormat = DrawToggle(window.applyPcTexFormat, "Set PC compression", "Compressed HQ / BC7 is the usual PC choice. Leave off to keep each texture's current PC format.");
-                if (window.applyPcTexFormat) window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.EnumPopup("PC Format", window.pcTexFormat);
+                window.applyPcTexFormat = DrawToggle(window.applyPcTexFormat, "Set PC compression", "Auto uses DXT1 on opaque maps (4 bpp) and BC7 when alpha is present (8 bpp). Same VRAM as DXT5 for alpha, better quality. Leave off to keep each texture's current PC format.");
+                if (window.applyPcTexFormat)
+                {
+                    window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.IntPopup(
+                        "PC Format",
+                        (int)window.pcTexFormat,
+                        PcFormatLabels,
+                        PcFormatValues);
+                    if (window.pcTexFormat == KaleidoPcTexFormat.AutoBc7Dxt1)
+                        DrawWhy("Dry Run / Apply only. Opaque → DXT1. Alpha or cutout → BC7. Detected normals stay BC5 while Higher quality normals is on.");
+                }
 
                 window.textureDisableReadWrite = DrawToggle(window.textureDisableReadWrite, "Disable Read / Write", "Saves RAM. Turn off only if a script or editor tool reads pixels from the texture.");
                 window.textureApplyMipmaps = DrawToggle(window.textureApplyMipmaps, "Set mip maps", "Avatars in 3D should generate mip maps. Uncheck to leave each texture as-is.");
@@ -1919,6 +2020,15 @@ namespace KaleidoVR.EditorTools
                 EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(false));
                 GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel, GUILayout.ExpandWidth(false));
                 GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                if (usage.vramBytes > 0 || !string.IsNullOrEmpty(usage.formatLabel))
+                {
+                    string vram = usage.vramBytes > 0 ? KaleidoVRCOptimizerHelpers.FormatBytes(usage.vramBytes) : "";
+                    string fmt = string.IsNullOrEmpty(usage.formatLabel) ? "" : usage.formatLabel;
+                    string extra = (fmt + "  " + vram).Trim();
+                    if (usage.fromAnimationSwap) extra += "  swap";
+                    if (usage.crunched) extra += "  crunch";
+                    GUILayout.Label(extra, EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                }
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
                 HandleTextureSizePopup(window, usage, questPlatform);
@@ -1962,6 +2072,9 @@ namespace KaleidoVR.EditorTools
                     case 4:
                         int kind = ((int)a.kind).CompareTo((int)b.kind);
                         return kind != 0 ? kind : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
+                    case 5:
+                        int vram = b.vramBytes.CompareTo(a.vramBytes);
+                        return vram != 0 ? vram : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
                     default:
                         int largest = areaB.CompareTo(areaA);
                         return largest != 0 ? largest : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
@@ -2453,7 +2566,6 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.LabelField("Skinned Meshes", report.skinnedMeshes.ToString("N0"));
             EditorGUILayout.LabelField("Basic Meshes", report.meshRenderers.ToString("N0"));
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
-            EditorGUILayout.LabelField("Texture Memory (est.)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureBytesEstimate));
             EditorGUILayout.LabelField("Blend Shapes", report.blendShapes.ToString("N0"));
             EditorGUILayout.LabelField("Bones (max on one mesh)", report.bones.ToString("N0"));
             EditorGUILayout.LabelField("Animators", report.animators.ToString("N0"));
@@ -2465,12 +2577,14 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.LabelField("Contacts", report.contacts.ToString("N0"));
             EditorGUILayout.LabelField("Constraints", report.constraints.ToString("N0"));
 
+            DrawEvalSections(window, report);
+
             if (report.notes.Count > 0)
             {
                 GUILayout.Space(4);
                 GUILayout.Label("Hints", EditorStyles.miniBoldLabel);
                 StringBuilder hints = new StringBuilder();
-                int shown = Math.Min(report.notes.Count, 12);
+                int shown = Math.Min(report.notes.Count, 16);
                 for (int i = 0; i < shown; i++) hints.AppendLine("• " + report.notes[i]);
                 if (report.notes.Count > shown) hints.AppendLine("• … " + (report.notes.Count - shown) + " more in the log");
                 EditorGUILayout.HelpBox(hints.ToString().TrimEnd(), MessageType.None);
@@ -2486,6 +2600,95 @@ namespace KaleidoVR.EditorTools
                 if (report.planned.Count > shown) planned.AppendLine("• … " + (report.planned.Count - shown) + " more in the log");
                 EditorGUILayout.HelpBox(planned.ToString().TrimEnd(), MessageType.None);
             }
+        }
+
+        private static void DrawEvalSections(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            GUILayout.Space(8);
+            evalVramOpen = EditorGUILayout.Foldout(evalVramOpen, "VRAM (not VRChat rank)", true);
+            if (evalVramOpen)
+            {
+                DrawWhy("Video memory is what GPUs actually choke on. Rank ignores most of this. Active objects still keep inactive VRAM until memory is tight.");
+                EditorGUILayout.LabelField("Texture VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramAll) + "  " + report.textureVramQuality);
+                EditorGUILayout.LabelField("Texture VRAM (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramActive));
+                EditorGUILayout.LabelField("Mesh VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.meshVramAll) + "  " + report.meshVramQuality);
+                EditorGUILayout.LabelField("Mesh VRAM (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.meshVramActive));
+                EditorGUILayout.LabelField("Combined (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramAll));
+                EditorGUILayout.LabelField("Combined (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramActive));
+                if (report.textureVramPlanned > 0 && report.textureVramPlanned != report.textureVramAll)
+                {
+                    long saved = report.textureVramAll - report.textureVramPlanned;
+                    EditorGUILayout.LabelField("Texture VRAM after Apply (est.)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramPlanned)
+                        + (saved > 0 ? "  (−" + KaleidoVRCOptimizerHelpers.FormatBytes(saved) + ")" : ""));
+                }
+                if (report.vramAll > 0)
+                {
+                    EditorGUILayout.LabelField("40 copies of this avatar", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramAll * 40), MiniWrap());
+                    EditorGUILayout.LabelField("80 copies of this avatar", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramAll * 80), MiniWrap());
+                }
+            }
+
+            GUILayout.Space(6);
+            evalHiddenOpen = EditorGUILayout.Foldout(evalHiddenOpen, "Hidden cost (animator / shaders / blendshapes)", true);
+            if (evalHiddenOpen)
+            {
+                DrawWhy("VRChat rank does not count these. GrabPass, Any State, mixed Write Defaults, empty states, and blendshape triangle load still hit CPU and GPU. Scan reports them here. Apply only writes the importer and scene options you ticked.");
+                EditorGUILayout.LabelField("GrabPasses", report.grabPasses.ToString("N0") + "  " + report.grabPassQuality);
+                if (report.grabPassShaders != null && report.grabPassShaders.Count > 0)
+                {
+                    evalGrabOpen = EditorGUILayout.Foldout(evalGrabOpen, "Shaders with GrabPass", false);
+                    if (evalGrabOpen) DrawEvalList(report.grabPassShaders);
+                }
+                EditorGUILayout.LabelField("Blendshape triangles", report.blendshapeTriangles.ToString("N0") + "  " + report.blendshapeQuality);
+                EditorGUILayout.LabelField("Meshes with blendshapes", report.blendshapeMeshes.ToString("N0"));
+                if (report.blendshapeMeshLines != null && report.blendshapeMeshLines.Count > 0)
+                {
+                    evalBlendOpen = EditorGUILayout.Foldout(evalBlendOpen, "Blendshape meshes", false);
+                    if (evalBlendOpen) DrawEvalList(report.blendshapeMeshLines);
+                }
+                EditorGUILayout.LabelField("Any State transitions", report.anyStateTransitions.ToString("N0") + "  " + report.anyStateQuality);
+                EditorGUILayout.LabelField("Animator layers", report.animatorLayers.ToString("N0") + "  " + report.layerCountQuality);
+                EditorGUILayout.LabelField("Write Defaults", report.writeDefaultsMixed
+                    ? "Mixed — should be all on or all off"
+                    : (report.writeDefaultsMostlyOn ? "On" : "Off"));
+                if (report.writeDefaultsMixed && report.writeDefaultOutliers != null && report.writeDefaultOutliers.Count > 0)
+                {
+                    evalWdOpen = EditorGUILayout.Foldout(evalWdOpen, "Write Default outliers (" + report.writeDefaultOutliers.Count + ")", false);
+                    if (evalWdOpen) DrawEvalList(report.writeDefaultOutliers);
+                }
+                EditorGUILayout.LabelField("Empty animator states", report.emptyStates != null ? report.emptyStates.Count.ToString("N0") : "0");
+                if (report.emptyStates != null && report.emptyStates.Count > 0)
+                {
+                    evalEmptyOpen = EditorGUILayout.Foldout(evalEmptyOpen, "States with no motion", false);
+                    if (evalEmptyOpen) DrawEvalList(report.emptyStates);
+                }
+            }
+
+            GUILayout.Space(6);
+            evalFlagsOpen = EditorGUILayout.Foldout(evalFlagsOpen, "Texture flags (crunch / normals / swaps)", true);
+            if (evalFlagsOpen)
+            {
+                DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual PC normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused.");
+                EditorGUILayout.LabelField("Crunched textures", report.crunchedTextures != null ? report.crunchedTextures.Count.ToString("N0") : "0");
+                if (report.crunchedTextures != null && report.crunchedTextures.Count > 0)
+                    DrawEvalList(report.crunchedTextures);
+                EditorGUILayout.LabelField("Normals not BC5", report.nonBc5Normals != null ? report.nonBc5Normals.Count.ToString("N0") : "0");
+                if (!window.IsQuestWorkspace && report.nonBc5Normals != null && report.nonBc5Normals.Count > 0)
+                    DrawEvalList(report.nonBc5Normals);
+                EditorGUILayout.LabelField("Animation-swap textures", report.materialSwapNames != null ? report.materialSwapNames.Count.ToString("N0") : "0");
+                if (report.materialSwapNames != null && report.materialSwapNames.Count > 0)
+                    DrawEvalList(report.materialSwapNames);
+            }
+        }
+
+        private static void DrawEvalList(List<string> lines)
+        {
+            if (lines == null || lines.Count == 0) return;
+            StringBuilder sb = new StringBuilder();
+            int shown = Math.Min(lines.Count, 16);
+            for (int i = 0; i < shown; i++) sb.AppendLine("• " + lines[i]);
+            if (lines.Count > shown) sb.AppendLine("• … " + (lines.Count - shown) + " more");
+            EditorGUILayout.HelpBox(sb.ToString().TrimEnd(), MessageType.None);
         }
 
         private static void DrawModelContents(KaleidoVRCOptimizer window)
@@ -3143,6 +3346,7 @@ namespace KaleidoVR.EditorTools
                 PopulateTextureUsages(window, roots, assetPaths);
 
                 GatherStats(roots, assetPaths, report, logEntries);
+                KaleidoVRCOptimizerEval.Evaluate(window, roots, report);
                 BuildHints(report);
 
                 if (apply)
@@ -3156,6 +3360,14 @@ namespace KaleidoVR.EditorTools
                         ? workspaceName + " dry run complete. " + report.planned.Count + " change(s) would be applied."
                         : "Applied " + report.planned.Count + " " + workspaceName + " change(s). Reimport may take a moment.")
                     : workspaceName + " scan complete for " + roots.Count + " VRChat avatar model(s) and " + assetPaths.Count + " related asset(s).";
+                if (report.textureVramAll > 0)
+                {
+                    report.summary += " Texture VRAM " + KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramAll);
+                    if (report.textureVramPlanned > 0 && report.textureVramPlanned < report.textureVramAll)
+                        report.summary += " → " + KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramPlanned) + " after Apply (est.).";
+                    else
+                        report.summary += ".";
+                }
             }
             catch (Exception ex)
             {
@@ -3642,13 +3854,18 @@ namespace KaleidoVR.EditorTools
                     {
                         Renderer renderer = renderers[i];
                         if (renderer == null || renderer.sharedMaterials == null) continue;
+                        if (KaleidoVRCOptimizerEval.IsEditorOnly(renderer.gameObject)) continue;
                         for (int m = 0; m < renderer.sharedMaterials.Length; m++)
                         {
                             Material material = renderer.sharedMaterials[m];
                             if (material == null) continue;
-                            CollectMaterialTextures(window, map, previous, renderer.gameObject, material);
+                            CollectMaterialTextures(window, map, previous, renderer.gameObject, material, false);
                         }
                     }
+                    KaleidoVRCOptimizerEval.CollectAnimationMaterials(root, delegate (Material swapMat)
+                    {
+                        CollectMaterialTextures(window, map, previous, root, swapMat, true);
+                    });
                 }
             }
 
@@ -3677,7 +3894,8 @@ namespace KaleidoVR.EditorTools
             Dictionary<string, KaleidoTextureUsage> map,
             Dictionary<string, KaleidoTextureUsage> previous,
             GameObject sceneObject,
-            Material material)
+            Material material,
+            bool fromAnimationSwap)
         {
             Shader shader = material.shader;
             if (shader != null)
@@ -3691,6 +3909,11 @@ namespace KaleidoVR.EditorTools
                     if (texture == null) continue;
                     KaleidoTextureUsage usage = GetOrAddTextureUsage(window, map, previous, texture);
                     AddTextureLink(usage, sceneObject, material, prop);
+                    if (usage != null)
+                    {
+                        if (fromAnimationSwap) usage.fromAnimationSwap = true;
+                        if (sceneObject != null && sceneObject.activeInHierarchy) usage.isActive = true;
+                    }
                 }
             }
 
@@ -3698,6 +3921,11 @@ namespace KaleidoVR.EditorTools
             {
                 KaleidoTextureUsage main = GetOrAddTextureUsage(window, map, previous, material.mainTexture);
                 AddTextureLink(main, sceneObject, material, "_MainTex");
+                if (main != null)
+                {
+                    if (fromAnimationSwap) main.fromAnimationSwap = true;
+                    if (sceneObject != null && sceneObject.activeInHierarchy) main.isActive = true;
+                }
             }
         }
 
@@ -3743,6 +3971,9 @@ namespace KaleidoVR.EditorTools
             }
             usage.pcSize = usage.currentPc > 0 ? usage.currentPc : pc;
             usage.questSize = usage.currentQuest > 0 ? usage.currentQuest : quest;
+            usage.vramBytes = KaleidoVRCOptimizerEval.TextureVramBytes(texture);
+            if (texture is Texture2D t2d) usage.formatLabel = t2d.format.ToString();
+            else usage.formatLabel = texture.GetType().Name;
 
             KaleidoTextureUsage old;
             if (previous != null && previous.TryGetValue(path, out old) && (old.usedCustomPc || old.usedCustomQuest))
@@ -3870,6 +4101,7 @@ namespace KaleidoVR.EditorTools
 
                 foreach (SkinnedMeshRenderer skinned in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                 {
+                    if (KaleidoVRCOptimizerEval.IsEditorOnly(skinned.gameObject)) continue;
                     report.skinnedMeshes++;
                     AccumulateMesh(skinned.sharedMesh, report);
                     AccumulateMaterials(skinned.sharedMaterials, uniqueMats, uniqueTex, report);
@@ -3879,6 +4111,7 @@ namespace KaleidoVR.EditorTools
 
                 foreach (MeshRenderer meshRenderer in root.GetComponentsInChildren<MeshRenderer>(true))
                 {
+                    if (KaleidoVRCOptimizerEval.IsEditorOnly(meshRenderer.gameObject)) continue;
                     report.meshRenderers++;
                     MeshFilter filter = meshRenderer.GetComponent<MeshFilter>();
                     if (filter != null) AccumulateMesh(filter.sharedMesh, report);
@@ -4063,6 +4296,14 @@ namespace KaleidoVR.EditorTools
             if (report.lights > 0) report.notes.Add("Any realtime light is already worse than PC Excellent (0). Android disables avatar lights.");
             if (report.constraints > 0) report.notes.Add("Unity constraints are disabled on Android avatars. Use VRChat Constraints; they still count toward rank.");
             if (report.audioSources > 0) report.notes.Add("Audio sources are disabled on Android avatars. PC Excellent allows 1.");
+            if (report.grabPasses > 0) report.notes.Add("GrabPass shaders are very expensive. VRChat rank does not count them. " + report.grabPasses + " found.");
+            if (report.anyStateTransitions > 50) report.notes.Add("Any State transitions are checked every frame. Around 50 is a healthy cap. This avatar has " + report.anyStateTransitions + ".");
+            if (report.writeDefaultsMixed) report.notes.Add("Write Defaults is mixed across animator states. Unity wants all on or all off.");
+            if (report.emptyStates != null && report.emptyStates.Count > 0) report.notes.Add(report.emptyStates.Count + " animator state(s) have no motion. Put an empty clip in them.");
+            if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
+            if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
+            if (report.nonBc5Normals != null && report.nonBc5Normals.Count > 0)
+                report.notes.Add(report.nonBc5Normals.Count + " normal map(s) are not BC5. On PC, BC5 matches BC7 VRAM with better normals.");
         }
 
         private static void ApplyOptimizations(
@@ -4088,8 +4329,11 @@ namespace KaleidoVR.EditorTools
                     {
                         if (ApplyTextureImporter(window, path, textureImporter, write))
                         {
+                            KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter);
+                            string formatHint = DescribePlannedTextureFormat(window, textureImporter, kind);
                             string line = (window.IsQuestWorkspace ? "Quest texture (" : "PC texture (")
-                                + KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter) + "): " + path;
+                                + kind + "): " + path;
+                            if (!string.IsNullOrEmpty(formatHint)) line += " [" + formatHint + "]";
                             report.planned.Add(line);
                             logEntries.Add(line);
                             changedImporters.Add(path);
@@ -4315,7 +4559,7 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            TextureImporterFormat pcFormat = ToPcFormat(window.pcTexFormat, normalHq);
+            TextureImporterFormat pcFormat = ToPcFormat(window.pcTexFormat, normalHq, importer, normal);
             if (ApplyPlatform(importer, "Standalone", writePcSize, pcSize, window.applyPcTexFormat, pcFormat, wantedCompression, window.textureDisableCrunch && !window.textureEnableCrunch, write))
                 dirty = true;
 
@@ -4393,13 +4637,44 @@ namespace KaleidoVR.EditorTools
             return true;
         }
 
-        private static TextureImporterFormat ToPcFormat(KaleidoPcTexFormat format, bool normalHq)
+        public static TextureImporterFormat GetPlannedTextureFormat(KaleidoVRCOptimizer window, TextureImporter importer, KaleidoTextureKind kind)
+        {
+            bool normal = kind == KaleidoTextureKind.Normal;
+            bool normalHq = normal && window.higherQualityNormalMaps;
+            if (window.IsQuestWorkspace) return ToAndroidFormat(window.androidTexFormat, normalHq);
+            return ToPcFormat(window.pcTexFormat, normalHq, importer, normal);
+        }
+
+        private static string DescribePlannedTextureFormat(KaleidoVRCOptimizer window, TextureImporter importer, KaleidoTextureKind kind)
+        {
+            bool normal = kind == KaleidoTextureKind.Normal;
+            bool normalHq = normal && window.higherQualityNormalMaps;
+            if (window.IsQuestWorkspace)
+            {
+                if (!window.applyAndroidTexFormat) return "";
+                return ToAndroidFormat(window.androidTexFormat, normalHq).ToString();
+            }
+            if (!window.applyPcTexFormat) return "";
+            if (normalHq) return TextureImporterFormat.BC5.ToString();
+            if (window.pcTexFormat == KaleidoPcTexFormat.HighQuality) return "CompressedHQ";
+            if (window.pcTexFormat == KaleidoPcTexFormat.Automatic) return "Automatic";
+            return ToPcFormat(window.pcTexFormat, false, importer, normal).ToString();
+        }
+
+        private static TextureImporterFormat ToPcFormat(KaleidoPcTexFormat format, bool normalHq, TextureImporter importer, bool classifiedNormal)
         {
             if (normalHq) return TextureImporterFormat.BC5;
             switch (format)
             {
+                case KaleidoPcTexFormat.AutoBc7Dxt1:
+                    if (classifiedNormal
+                        || (importer != null && (importer.textureType == TextureImporterType.NormalMap || importer.DoesSourceTextureHaveAlpha())))
+                        return TextureImporterFormat.BC7;
+                    return TextureImporterFormat.DXT1;
                 case KaleidoPcTexFormat.BC7: return TextureImporterFormat.BC7;
                 case KaleidoPcTexFormat.DXT5: return TextureImporterFormat.DXT5;
+                case KaleidoPcTexFormat.DXT1: return TextureImporterFormat.DXT1;
+                case KaleidoPcTexFormat.BC5: return TextureImporterFormat.BC5;
                 default: return TextureImporterFormat.Automatic;
             }
         }
