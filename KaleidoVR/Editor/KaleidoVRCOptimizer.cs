@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.5";
+        public static readonly string VERSION = "1.0.6";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1113,7 +1113,7 @@ namespace KaleidoVR.EditorTools
         {
             pendingOutlineRect = EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(14);
+            GUILayout.Space(84);
             EditorGUILayout.BeginVertical();
             GUILayout.Space(6);
         }
@@ -1122,7 +1122,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Space(6);
             EditorGUILayout.EndVertical();
-            GUILayout.Space(14);
+            GUILayout.Space(84);
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
             DrawBoxOutline(pendingOutlineRect, new Color(0.38f, 0.78f, 1f, 0.95f));
