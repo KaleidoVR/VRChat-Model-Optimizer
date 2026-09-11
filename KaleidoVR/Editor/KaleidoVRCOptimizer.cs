@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.8";
+        public static readonly string VERSION = "1.0.9";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -196,6 +196,8 @@ namespace KaleidoVR.EditorTools
         public bool readyToApply;
         public bool readyToApplyPc;
         public bool readyToApplyQuest;
+        public bool readyToApplyMaxSizesPc;
+        public bool readyToApplyMaxSizesQuest;
 
         public bool applyAlbedoSize = true;
         public int albedoPc = 2048;
@@ -305,11 +307,23 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        public bool ReadyToApplyMaxSizesOnly
+        {
+            get { return IsQuestWorkspace ? readyToApplyMaxSizesQuest : readyToApplyMaxSizesPc; }
+            set
+            {
+                if (IsQuestWorkspace) readyToApplyMaxSizesQuest = value;
+                else readyToApplyMaxSizesPc = value;
+            }
+        }
+
         public void ClearReadyToApply()
         {
             readyToApply = false;
             readyToApplyPc = false;
             readyToApplyQuest = false;
+            readyToApplyMaxSizesPc = false;
+            readyToApplyMaxSizesQuest = false;
         }
 
         public List<KaleidoModelInventoryItem> inventory = new List<KaleidoModelInventoryItem>();
@@ -319,6 +333,8 @@ namespace KaleidoVR.EditorTools
         public List<KaleidoTextureUsage> textureUsages = new List<KaleidoTextureUsage>();
         public Vector2 textureUsageScroll;
         public string previewTexturePath = "";
+        public List<KaleidoTextureSizeEdit> textureSizeHistory = new List<KaleidoTextureSizeEdit>();
+        public int textureSizeHistoryIndex = -1;
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
         public static void ShowWindow()
@@ -914,6 +930,7 @@ namespace KaleidoVR.EditorTools
             {
                 inventorySignature = "";
                 WorkspaceReadyToApply = false;
+                ReadyToApplyMaxSizesOnly = false;
                 SaveEditorPreferences();
             }
         }
@@ -984,6 +1001,15 @@ namespace KaleidoVR.EditorTools
         public bool usedCustomPc;
         public bool usedCustomQuest;
         public List<KaleidoTextureLink> links = new List<KaleidoTextureLink>();
+    }
+
+    [Serializable]
+    public class KaleidoTextureSizeEdit
+    {
+        public string path;
+        public bool questPlatform;
+        public int fromSize;
+        public int toSize;
     }
 
     [Serializable]
@@ -1726,6 +1752,9 @@ namespace KaleidoVR.EditorTools
             KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
 
             GUILayout.Space(8);
+            DrawMaxSizesOnlyActions(window, quest);
+
+            GUILayout.Space(8);
             DrawTextureUsageList(window, quest);
             DrawTexturePreview(window);
 
@@ -1758,6 +1787,53 @@ namespace KaleidoVR.EditorTools
             EditorGUI.EndDisabledGroup();
         }
 
+        private static void DrawMaxSizesOnlyActions(KaleidoVRCOptimizer window, bool quest)
+        {
+            string platform = quest ? "Quest" : "PC";
+            GUILayout.Label(platform + " Max Sizes Only", EditorStyles.boldLabel);
+            DrawWhy("Runs only the max-size-by-type settings above (and any per-texture selector you already changed). Compression, mip maps, meshes, scene, and Special are not touched.");
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Dry Run " + platform + " Max Sizes Only", GUILayout.Height(26)))
+            {
+                int count;
+                string preview;
+                KaleidoVRCOptimizerLogic.PreviewMaxSizesOnly(window, quest, out count, out preview);
+                window.ReadyToApplyMaxSizesOnly = count > 0;
+                EditorUtility.DisplayDialog(
+                    platform + " max sizes only",
+                    count == 0
+                        ? "No " + platform + " max-size writes. Tick a type above, or change a row selector. Everything else is already at the planned size."
+                        : "Would write " + platform + " max size on " + count + " texture(s). Nothing else is included.\n\n" + preview,
+                    "OK");
+            }
+            EditorGUI.BeginDisabledGroup(!window.ReadyToApplyMaxSizesOnly);
+            if (GUILayout.Button("Apply " + platform + " Max Sizes Only", GUILayout.Height(26)))
+            {
+                if (EditorUtility.DisplayDialog(
+                    "Apply " + platform + " max sizes only?",
+                    "This writes max texture size for ticked types (and custom row selectors). It will not change compression, mip maps, Read/Write, meshes, or scene settings.",
+                    "Apply sizes only",
+                    "Cancel"))
+                {
+                    int written;
+                    string preview;
+                    KaleidoVRCOptimizerLogic.ApplyMaxSizesOnly(window, quest, out written, out preview);
+                    window.ReadyToApplyMaxSizesOnly = false;
+                    EditorUtility.DisplayDialog(
+                        platform + " max sizes applied",
+                        written == 0
+                            ? "No textures needed a " + platform + " max-size write."
+                            : "Wrote " + platform + " max size on " + written + " texture(s).\n\n" + preview,
+                        "OK");
+                }
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            if (!window.ReadyToApplyMaxSizesOnly)
+                EditorGUILayout.HelpBox("Dry run these max sizes first. Apply stays off until that dry run finds at least one size write.", MessageType.None);
+        }
+
         private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
         {
             GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
@@ -1775,7 +1851,20 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("Sort", GUILayout.Width(36));
             window.textureSort = EditorGUILayout.Popup(Mathf.Clamp(window.textureSort, 0, TextureSortLabels.Length - 1), TextureSortLabels);
             GUILayout.FlexibleSpace();
+            EditorGUI.BeginDisabledGroup(window.textureSizeHistoryIndex < 0);
+            if (GUILayout.Button("Revert", GUILayout.Width(70), GUILayout.Height(22)))
+            {
+                KaleidoVRCOptimizerLogic.RevertLastTextureSize(window);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(window.textureSizeHistory == null || window.textureSizeHistoryIndex >= window.textureSizeHistory.Count - 1);
+            if (GUILayout.Button("Forward", GUILayout.Width(70), GUILayout.Height(22)))
+            {
+                KaleidoVRCOptimizerLogic.ForwardTextureSize(window);
+            }
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+            DrawWhy("Revert undoes the last max-size write. Forward reapplies it. One texture change per click.");
 
             List<KaleidoTextureUsage> rows = SortedTextureUsages(window);
             const float TextureListHeight = 400f;
@@ -1826,31 +1915,29 @@ namespace KaleidoVR.EditorTools
 
                 EditorGUILayout.BeginVertical();
                 GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel);
-                string source = usage.sourceWidth > 0
-                    ? KindLabel(usage.kind) + "  ·  file " + usage.sourceWidth + "×" + usage.sourceHeight
-                    : KindLabel(usage.kind);
-                GUILayout.Label(source, MiniWrap());
+                GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel);
                 EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("Set", GUILayout.Width(28));
                 if (questPlatform)
                 {
-                    GUILayout.Label("Set Quest", GUILayout.Width(62));
                     int quest = SizePopup(usage.questSize);
                     if (quest != usage.questSize)
                     {
+                        int from = usage.questSize;
                         usage.questSize = quest;
                         usage.usedCustomQuest = true;
-                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, quest, true);
+                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, quest, true, from);
                     }
                 }
                 else
                 {
-                    GUILayout.Label("Set PC", GUILayout.Width(48));
                     int pc = SizePopup(usage.pcSize);
                     if (pc != usage.pcSize)
                     {
+                        int from = usage.pcSize;
                         usage.pcSize = pc;
                         usage.usedCustomPc = true;
-                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, pc, false);
+                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, pc, false, from);
                     }
                 }
                 GUILayout.FlexibleSpace();
@@ -1913,12 +2000,11 @@ namespace KaleidoVR.EditorTools
             int planned = questPlatform ? usage.questSize : usage.pcSize;
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
             bool changing = willWrite && planned != current;
-            string platform = questPlatform ? "Quest" : "PC";
 
             EditorGUILayout.BeginVertical(GUILayout.Width(230));
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.BeginVertical(GUILayout.Width(100));
-            GUILayout.Label("Current " + platform, sizeCaptionStyle);
+            GUILayout.Label("Current", sizeCaptionStyle);
             GUILayout.Label(current > 0 ? current + " px" : "—", sizeValueStyle);
             EditorGUILayout.EndVertical();
 
@@ -1929,7 +2015,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("→", arrow, GUILayout.Width(22), GUILayout.Height(32));
 
             EditorGUILayout.BeginVertical(GUILayout.Width(100));
-            GUILayout.Label("New " + platform, sizeCaptionStyle);
+            GUILayout.Label("New", sizeCaptionStyle);
             GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle);
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
@@ -3170,15 +3256,101 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        private static readonly Dictionary<string, int> textureSizeApplyGeneration = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         public static void QueueImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform)
         {
-            if (window == null || string.IsNullOrEmpty(path) || size <= 0) return;
-            EditorApplication.delayCall += () => ApplyImmediateTextureSize(window, path, size, questPlatform);
+            QueueImmediateTextureSize(window, path, size, questPlatform, -1);
         }
 
-        private static void ApplyImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform)
+        public static void QueueImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform, int fromSize)
+        {
+            if (window == null || string.IsNullOrEmpty(path) || size <= 0) return;
+            if (fromSize > 0 && fromSize != size) PushTextureSizeHistory(window, path, questPlatform, fromSize, size);
+            SyncUsageSelector(window, path, size, questPlatform);
+            int generation = NextTextureSizeGeneration(path);
+            EditorApplication.delayCall += () => ApplyImmediateTextureSize(window, path, size, questPlatform, generation);
+        }
+
+        public static void RevertLastTextureSize(KaleidoVRCOptimizer window)
+        {
+            if (window == null || window.textureSizeHistory == null) return;
+            if (window.textureSizeHistoryIndex < 0 || window.textureSizeHistoryIndex >= window.textureSizeHistory.Count) return;
+            KaleidoTextureSizeEdit edit = window.textureSizeHistory[window.textureSizeHistoryIndex];
+            window.textureSizeHistoryIndex--;
+            QueueTextureSizeWithoutHistory(window, edit);
+            window.Repaint();
+        }
+
+        public static void ForwardTextureSize(KaleidoVRCOptimizer window)
+        {
+            if (window == null || window.textureSizeHistory == null) return;
+            if (window.textureSizeHistoryIndex + 1 >= window.textureSizeHistory.Count) return;
+            window.textureSizeHistoryIndex++;
+            KaleidoTextureSizeEdit edit = window.textureSizeHistory[window.textureSizeHistoryIndex];
+            QueueTextureSizeWithoutHistory(window, edit, true);
+            window.Repaint();
+        }
+
+        private static void QueueTextureSizeWithoutHistory(KaleidoVRCOptimizer window, KaleidoTextureSizeEdit edit, bool forward = false)
+        {
+            if (window == null || edit == null || string.IsNullOrEmpty(edit.path)) return;
+            int size = forward ? edit.toSize : edit.fromSize;
+            if (size <= 0) return;
+            SyncUsageSelector(window, edit.path, size, edit.questPlatform);
+            int generation = NextTextureSizeGeneration(edit.path);
+            EditorApplication.delayCall += () => ApplyImmediateTextureSize(window, edit.path, size, edit.questPlatform, generation);
+        }
+
+        private static void PushTextureSizeHistory(KaleidoVRCOptimizer window, string path, bool questPlatform, int fromSize, int toSize)
+        {
+            if (window == null || string.IsNullOrEmpty(path) || fromSize <= 0 || toSize <= 0 || fromSize == toSize) return;
+            if (window.textureSizeHistory == null) window.textureSizeHistory = new List<KaleidoTextureSizeEdit>();
+            if (window.textureSizeHistoryIndex < window.textureSizeHistory.Count - 1)
+            {
+                int removeAt = window.textureSizeHistoryIndex + 1;
+                window.textureSizeHistory.RemoveRange(removeAt, window.textureSizeHistory.Count - removeAt);
+            }
+            window.textureSizeHistory.Add(new KaleidoTextureSizeEdit
+            {
+                path = path,
+                questPlatform = questPlatform,
+                fromSize = fromSize,
+                toSize = toSize
+            });
+            window.textureSizeHistoryIndex = window.textureSizeHistory.Count - 1;
+        }
+
+        private static int NextTextureSizeGeneration(string path)
+        {
+            int generation;
+            if (!textureSizeApplyGeneration.TryGetValue(path, out generation)) generation = 0;
+            generation++;
+            textureSizeApplyGeneration[path] = generation;
+            return generation;
+        }
+
+        private static void SyncUsageSelector(KaleidoVRCOptimizer window, string path, int size, bool questPlatform)
+        {
+            KaleidoTextureUsage usage = FindTextureUsage(window, path);
+            if (usage == null) return;
+            if (questPlatform)
+            {
+                usage.questSize = size;
+                usage.usedCustomQuest = true;
+            }
+            else
+            {
+                usage.pcSize = size;
+                usage.usedCustomPc = true;
+            }
+        }
+
+        private static void ApplyImmediateTextureSize(KaleidoVRCOptimizer window, string path, int size, bool questPlatform, int generation)
         {
             if (window == null || string.IsNullOrEmpty(path)) return;
+            int currentGeneration;
+            if (!textureSizeApplyGeneration.TryGetValue(path, out currentGeneration) || currentGeneration != generation) return;
             TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
             if (importer == null) return;
 
@@ -3224,6 +3396,127 @@ namespace KaleidoVR.EditorTools
             }
 
             window.Repaint();
+        }
+
+        public static bool TryGetPlannedMaxSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform, out int current, out int planned)
+        {
+            current = 0;
+            planned = 0;
+            if (window == null || usage == null) return false;
+            bool typeApply;
+            int typePc;
+            int typeQuest;
+            GetTypeSizes(window, usage.kind, out typeApply, out typePc, out typeQuest);
+            current = questPlatform ? usage.currentQuest : usage.currentPc;
+            bool custom = questPlatform ? usage.usedCustomQuest : usage.usedCustomPc;
+            if (!typeApply && !custom) return false;
+            planned = questPlatform ? usage.questSize : usage.pcSize;
+            return planned > 0;
+        }
+
+        public static void PreviewMaxSizesOnly(KaleidoVRCOptimizer window, bool questPlatform, out int count, out string preview)
+        {
+            List<string> lines = new List<string>();
+            CollectMaxSizeOnlyChanges(window, questPlatform, lines, null);
+            count = lines.Count;
+            preview = FormatMaxSizePreview(lines);
+        }
+
+        public static void ApplyMaxSizesOnly(KaleidoVRCOptimizer window, bool questPlatform, out int written, out string preview)
+        {
+            written = 0;
+            List<string> lines = new List<string>();
+            List<KaleidoTextureUsage> toWrite = new List<KaleidoTextureUsage>();
+            CollectMaxSizeOnlyChanges(window, questPlatform, lines, toWrite);
+            preview = FormatMaxSizePreview(lines);
+            if (toWrite.Count == 0) return;
+
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                for (int i = 0; i < toWrite.Count; i++)
+                {
+                    KaleidoTextureUsage usage = toWrite[i];
+                    if (usage == null || string.IsNullOrEmpty(usage.path)) continue;
+                    int current;
+                    int planned;
+                    if (!TryGetPlannedMaxSize(window, usage, questPlatform, out current, out planned)) continue;
+                    if (planned == current) continue;
+                    TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                    if (importer == null) continue;
+                    if (!WriteMaxSizeOnly(importer, planned, questPlatform)) continue;
+                    EditorUtility.SetDirty(importer);
+                    importer.SaveAndReimport();
+                    PushTextureSizeHistory(window, usage.path, questPlatform, current, planned);
+                    if (questPlatform) usage.currentQuest = planned;
+                    else usage.currentPc = planned;
+                    written++;
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
+
+            window.Repaint();
+        }
+
+        private static void CollectMaxSizeOnlyChanges(
+            KaleidoVRCOptimizer window,
+            bool questPlatform,
+            List<string> lines,
+            List<KaleidoTextureUsage> toWrite)
+        {
+            if (window == null || window.textureUsages == null) return;
+            window.RefreshInventoryIfNeeded();
+            SyncTextureRowDefaults(window);
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null) continue;
+                int current;
+                int planned;
+                if (!TryGetPlannedMaxSize(window, usage, questPlatform, out current, out planned)) continue;
+                if (planned == current) continue;
+                string name = usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path);
+                lines.Add(name + ": " + current + " → " + planned);
+                if (toWrite != null) toWrite.Add(usage);
+            }
+        }
+
+        private static string FormatMaxSizePreview(List<string> lines)
+        {
+            if (lines == null || lines.Count == 0) return "";
+            StringBuilder sb = new StringBuilder();
+            int shown = Math.Min(lines.Count, 16);
+            for (int i = 0; i < shown; i++) sb.AppendLine("• " + lines[i]);
+            if (lines.Count > shown) sb.AppendLine("• … " + (lines.Count - shown) + " more");
+            return sb.ToString().TrimEnd();
+        }
+
+        private static bool WriteMaxSizeOnly(TextureImporter importer, int size, bool questPlatform)
+        {
+            if (importer == null || size <= 0) return false;
+            if (questPlatform)
+            {
+                TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
+                if (android.overridden && android.maxTextureSize == size) return false;
+                android.overridden = true;
+                android.name = "Android";
+                android.maxTextureSize = size;
+                importer.SetPlatformTextureSettings(android);
+                return true;
+            }
+
+            TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
+            bool dirty = importer.maxTextureSize != size || !standalone.overridden || standalone.maxTextureSize != size;
+            if (!dirty) return false;
+            importer.maxTextureSize = size;
+            standalone.overridden = true;
+            standalone.name = "Standalone";
+            standalone.maxTextureSize = size;
+            importer.SetPlatformTextureSettings(standalone);
+            return true;
         }
 
         public static KaleidoTextureUsage FindTextureUsage(KaleidoVRCOptimizer window, string path)
