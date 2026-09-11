@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.12";
+        public static readonly string VERSION = "1.0.13";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1877,7 +1877,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.FlexibleSpace();
             GUILayout.Label("Current max size", headerRight, GUILayout.Width(100));
             GUILayout.FlexibleSpace();
-            GUILayout.Label("", GUILayout.Width(80));
+            GUILayout.Label("", GUILayout.Width(88));
             GUILayout.FlexibleSpace();
             GUILayout.Label("New max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
             GUILayout.Space(8);
@@ -1917,28 +1917,7 @@ namespace KaleidoVR.EditorTools
                 GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
-                if (questPlatform)
-                {
-                    int quest = SizePopup(usage.questSize);
-                    if (quest != usage.questSize)
-                    {
-                        int from = usage.questSize;
-                        usage.questSize = quest;
-                        usage.usedCustomQuest = true;
-                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, quest, true, from);
-                    }
-                }
-                else
-                {
-                    int pc = SizePopup(usage.pcSize);
-                    if (pc != usage.pcSize)
-                    {
-                        int from = usage.pcSize;
-                        usage.pcSize = pc;
-                        usage.usedCustomPc = true;
-                        KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, pc, false, from);
-                    }
-                }
+                HandleTextureSizePopup(window, usage, questPlatform);
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
@@ -2012,7 +1991,7 @@ namespace KaleidoVR.EditorTools
             }
 
             const float SizeCol = 100f;
-            const float MidCol = 80f;
+            const float MidCol = 88f;
 
             GUILayout.FlexibleSpace();
             EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
@@ -2023,7 +2002,22 @@ namespace KaleidoVR.EditorTools
             GUILayout.FlexibleSpace();
             EditorGUILayout.BeginVertical(GUILayout.Width(MidCol), GUILayout.MaxWidth(MidCol), GUILayout.ExpandWidth(false));
             GUILayout.Label(changing ? "Will apply" : " ", midCaption, GUILayout.Width(MidCol));
-            GUILayout.Label("→", midArrow, GUILayout.Width(MidCol));
+            if (increasing)
+            {
+                Color prev = GUI.backgroundColor;
+                GUI.backgroundColor = EditorGUIUtility.isProSkin
+                    ? new Color(1f, 0.72f, 0.28f, 1f)
+                    : new Color(1f, 0.78f, 0.40f, 1f);
+                if (GUILayout.Button("Confirm", GUILayout.Width(MidCol), GUILayout.Height(18)))
+                {
+                    KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, planned, questPlatform, current);
+                }
+                GUI.backgroundColor = prev;
+            }
+            else
+            {
+                GUILayout.Label("→", midArrow, GUILayout.Width(MidCol));
+            }
             EditorGUILayout.EndVertical();
             GUILayout.FlexibleSpace();
 
@@ -2031,6 +2025,29 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("New", sizeCaptionStyle, GUILayout.Width(SizeCol));
             GUILayout.Label((willWrite ? planned : current) + " px", changing ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
             EditorGUILayout.EndVertical();
+        }
+
+        private static void HandleTextureSizePopup(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
+        {
+            int selected = questPlatform ? usage.questSize : usage.pcSize;
+            int picked = SizePopup(selected);
+            if (picked == selected) return;
+
+            int current = questPlatform ? usage.currentQuest : usage.currentPc;
+            if (questPlatform)
+            {
+                usage.questSize = picked;
+                usage.usedCustomQuest = true;
+            }
+            else
+            {
+                usage.pcSize = picked;
+                usage.usedCustomPc = true;
+            }
+
+            if (current > 0 && picked > current) return;
+            if (picked == current) return;
+            KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, picked, questPlatform, current);
         }
 
         private static void DrawTexturePreview(KaleidoVRCOptimizer window)
