@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.10";
+        public static readonly string VERSION = "1.0.11";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1866,12 +1866,15 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.BeginVertical();
             window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight));
 
+            GUIStyle headerRight = new GUIStyle(EditorStyles.miniBoldLabel) { alignment = TextAnchor.MiddleRight };
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(60);
-            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.MinWidth(120));
+            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.MinWidth(120), GUILayout.ExpandWidth(false));
             GUILayout.FlexibleSpace();
-            GUILayout.Label("Current max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
-            GUILayout.Label("", GUILayout.Width(72));
+            GUILayout.Label("Current max size", headerRight, GUILayout.Width(100));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("", GUILayout.Width(80));
+            GUILayout.FlexibleSpace();
             GUILayout.Label("New max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
             GUILayout.Space(8);
             EditorGUILayout.EndHorizontal();
@@ -1905,9 +1908,9 @@ namespace KaleidoVR.EditorTools
                     GUI.Box(thumb, "?");
                 }
 
-                EditorGUILayout.BeginVertical();
-                GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel);
-                GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel);
+                EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(false));
+                GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel, GUILayout.ExpandWidth(false));
+                GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
                 if (questPlatform)
@@ -1936,7 +1939,6 @@ namespace KaleidoVR.EditorTools
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
 
-                GUILayout.Space(12);
                 DrawTextureSizeStatus(window, usage, questPlatform);
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
@@ -1993,6 +1995,8 @@ namespace KaleidoVR.EditorTools
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
             bool changing = willWrite && planned != current;
 
+            GUIStyle currentCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleRight };
+            GUIStyle currentValue = new GUIStyle(sizeValueStyle) { alignment = TextAnchor.MiddleRight };
             GUIStyle midCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleCenter };
             GUIStyle midArrow = new GUIStyle(sizeValueStyle) { alignment = TextAnchor.MiddleCenter };
             if (changing)
@@ -2001,23 +2005,25 @@ namespace KaleidoVR.EditorTools
                 midArrow.normal.textColor = sizeNewStyle.normal.textColor;
             }
 
-            EditorGUILayout.BeginVertical(GUILayout.Width(272));
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.BeginVertical(GUILayout.Width(100));
-            GUILayout.Label("Current", sizeCaptionStyle);
-            GUILayout.Label(current > 0 ? current + " px" : "—", sizeValueStyle);
+            const float SizeCol = 100f;
+            const float MidCol = 80f;
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Current", currentCaption, GUILayout.Width(SizeCol));
+            GUILayout.Label(current > 0 ? current + " px" : "—", currentValue, GUILayout.Width(SizeCol));
             EditorGUILayout.EndVertical();
 
-            EditorGUILayout.BeginVertical(GUILayout.Width(72));
-            GUILayout.Label(changing ? "Will apply" : " ", midCaption);
-            GUILayout.Label("→", midArrow);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.BeginVertical(GUILayout.Width(MidCol), GUILayout.MaxWidth(MidCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label(changing ? "Will apply" : " ", midCaption, GUILayout.Width(MidCol));
+            GUILayout.Label("→", midArrow, GUILayout.Width(MidCol));
             EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
 
-            EditorGUILayout.BeginVertical(GUILayout.Width(100));
-            GUILayout.Label("New", sizeCaptionStyle);
-            GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle);
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("New", sizeCaptionStyle, GUILayout.Width(SizeCol));
+            GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle, GUILayout.Width(SizeCol));
             EditorGUILayout.EndVertical();
         }
 
