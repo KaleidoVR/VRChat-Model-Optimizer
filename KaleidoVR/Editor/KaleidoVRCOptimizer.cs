@@ -168,7 +168,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.7";
+        public static readonly string VERSION = "1.0.8";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1040,6 +1040,10 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle dropTitleStyle;
         private static GUIStyle dropHintStyle;
         private static GUIStyle pingLinkStyle;
+        private static GUIStyle sizeCaptionStyle;
+        private static GUIStyle sizeValueStyle;
+        private static GUIStyle sizeNewStyle;
+        private static GUIStyle sizeKeepStyle;
         private static bool cachedDropProSkin = true;
 
         private static GUIStyle MiniWrap()
@@ -1083,6 +1087,34 @@ namespace KaleidoVR.EditorTools
         {
             EnsureDropStyles();
             return dropHintStyle;
+        }
+
+        private static void EnsureSizeStyles()
+        {
+            if (sizeCaptionStyle != null) return;
+            bool pro = EditorGUIUtility.isProSkin;
+            sizeCaptionStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontStyle = FontStyle.Bold
+            };
+            sizeCaptionStyle.normal.textColor = pro ? new Color(0.72f, 0.76f, 0.80f, 1f) : new Color(0.25f, 0.28f, 0.32f, 1f);
+
+            sizeValueStyle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = 12
+            };
+
+            sizeNewStyle = new GUIStyle(sizeValueStyle);
+            sizeNewStyle.normal.textColor = pro ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.42f, 0.70f, 1f);
+
+            sizeKeepStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                wordWrap = true
+            };
+            sizeKeepStyle.normal.textColor = pro ? new Color(0.62f, 0.82f, 0.58f, 1f) : new Color(0.18f, 0.48f, 0.16f, 1f);
         }
 
         private static GUIStyle PingLinkStyle()
@@ -1730,8 +1762,8 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
             DrawWhy(questPlatform
-                ? "Quest / Android max size only. Changing a row's selector writes that Android size now and reimports the texture."
-                : "PC max size only. Changing a row's selector writes that PC size now and reimports the texture.");
+                ? "Quest / Android max size only. Current is what Unity has now. New is what the selector will write. Changing the selector reimports that texture."
+                : "PC max size only. Current is what Unity has now. New is what the selector will write. Changing the selector reimports that texture.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
@@ -1746,9 +1778,23 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
 
             List<KaleidoTextureUsage> rows = SortedTextureUsages(window);
-            const float TextureListHeight = 320f;
+            const float TextureListHeight = 400f;
             BeginOutlinedPanel();
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(18);
+            EditorGUILayout.BeginVertical();
             window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight));
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(60);
+            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.MinWidth(120));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Current max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
+            GUILayout.Label("", GUILayout.Width(22));
+            GUILayout.Label("New max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
+            GUILayout.Space(8);
+            EditorGUILayout.EndHorizontal();
+
             for (int i = 0; i < rows.Count; i++)
             {
                 KaleidoTextureUsage usage = rows[i];
@@ -1780,11 +1826,14 @@ namespace KaleidoVR.EditorTools
 
                 EditorGUILayout.BeginVertical();
                 GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel);
-                GUILayout.Label(DescribeTextureSizePlan(window, usage, questPlatform), MiniWrap());
+                string source = usage.sourceWidth > 0
+                    ? KindLabel(usage.kind) + "  ·  file " + usage.sourceWidth + "×" + usage.sourceHeight
+                    : KindLabel(usage.kind);
+                GUILayout.Label(source, MiniWrap());
                 EditorGUILayout.BeginHorizontal();
                 if (questPlatform)
                 {
-                    GUILayout.Label("Quest", GUILayout.Width(40));
+                    GUILayout.Label("Set Quest", GUILayout.Width(62));
                     int quest = SizePopup(usage.questSize);
                     if (quest != usage.questSize)
                     {
@@ -1795,7 +1844,7 @@ namespace KaleidoVR.EditorTools
                 }
                 else
                 {
-                    GUILayout.Label("PC", GUILayout.Width(28));
+                    GUILayout.Label("Set PC", GUILayout.Width(48));
                     int pc = SizePopup(usage.pcSize);
                     if (pc != usage.pcSize)
                     {
@@ -1807,11 +1856,17 @@ namespace KaleidoVR.EditorTools
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
+
+                GUILayout.Space(12);
+                DrawTextureSizeStatus(window, usage, questPlatform);
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
-                GUILayout.Space(2);
+                GUILayout.Space(4);
             }
             EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+            GUILayout.Space(18);
+            EditorGUILayout.EndHorizontal();
             EndOutlinedPanel();
         }
 
@@ -1847,8 +1902,9 @@ namespace KaleidoVR.EditorTools
             return rows;
         }
 
-        private static string DescribeTextureSizePlan(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
+        private static void DrawTextureSizeStatus(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
         {
+            EnsureSizeStyles();
             bool typeApply;
             int typePc;
             int typeQuest;
@@ -1856,13 +1912,35 @@ namespace KaleidoVR.EditorTools
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
             int planned = questPlatform ? usage.questSize : usage.pcSize;
             bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
-            string source = usage.sourceWidth > 0 ? "  ·  " + usage.sourceWidth + "×" + usage.sourceHeight : "";
-            string kind = KindLabel(usage.kind);
-            if (willWrite && planned != current)
-                return kind + "  ·  now " + current + " → " + planned + source;
-            if (willWrite)
-                return kind + "  ·  now " + current + " (keep)" + source;
-            return kind + "  ·  now " + current + source;
+            bool changing = willWrite && planned != current;
+            string platform = questPlatform ? "Quest" : "PC";
+
+            EditorGUILayout.BeginVertical(GUILayout.Width(230));
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical(GUILayout.Width(100));
+            GUILayout.Label("Current " + platform, sizeCaptionStyle);
+            GUILayout.Label(current > 0 ? current + " px" : "—", sizeValueStyle);
+            EditorGUILayout.EndVertical();
+
+            GUIStyle arrow = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter };
+            arrow.normal.textColor = changing
+                ? (EditorGUIUtility.isProSkin ? new Color(0.45f, 0.92f, 1f, 1f) : new Color(0.05f, 0.42f, 0.70f, 1f))
+                : GUI.skin.label.normal.textColor;
+            GUILayout.Label("→", arrow, GUILayout.Width(22), GUILayout.Height(32));
+
+            EditorGUILayout.BeginVertical(GUILayout.Width(100));
+            GUILayout.Label("New " + platform, sizeCaptionStyle);
+            GUILayout.Label((willWrite ? planned : current) + " px", changing ? sizeNewStyle : sizeValueStyle);
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
+
+            if (changing)
+                GUILayout.Label("Will apply " + current + " → " + planned, sizeNewStyle);
+            else if (willWrite)
+                GUILayout.Label("Already " + current + " — no change", sizeKeepStyle);
+            else
+                GUILayout.Label("Type size above is off — current stays " + current, MiniWrap());
+            EditorGUILayout.EndVertical();
         }
 
         private static void DrawTexturePreview(KaleidoVRCOptimizer window)
