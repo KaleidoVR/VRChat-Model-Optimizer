@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.30";
+        public static readonly string VERSION = "1.0.31";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1290,8 +1290,8 @@ namespace KaleidoVR.EditorTools
         {
             GUIStyle centeredTitleStyle = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
             GUIStyle centeredVersionStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter };
-            GUILayout.Space(10); GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace();
-            if (logo != null) { Rect logoRect = GUILayoutUtility.GetRect(320, 200, GUILayout.Width(320), GUILayout.Height(200)); GUI.DrawTexture(logoRect, logo, ScaleMode.ScaleToFit); }
+            GUILayout.Space(2); GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace();
+            if (logo != null) { DrawTrimmedLogo(logo, 320f, 200f); }
             else { GUILayout.Label($"...Place your logo at {KaleidoVRCOptimizer.ICON_PATH}...", EditorStyles.miniLabel); }
             GUILayout.FlexibleSpace(); GUILayout.EndHorizontal(); GUILayout.Space(2);
             GUILayout.Label("KALEIDO VR MODEL OPTIMIZER", centeredTitleStyle); GUILayout.Label($"v{version}", centeredVersionStyle);
@@ -1303,6 +1303,77 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.HelpBox("Avatar models only. Drop a VRChat avatar (VRCAvatarDescriptor) or a skinned character FBX. Worlds, folders, clothing dumps, and loose textures are rejected.", MessageType.Info);
             EditorGUILayout.HelpBox("Confirm, Fix, and Apply write into this Unity project. Those changes stay on the assets. Scan only reports — it does not write. Run again only if the avatar or your settings change.", MessageType.Info);
+        }
+
+        private static string logoTrimPath;
+        private static Rect logoTrimUv = new Rect(0f, 0f, 1f, 1f);
+
+        // The logo file carries transparent space around the artwork. Drawing the whole
+        // image would show that as empty padding above the header, so only the part that
+        // actually has pixels is drawn.
+        private static Rect LogoTexCoords(Texture2D logo)
+        {
+            string path = AssetDatabase.GetAssetPath(logo);
+            if (path == logoTrimPath) return logoTrimUv;
+
+            logoTrimPath = path;
+            logoTrimUv = new Rect(0f, 0f, 1f, 1f);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return logoTrimUv;
+
+            Texture2D probe = new Texture2D(2, 2, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            try
+            {
+                if (probe.LoadImage(File.ReadAllBytes(path), false))
+                {
+                    Color32[] pixels = probe.GetPixels32();
+                    int width = probe.width;
+                    int height = probe.height;
+                    int minX = width, maxX = -1, minY = height, maxY = -1;
+                    for (int y = 0; y < height; y++)
+                    {
+                        int row = y * width;
+                        for (int x = 0; x < width; x++)
+                        {
+                            if (pixels[row + x].a <= 8) continue;
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                    if (maxX >= minX && maxY >= minY)
+                    {
+                        logoTrimUv = new Rect(
+                            minX / (float)width,
+                            minY / (float)height,
+                            (maxX - minX + 1) / (float)width,
+                            (maxY - minY + 1) / (float)height);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(probe);
+            }
+
+            return logoTrimUv;
+        }
+
+        private static void DrawTrimmedLogo(Texture2D logo, float maxWidth, float maxHeight)
+        {
+            Rect uv = LogoTexCoords(logo);
+            float sourceWidth = Mathf.Max(1f, logo.width * uv.width);
+            float sourceHeight = Mathf.Max(1f, logo.height * uv.height);
+
+            float scale = Mathf.Min(maxWidth / sourceWidth, maxHeight / sourceHeight);
+            float drawWidth = Mathf.Round(sourceWidth * scale);
+            float drawHeight = Mathf.Round(sourceHeight * scale);
+
+            Rect logoRect = GUILayoutUtility.GetRect(drawWidth, drawHeight, GUILayout.Width(drawWidth), GUILayout.Height(drawHeight));
+            GUI.DrawTextureWithTexCoords(logoRect, logo, uv);
         }
 
         public static void DrawTabs(KaleidoVRCOptimizer window)
