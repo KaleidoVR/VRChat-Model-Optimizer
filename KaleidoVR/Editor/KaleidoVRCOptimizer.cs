@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.28";
+        public static readonly string VERSION = "1.0.29";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -2607,27 +2607,33 @@ namespace KaleidoVR.EditorTools
         private static void DrawActionColorKey()
         {
             EnsureSizeStyles();
-            GUIStyle blue = new GUIStyle(EditorStyles.miniBoldLabel);
+
+            // One shared font size for every word so the row sits on a single straight baseline.
+            GUIStyle swatch = new GUIStyle(EditorStyles.miniBoldLabel) { alignment = TextAnchor.MiddleLeft };
+            GUIStyle note = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
+
+            GUIStyle blue = new GUIStyle(swatch);
             blue.normal.textColor = EditorGUIUtility.isProSkin
                 ? new Color(0.55f, 0.82f, 1f, 1f)
                 : new Color(0.08f, 0.38f, 0.72f, 1f);
-            GUIStyle green = new GUIStyle(EditorStyles.miniBoldLabel);
+            GUIStyle orange = new GUIStyle(swatch);
+            orange.normal.textColor = sizeUpStyle.normal.textColor;
+            GUIStyle green = new GUIStyle(swatch);
             green.normal.textColor = EditorGUIUtility.isProSkin
                 ? new Color(0.48f, 0.92f, 0.55f, 1f)
                 : new Color(0.08f, 0.48f, 0.18f, 1f);
 
             GUILayout.Space(4);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Blue", blue, GUILayout.Width(52));
-            EditorGUILayout.LabelField("Scan looks only", MiniWrap());
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Orange", sizeUpStyle, GUILayout.Width(52));
-            EditorGUILayout.LabelField("Dry Run previews", MiniWrap());
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Green", green, GUILayout.Width(52));
-            EditorGUILayout.LabelField("Apply writes and stays", MiniWrap());
+            GUILayout.Label("Blue", blue, GUILayout.ExpandWidth(false));
+            GUILayout.Label("Scan looks only", note, GUILayout.ExpandWidth(false));
+            GUILayout.Space(14);
+            GUILayout.Label("Orange", orange, GUILayout.ExpandWidth(false));
+            GUILayout.Label("Dry Run previews", note, GUILayout.ExpandWidth(false));
+            GUILayout.Space(14);
+            GUILayout.Label("Green", green, GUILayout.ExpandWidth(false));
+            GUILayout.Label("Apply writes and stays", note, GUILayout.ExpandWidth(false));
+            GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
         }
 
