@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.39";
+        public static readonly string VERSION = "1.0.40";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -1520,6 +1520,26 @@ namespace KaleidoVR.EditorTools
         public List<string> materialSwapNames = new List<string>();
         public int missingStreamingCount;
         public List<string> missingStreamingMipmaps = new List<string>();
+        public bool hasOnUploadEstimate;
+        public string onUploadPcRank = "—";
+        public string onUploadQuestRank = "—";
+        public int onUploadTriangles;
+        public int onUploadMaterialSlots;
+        public int onUploadUniqueMaterials;
+        public int onUploadSkinnedMeshes;
+        public int onUploadMeshRenderers;
+        public int onUploadBlendShapes;
+        public int onUploadBones;
+        public int onUploadAnimators;
+        public int onUploadLights;
+        public int onUploadAudioSources;
+        public int onUploadParticleSystems;
+        public int onUploadPhysBones;
+        public int onUploadPhysBoneColliders;
+        public int onUploadContacts;
+        public int onUploadConstraints;
+        public int onUploadUnityConstraints;
+        public int onUploadVrcConstraints;
     }
 
     public static class KaleidoVRCOptimizerUI
@@ -1780,6 +1800,12 @@ namespace KaleidoVR.EditorTools
             }
 
             return logoTrimUv;
+        }
+
+        public static void DrawSplashLogo(Texture2D logo, float maxWidth, float maxHeight)
+        {
+            if (logo == null) return;
+            DrawTrimmedLogo(logo, maxWidth, maxHeight);
         }
 
         private static void DrawTrimmedLogo(Texture2D logo, float maxWidth, float maxHeight)
@@ -2294,7 +2320,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
-            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
+            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. On Upload numbers come from a hidden copy and do not write the scene.");
             EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
             DrawRankColorKey();
             DrawStats(window);
@@ -3852,27 +3878,30 @@ namespace KaleidoVR.EditorTools
             }
 
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
+            if (report.hasOnUploadEstimate)
+                DrawNowUploadHeader();
             string rank = window.IsQuestWorkspace ? report.questRank : report.pcRank;
-            DrawStatRow("Rank", rank, IsProblemRank(rank));
+            string uploadRank = window.IsQuestWorkspace ? report.onUploadQuestRank : report.onUploadPcRank;
+            DrawStatNowUpload("Rank", rank, uploadRank, report.hasOnUploadEstimate, IsProblemRank(rank));
             if (report.meshReadWriteDisabled)
             {
                 EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor until Read/Write is enabled.", MessageType.Error);
             }
-            EditorGUILayout.LabelField("Triangles", report.triangles.ToString("N0"));
-            EditorGUILayout.LabelField("Material Slots", report.materialSlots.ToString("N0"));
+            DrawCountNowUpload("Triangles", report.triangles, report.onUploadTriangles, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Material Slots", report.materialSlots, report.onUploadMaterialSlots, report.hasOnUploadEstimate);
             EditorGUILayout.LabelField("Unique Materials", report.uniqueMaterials.ToString("N0"));
-            EditorGUILayout.LabelField("Skinned Meshes", report.skinnedMeshes.ToString("N0"));
-            EditorGUILayout.LabelField("Basic Meshes", report.meshRenderers.ToString("N0"));
+            DrawCountNowUpload("Skinned Meshes", report.skinnedMeshes, report.onUploadSkinnedMeshes, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Basic Meshes", report.meshRenderers, report.onUploadMeshRenderers, report.hasOnUploadEstimate);
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
-            EditorGUILayout.LabelField("Blend Shapes", report.blendShapes.ToString("N0"));
-            EditorGUILayout.LabelField("Bones (max on one mesh)", report.bones.ToString("N0"));
-            EditorGUILayout.LabelField("Animators", report.animators.ToString("N0"));
-            EditorGUILayout.LabelField("Lights", report.lights.ToString("N0"));
-            EditorGUILayout.LabelField("Audio Sources", report.audioSources.ToString("N0"));
-            EditorGUILayout.LabelField("Particle Systems", report.particleSystems.ToString("N0"));
-            EditorGUILayout.LabelField("PhysBones", report.physBones.ToString("N0"));
-            EditorGUILayout.LabelField("PhysBone Colliders", report.physBoneColliders.ToString("N0"));
-            EditorGUILayout.LabelField("Contacts", report.contacts.ToString("N0"));
+            DrawCountNowUpload("Blend Shapes", report.blendShapes, report.onUploadBlendShapes, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Bones (max on one mesh)", report.bones, report.onUploadBones, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Animators", report.animators, report.onUploadAnimators, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Lights", report.lights, report.onUploadLights, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Audio Sources", report.audioSources, report.onUploadAudioSources, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Particle Systems", report.particleSystems, report.onUploadParticleSystems, report.hasOnUploadEstimate);
+            DrawCountNowUpload("PhysBones", report.physBones, report.onUploadPhysBones, report.hasOnUploadEstimate);
+            DrawCountNowUpload("PhysBone Colliders", report.physBoneColliders, report.onUploadPhysBoneColliders, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Contacts", report.contacts, report.onUploadContacts, report.hasOnUploadEstimate);
             DrawConstraintsRow(window, report);
 
             DrawEvalSections(window, report);
@@ -4020,6 +4049,49 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.LabelField(label, value, warn ? sizeUpStyle : EditorStyles.label);
         }
 
+        private static void DrawNowUploadHeader()
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("", GUILayout.Width(EditorGUIUtility.labelWidth));
+            GUILayout.Label("Now", EditorStyles.miniBoldLabel, GUILayout.Width(88));
+            GUILayout.Label("On Upload", EditorStyles.miniBoldLabel, GUILayout.Width(88));
+            GUILayout.Label("Change", EditorStyles.miniBoldLabel, GUILayout.Width(80));
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private static void DrawCountNowUpload(string label, int now, int upload, bool hasUpload)
+        {
+            if (!hasUpload)
+            {
+                EditorGUILayout.LabelField(label, now.ToString("N0"));
+                return;
+            }
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel(label);
+            EditorGUILayout.LabelField(now.ToString("N0"), GUILayout.Width(88));
+            EditorGUILayout.LabelField(upload.ToString("N0"), GUILayout.Width(88));
+            int delta = upload - now;
+            EditorGUILayout.LabelField(delta == 0 ? "—" : delta.ToString("N0"), GUILayout.Width(80));
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private static void DrawStatNowUpload(string label, string now, string upload, bool hasUpload, bool warn)
+        {
+            EnsureSizeStyles();
+            if (!hasUpload)
+            {
+                DrawStatRow(label, now, warn);
+                return;
+            }
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel(label);
+            EditorGUILayout.LabelField(now ?? "—", warn ? sizeUpStyle : EditorStyles.label, GUILayout.Width(88));
+            EditorGUILayout.LabelField(upload ?? "—", GUILayout.Width(88));
+            bool same = string.Equals(now, upload, StringComparison.Ordinal);
+            EditorGUILayout.LabelField(same ? "—" : (upload ?? "—"), GUILayout.Width(80));
+            EditorGUILayout.EndHorizontal();
+        }
+
         private static void DrawWriteDefaultsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
         {
             EnsureSizeStyles();
@@ -4119,9 +4191,9 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawConstraintsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
         {
-            DrawStatRow("Constraints", report.constraints.ToString("N0"), report.unityConstraints > 0);
-            DrawStatRow("Unity constraints", report.unityConstraints.ToString("N0"), report.unityConstraints > 0);
-            EditorGUILayout.LabelField("VRChat constraints", report.vrcConstraints.ToString("N0"));
+            DrawCountNowUpload("Constraints", report.constraints, report.onUploadConstraints, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Unity constraints", report.unityConstraints, report.onUploadUnityConstraints, report.hasOnUploadEstimate);
+            DrawCountNowUpload("VRChat constraints", report.vrcConstraints, report.onUploadVrcConstraints, report.hasOnUploadEstimate);
             if (report.unityConstraints <= 0)
             {
                 if (report.vrcConstraints > 0)
@@ -4873,6 +4945,8 @@ namespace KaleidoVR.EditorTools
                 PopulateTextureUsages(window, roots, assetPaths);
 
                 GatherStats(roots, assetPaths, report, logEntries);
+                if (!apply || window.dryRun)
+                    FillOnUploadEstimate(window, roots, report, logEntries);
                 KaleidoVRCOptimizerEval.Evaluate(window, roots, report);
                 BuildHints(report, window.IsQuestWorkspace);
 
@@ -5888,6 +5962,78 @@ namespace KaleidoVR.EditorTools
             report.pcRank = RankAvatar(report, false);
             report.questRank = RankAvatar(report, true);
             logEntries.Add("Triangles=" + report.triangles + " texEst=" + report.textureBytesEstimate + " pc=" + report.pcRank + " quest=" + report.questRank);
+        }
+
+        private static void FillOnUploadEstimate(KaleidoVRCOptimizer window, List<GameObject> roots, KaleidoOptimizerReport report, List<string> logEntries)
+        {
+            report.hasOnUploadEstimate = false;
+            if (window == null || report == null || roots == null || roots.Count == 0) return;
+            KaleidoAvatarPassSettings settings = KaleidoAvatarPass.FromWindow(window);
+            if (settings == null || !settings.applyOnUpload) return;
+
+            List<GameObject> copies = new List<GameObject>();
+            try
+            {
+                EditorUtility.DisplayProgressBar("KaleidoVR VRChat Model Optimizer", "Estimating On Upload…", 0.55f);
+                for (int i = 0; i < roots.Count; i++)
+                {
+                    GameObject root = roots[i];
+                    if (root == null) continue;
+                    GameObject copy = UnityEngine.Object.Instantiate(root);
+                    copy.name = root.name + "_KaleidoRank";
+                    copy.hideFlags = HideFlags.HideAndDontSave | HideFlags.HideInHierarchy;
+                    KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy));
+                    copies.Add(copy);
+                }
+                if (copies.Count == 0) return;
+
+                KaleidoOptimizerReport projected = new KaleidoOptimizerReport();
+                GatherStats(copies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), projected, new List<string>());
+                projected.textureBytesEstimate = report.textureBytesEstimate;
+                projected.uniqueTextures = report.uniqueTextures;
+                projected.uniqueMaterials = report.uniqueMaterials;
+                projected.meshReadWriteDisabled = report.meshReadWriteDisabled;
+                projected.pcRank = RankAvatar(projected, false);
+                projected.questRank = RankAvatar(projected, true);
+
+                report.hasOnUploadEstimate = true;
+                report.onUploadPcRank = projected.pcRank;
+                report.onUploadQuestRank = projected.questRank;
+                report.onUploadTriangles = projected.triangles;
+                report.onUploadMaterialSlots = projected.materialSlots;
+                report.onUploadUniqueMaterials = projected.uniqueMaterials;
+                report.onUploadSkinnedMeshes = projected.skinnedMeshes;
+                report.onUploadMeshRenderers = projected.meshRenderers;
+                report.onUploadBlendShapes = projected.blendShapes;
+                report.onUploadBones = projected.bones;
+                report.onUploadAnimators = projected.animators;
+                report.onUploadLights = projected.lights;
+                report.onUploadAudioSources = projected.audioSources;
+                report.onUploadParticleSystems = projected.particleSystems;
+                report.onUploadPhysBones = projected.physBones;
+                report.onUploadPhysBoneColliders = projected.physBoneColliders;
+                report.onUploadContacts = projected.contacts;
+                report.onUploadConstraints = projected.constraints;
+                report.onUploadUnityConstraints = projected.unityConstraints;
+                report.onUploadVrcConstraints = projected.vrcConstraints;
+                if (logEntries != null)
+                    logEntries.Add("On Upload estimate: slots " + report.materialSlots + "→" + report.onUploadMaterialSlots
+                        + " skinned " + report.skinnedMeshes + "→" + report.onUploadSkinnedMeshes
+                        + " shapes " + report.blendShapes + "→" + report.onUploadBlendShapes
+                        + " pc " + report.pcRank + "→" + report.onUploadPcRank);
+            }
+            catch (Exception)
+            {
+                report.hasOnUploadEstimate = false;
+            }
+            finally
+            {
+                for (int i = 0; i < copies.Count; i++)
+                {
+                    if (copies[i] != null) UnityEngine.Object.DestroyImmediate(copies[i]);
+                }
+                EditorUtility.ClearProgressBar();
+            }
         }
 
         private static void AccumulateMesh(Mesh mesh, KaleidoOptimizerReport report)
