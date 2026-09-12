@@ -166,7 +166,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
         public bool avatarOptimizeBlendShapes = true;
-        public bool avatarMergeSameRatioShapes = true;
+        public bool avatarMergeSameRatioShapes = false;
         public bool avatarMmdCompatibility = true;
         public bool avatarRemoveUnusedComponents = true;
         public bool avatarRemoveUnusedGameObjects = false;
@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.38";
+        public static readonly string VERSION = "1.0.39";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -320,7 +320,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
         public bool avatarOptimizeBlendShapes = true;
-        public bool avatarMergeSameRatioShapes = true;
+        public bool avatarMergeSameRatioShapes = false;
         public bool avatarMmdCompatibility = true;
         public bool avatarRemoveUnusedComponents = true;
         public bool avatarRemoveUnusedGameObjects = false;
@@ -897,7 +897,7 @@ namespace KaleidoVR.EditorTools
             avatarMergeIdenticalSlots = GetBool("AvSlots", true);
             avatarShuffleSlots = GetBool("AvShuffle", true);
             avatarOptimizeBlendShapes = GetBool("AvShape", true);
-            avatarMergeSameRatioShapes = GetBool("AvRatio", true);
+            avatarMergeSameRatioShapes = GetBool("AvRatio", false);
             avatarMmdCompatibility = GetBool("AvMmd", true);
             avatarRemoveUnusedComponents = GetBool("AvComp", true);
             avatarRemoveUnusedGameObjects = GetBool("AvGo", false);
@@ -1002,7 +1002,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 6;
+            const int currentSchema = 7;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -1043,6 +1043,11 @@ namespace KaleidoVR.EditorTools
             if (schema < 6)
             {
                 ApplySharedSafeDefaults(builtinPresetIndex);
+            }
+
+            if (schema < 7)
+            {
+                avatarMergeSameRatioShapes = false;
             }
 
             SetInt("Schema", currentSchema);
@@ -1120,7 +1125,7 @@ namespace KaleidoVR.EditorTools
             avatarMergeIdenticalSlots = true;
             avatarShuffleSlots = true;
             avatarOptimizeBlendShapes = true;
-            avatarMergeSameRatioShapes = true;
+            avatarMergeSameRatioShapes = false;
             avatarMmdCompatibility = true;
             avatarRemoveUnusedComponents = true;
             avatarRemoveUnusedGameObjects = presetIndex == 3;
@@ -1195,7 +1200,7 @@ namespace KaleidoVR.EditorTools
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 6);
+            SetInt("Schema", 7);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -1821,17 +1826,17 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawTabRow(KaleidoVRCOptimizer window, string[] names, int offset)
         {
-            EditorGUILayout.BeginHorizontal();
+            if (names == null || names.Length == 0) return;
+            Rect row = EditorGUILayout.GetControlRect(false, 24);
+            float spacing = 2f;
+            float width = (row.width - spacing * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {
+                Rect cell = new Rect(row.x + i * (width + spacing), row.y, width, row.height);
                 int tab = offset + i;
-                bool on = window.tab == tab;
-                if (GUILayout.Toggle(on, names[i], EditorStyles.miniButton, GUILayout.Height(24), GUILayout.ExpandWidth(true)))
-                {
+                if (GUI.Toggle(cell, window.tab == tab, names[i], EditorStyles.miniButton))
                     window.tab = tab;
-                }
             }
-            EditorGUILayout.EndHorizontal();
         }
 
         public static void DrawTabContent(KaleidoVRCOptimizer window)
@@ -3045,8 +3050,8 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
-            window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove / bake unused blend shapes", "Upload-only. Meshes tab Keep blend shapes only leaves import on. This drops unused shapes after that. Special Blend shape import Disable turns this off.");
-            window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Combines shapes that every clip always drives in the same ratio.");
+            window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove unused blend shapes", "Upload-only. Drops unused shapes that are at zero weight. Eye / wink / blink shapes stay, and any shape that still has weight is left as-is so the face does not change.");
+            window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Off by default. Combines shapes that every clip always drives in the same ratio. Can change expressions. Leave off unless you want that rewrite.");
             window.avatarMmdCompatibility = DrawToggle(window.avatarMmdCompatibility, "MMD world compatibility", "Keeps MMD viseme / face shapes and the first three FX layers.");
 
             GUILayout.Space(8);

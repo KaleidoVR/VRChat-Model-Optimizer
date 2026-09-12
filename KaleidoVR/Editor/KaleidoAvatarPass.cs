@@ -21,7 +21,7 @@ namespace KaleidoVR.EditorTools
         public bool mergeIdenticalSlots = true;
         public bool shuffleMaterialSlots = true;
         public bool optimizeBlendShapes = true;
-        public bool mergeSameRatioShapes = true;
+        public bool mergeSameRatioShapes = false;
         public bool mmdCompatibility = true;
         public bool removeUnusedComponents = true;
         public bool removeUnusedGameObjects = false;
@@ -95,7 +95,7 @@ namespace KaleidoVR.EditorTools
                 mergeIdenticalSlots = EditorPrefs.GetBool(p + "AvSlots", true),
                 shuffleMaterialSlots = EditorPrefs.GetBool(p + "AvShuffle", true),
                 optimizeBlendShapes = EditorPrefs.GetBool(p + "AvShape", true),
-                mergeSameRatioShapes = EditorPrefs.GetBool(p + "AvRatio", true),
+                mergeSameRatioShapes = EditorPrefs.GetBool(p + "AvRatio", false),
                 mmdCompatibility = EditorPrefs.GetBool(p + "AvMmd", true),
                 removeUnusedComponents = EditorPrefs.GetBool(p + "AvComp", true),
                 removeUnusedGameObjects = EditorPrefs.GetBool(p + "AvGo", false),
@@ -391,9 +391,49 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
+        static bool IsProtectedShape(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            string n = name.ToLowerInvariant();
+            return n.IndexOf("blink", StringComparison.Ordinal) >= 0
+                || n.IndexOf("wink", StringComparison.Ordinal) >= 0
+                || n.IndexOf("squint", StringComparison.Ordinal) >= 0
+                || n.IndexOf("eyelid", StringComparison.Ordinal) >= 0
+                || n.IndexOf("eyeclose", StringComparison.Ordinal) >= 0
+                || n.IndexOf("eye_close", StringComparison.Ordinal) >= 0
+                || n.IndexOf("close_l", StringComparison.Ordinal) >= 0
+                || n.IndexOf("close_r", StringComparison.Ordinal) >= 0
+                || n.IndexOf("fcl_eye", StringComparison.Ordinal) >= 0
+                || n.IndexOf("ウィンク", StringComparison.Ordinal) >= 0
+                || n.IndexOf("まばたき", StringComparison.Ordinal) >= 0
+                || n.IndexOf("じと目", StringComparison.Ordinal) >= 0;
+        }
+
+        static Dictionary<string, float> SnapshotShapeWeights(SkinnedMeshRenderer smr)
+        {
+            Dictionary<string, float> weights = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            Mesh mesh = smr != null ? smr.sharedMesh : null;
+            if (mesh == null) return weights;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+                weights[mesh.GetBlendShapeName(i)] = smr.GetBlendShapeWeight(i);
+            return weights;
+        }
+
+        static void RestoreShapeWeights(SkinnedMeshRenderer smr, Dictionary<string, float> weights)
+        {
+            Mesh mesh = smr != null ? smr.sharedMesh : null;
+            if (mesh == null) return;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                float w;
+                if (weights == null || !weights.TryGetValue(mesh.GetBlendShapeName(i), out w)) w = 0f;
+                smr.SetBlendShapeWeight(i, w);
+            }
+        }
+
         static void ProcessBlendShapes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
         {
-            HashSet<string> keep = anim.UsedBlendShapes;
+            HashSet<string> keep = new HashSet<string>(anim.UsedBlendShapes, StringComparer.OrdinalIgnoreCase);
             if (settings.mmdCompatibility)
             {
                 for (int i = 0; i < MmdShapeNames.Length; i++) keep.Add(MmdShapeNames[i]);
@@ -408,79 +448,60 @@ namespace KaleidoVR.EditorTools
                 Mesh mesh = smr.sharedMesh;
                 if (mesh.blendShapeCount == 0) continue;
 
-                List<int> bake = new List<int>();
                 List<int> drop = new List<int>();
                 if (settings.optimizeBlendShapes)
                 {
                     for (int i = 0; i < mesh.blendShapeCount; i++)
                     {
                         string name = mesh.GetBlendShapeName(i);
-                        if (keep.Contains(name) || anim.IsBlendShapeAnimated(smr, root, name)) continue;
-                        float w = smr.GetBlendShapeWeight(i);
-                        if (Mathf.Abs(w) > 0.01f) bake.Add(i);
-                        else drop.Add(i);
+                        if (IsProtectedShape(name) || keep.Contains(name) || anim.IsBlendShapeAnimated(smr, root, name))
+                            continue;
+                        if (Mathf.Abs(smr.GetBlendShapeWeight(i)) > 0.01f) continue;
+                        drop.Add(i);
                     }
                 }
 
                 Dictionary<int, int> ratioInto = settings.mergeSameRatioShapes
                     ? anim.SameRatioPairs(smr, root, mesh)
                     : null;
+                if (ratioInto != null)
+                {
+                    List<int> skip = new List<int>();
+                    foreach (KeyValuePair<int, int> pair in ratioInto)
+                    {
+                        if (IsProtectedShape(mesh.GetBlendShapeName(pair.Key))
+                            || IsProtectedShape(mesh.GetBlendShapeName(pair.Value)))
+                            skip.Add(pair.Key);
+                    }
+                    for (int i = 0; i < skip.Count; i++) ratioInto.Remove(skip[i]);
+                }
 
-                if (bake.Count == 0 && drop.Count == 0 && (ratioInto == null || ratioInto.Count == 0)) continue;
+                if (drop.Count == 0 && (ratioInto == null || ratioInto.Count == 0)) continue;
 
-                result.shapesBaked += bake.Count;
                 result.shapesRemoved += drop.Count;
                 if (ratioInto != null) result.shapesMerged += ratioInto.Count;
-                result.lines.Add(smr.name + ": bake " + bake.Count + ", drop " + drop.Count + ", merge " + (ratioInto != null ? ratioInto.Count : 0) + " blend shapes");
+                result.lines.Add(smr.name + ": drop " + drop.Count + ", merge " + (ratioInto != null ? ratioInto.Count : 0) + " blend shapes");
                 if (dryRun) continue;
 
+                Dictionary<string, float> weights = SnapshotShapeWeights(smr);
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_Kaleido";
                 copy.hideFlags = HideFlags.HideAndDontSave;
-                BakeAndStripShapes(copy, smr, bake, drop, ratioInto);
+                StripShapes(copy, drop, ratioInto);
                 smr.sharedMesh = copy;
+                RestoreShapeWeights(smr, weights);
             }
         }
 
-        static void BakeAndStripShapes(Mesh mesh, SkinnedMeshRenderer smr, List<int> bake, List<int> drop, Dictionary<int, int> ratioInto)
+        static void StripShapes(Mesh mesh, List<int> drop, Dictionary<int, int> ratioInto)
         {
             Vector3[] verts = mesh.vertices;
-            Vector3[] normals = mesh.normals;
-            Vector4[] tangents = mesh.tangents;
-            Vector3[] dV = new Vector3[verts.Length];
-            Vector3[] dN = new Vector3[verts.Length];
-            Vector3[] dT = new Vector3[verts.Length];
-
             HashSet<int> remove = new HashSet<int>(drop);
-            for (int b = 0; b < bake.Count; b++)
-            {
-                int idx = bake[b];
-                float w = smr.GetBlendShapeWeight(idx) / 100f;
-                if (mesh.GetBlendShapeFrameCount(idx) < 1) continue;
-                mesh.GetBlendShapeFrameVertices(idx, 0, dV, dN, dT);
-                for (int i = 0; i < verts.Length; i++)
-                {
-                    verts[i] += dV[i] * w;
-                    if (normals != null && normals.Length == verts.Length) normals[i] = (normals[i] + dN[i] * w).normalized;
-                    if (tangents != null && tangents.Length == verts.Length)
-                    {
-                        Vector3 t = new Vector3(tangents[i].x, tangents[i].y, tangents[i].z) + dT[i] * w;
-                        tangents[i] = new Vector4(t.x, t.y, t.z, tangents[i].w);
-                    }
-                }
-                remove.Add(idx);
-                smr.SetBlendShapeWeight(idx, 0f);
-            }
-
             if (ratioInto != null)
             {
                 foreach (KeyValuePair<int, int> pair in ratioInto)
                     remove.Add(pair.Key);
             }
-
-            mesh.vertices = verts;
-            if (normals != null && normals.Length == verts.Length) mesh.normals = normals;
-            if (tangents != null && tangents.Length == verts.Length) mesh.tangents = tangents;
 
             List<(string name, float frame, Vector3[] v, Vector3[] n, Vector3[] t)> kept = new List<(string, float, Vector3[], Vector3[], Vector3[])>();
             for (int i = 0; i < mesh.blendShapeCount; i++)
@@ -518,7 +539,6 @@ namespace KaleidoVR.EditorTools
             mesh.ClearBlendShapes();
             for (int i = 0; i < kept.Count; i++)
                 mesh.AddBlendShapeFrame(kept[i].name, kept[i].frame, kept[i].v, kept[i].n, kept[i].t);
-            mesh.RecalculateBounds();
         }
 
         static void AddDescriptorShapes(GameObject root, HashSet<string> keep)
@@ -1084,7 +1104,7 @@ namespace KaleidoVR.EditorTools
 
         sealed class AvatarAnimInfo
         {
-            public readonly HashSet<string> UsedBlendShapes = new HashSet<string>();
+            public readonly HashSet<string> UsedBlendShapes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             readonly HashSet<string> enabled = new HashSet<string>(StringComparer.Ordinal);
             readonly HashSet<string> actives = new HashSet<string>(StringComparer.Ordinal);
             readonly HashSet<string> moved = new HashSet<string>(StringComparer.Ordinal);
