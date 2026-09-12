@@ -1,5 +1,63 @@
-What's new in 1.0.40
+What's new
 
-On Upload meshes stay in the build so the avatar does not go invisible in-game or in the scene copy.
+1.0.40
+On Upload meshes stay in the build so the avatar does not go invisible in-game or on the scene copy.
 A Kaleido splash and a Console line show when On Upload runs.
 Rank Scan / Dry Run adds Now / On Upload / Change next to the performance stats.
+
+1.0.39
+On Upload no longer bakes leftover blend-shape weights into the face. Unused shapes drop only at zero weight.
+Blink / wink / squint stay, and weights are restored by name after a strip.
+Merge same-ratio blend shapes is off by default.
+The two tab rows use the same four-column widths.
+Reopen the tool once so existing projects pick up the new default.
+
+1.0.38
+Linking additional features that were already in the works.
+On Upload tab: merge meshes that animate together, merge identical material slots, unused blend shapes, unused components, unused bones, unused PhysBones, and FX cleanup.
+Those options run on the assembled upload copy. The scene and source assets stay as they are.
+Meshes and markers Kaleido did not create are left alone. Setup Ignore List skips those objects. Upload skips Play Mode.
+Scan, Dry Run, and Apply stay on importer, Scene, and Special writes. Dry Run On Upload and Create optimized copy live on that tab.
+Standard is the default built-in. Type max-size caps, format rewrite, weld, bone-quality cuts, Scene disables, and Special stay off.
+Reopen the tool once so existing projects pick up the new defaults.
+
+1.0.37
+Ignore on Textures On This Model no longer greys out Set. Ignore skips the type cap; Set still writes that texture by hand.
+Ignore and Set choices are remembered per texture and come back on later runs.
+Undo on Enable / Disable rows clears the checkbox after a successful restore, so Recalculate bounds does not stay Enable.
+
+1.0.36
+Texture importer on/off options are Enable, Disable, or neither, with Current and New. Neither leaves each listed texture as-is.
+Special on/off options use the same layout. Enable can turn lights, cameras, stereo, and blend-shape import back on.
+Apply only shows the Special warning when a Special write is not at its default. Leaving Set compression, mesh compression, Humanoid, Recalculate bounds, and crunch at Disable does not prompt.
+Opening the tool once turns Set compression off if an older install had left it on, so listed textures keep the author's format unless you Enable it.
+Dry Run / Apply log lists the chosen writes, then each texture as Old -> New.
+
+1.0.35
+Textures On This Model uses less inner padding, and the window opens wide enough to keep the Ignore checkboxes on screen.
+Current, New, and Ignore headers sit over their columns.
+Recalculate skinned bounds keeps Center Y at 0 so the 2 m cube sits on the mid-body instead of below it.
+
+1.0.34
+Recalculate skinned bounds writes a 2 m cube (inspector Extent 1 / 1 / 1) centered on the avatar middle, the same box on every skinned mesh. This replaces the old tiny local-space boxes that clipped meshes when Update When Offscreen was off. Light meshes used only for contact systems are skipped.
+After Apply has written a checked option, Undo sits beside it and restores the previous values.
+The Special tab shows a centered red Warning (Special Use Case). Apply asks again when any Special option is on.
+Apply mesh compression has a Compression Level dropdown (Off / Low / Medium / High).
+Crunch has a Crunch Compression % slider (1-100).
+Thanks to epic6g for reporting the Recalculate skinned bounds clip, and for catching that the body MainTex was landing under Other instead of Albedo (fixed in 1.0.33).
+
+1.0.33
+Textures used as the main color slot (MainTex, and the standard BaseMap / BaseColorMap slots) follow the Albedo / Diffuse / Main size checkbox instead of Other. Normals, masks, emission, and matcaps stay on their own checkboxes, including when the filename already says that. Other slots stay unclassified.
+Textures On This Model has an Ignore checkbox to the right of New max size. A checked row keeps its current max size. Dry Run and Apply skip that size write.
+Thanks to epic6g for reporting that the body MainTex was classified under Other.
+
+1.0.32
+Even spacing above and below the header logo, so it is not flush against the window edge or the title.
+
+1.0.31
+The empty band above the header logo is gone. The logo is drawn to where its artwork actually starts instead of including the transparent space around it.
+Kali_Logo.png is cropped to content (400x209 instead of 400x400), so it costs about half the texture memory.
+
+1.0.30
+The Scan / Dry Run / Apply color key is centered under those buttons.
+Its labels share one baseline, so the color words no longer sit lower than the text beside them.
