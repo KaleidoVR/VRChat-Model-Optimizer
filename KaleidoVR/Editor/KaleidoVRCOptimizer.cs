@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.29";
+        public static readonly string VERSION = "1.0.30";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -2604,13 +2604,23 @@ namespace KaleidoVR.EditorTools
             return clicked;
         }
 
+        private const float ColorKeyRowHeight = 16f;
+
         private static void DrawActionColorKey()
         {
             EnsureSizeStyles();
 
-            // One shared font size for every word so the row sits on a single straight baseline.
-            GUIStyle swatch = new GUIStyle(EditorStyles.miniBoldLabel) { alignment = TextAnchor.MiddleLeft };
-            GUIStyle note = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
+            // Both styles come from miniLabel with cleared padding, so bold and regular
+            // text share one baseline instead of sitting at different heights.
+            GUIStyle note = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                wordWrap = false,
+                margin = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0),
+                fixedHeight = ColorKeyRowHeight
+            };
+            GUIStyle swatch = new GUIStyle(note) { fontStyle = FontStyle.Bold };
 
             GUIStyle blue = new GUIStyle(swatch);
             blue.normal.textColor = EditorGUIUtility.isProSkin
@@ -2624,17 +2634,22 @@ namespace KaleidoVR.EditorTools
                 : new Color(0.08f, 0.48f, 0.18f, 1f);
 
             GUILayout.Space(4);
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Blue", blue, GUILayout.ExpandWidth(false));
-            GUILayout.Label("Scan looks only", note, GUILayout.ExpandWidth(false));
-            GUILayout.Space(14);
-            GUILayout.Label("Orange", orange, GUILayout.ExpandWidth(false));
-            GUILayout.Label("Dry Run previews", note, GUILayout.ExpandWidth(false));
-            GUILayout.Space(14);
-            GUILayout.Label("Green", green, GUILayout.ExpandWidth(false));
-            GUILayout.Label("Apply writes and stays", note, GUILayout.ExpandWidth(false));
+            EditorGUILayout.BeginHorizontal(GUILayout.Height(ColorKeyRowHeight));
+            GUILayout.FlexibleSpace();
+            DrawColorKeyPair("Blue", blue, "Scan looks only", note);
+            GUILayout.Space(16);
+            DrawColorKeyPair("Orange", orange, "Dry Run previews", note);
+            GUILayout.Space(16);
+            DrawColorKeyPair("Green", green, "Apply writes and stays", note);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
+        }
+
+        private static void DrawColorKeyPair(string name, GUIStyle nameStyle, string meaning, GUIStyle meaningStyle)
+        {
+            GUILayout.Label(name, nameStyle, GUILayout.Height(ColorKeyRowHeight), GUILayout.ExpandWidth(false));
+            GUILayout.Space(4);
+            GUILayout.Label(meaning, meaningStyle, GUILayout.Height(ColorKeyRowHeight), GUILayout.ExpandWidth(false));
         }
 
         private static void DrawSpecialUseCaseHeader()
