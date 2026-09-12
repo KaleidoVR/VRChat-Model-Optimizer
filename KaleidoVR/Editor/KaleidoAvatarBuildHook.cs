@@ -30,11 +30,21 @@ namespace KaleidoVR.EditorTools
                 : KaleidoAvatarPass.FromPrefs();
             if (!settings.applyOnUpload) return true;
 
-            KaleidoAvatarPass.Run(
-                avatarGameObject,
-                settings,
-                false,
-                KaleidoAvatarPass.ExclusionsFrom(window, avatarGameObject));
+            try
+            {
+                KaleidoOnUploadSplash.Open(avatarGameObject.name);
+                KaleidoAvatarPassResult result = KaleidoAvatarPass.Run(
+                    avatarGameObject,
+                    settings,
+                    false,
+                    KaleidoAvatarPass.ExclusionsFrom(window, avatarGameObject));
+                string summary = result != null ? result.SummaryLine() : "done";
+                Debug.Log("[KaleidoVR] On Upload finished on " + avatarGameObject.name + ": " + summary);
+            }
+            finally
+            {
+                KaleidoOnUploadSplash.CloseIfOpen();
+            }
             return true;
         }
     }

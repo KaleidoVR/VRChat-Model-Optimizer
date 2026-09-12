@@ -44,6 +44,18 @@ namespace KaleidoVR.EditorTools
         public int physBonesDisabled;
         public int fxLayersRemoved;
         public int curvesRemoved;
+
+        public string SummaryLine()
+        {
+            return "meshes −" + meshesMerged
+                + ", slots −" + slotsMerged
+                + ", shapes −" + shapesRemoved
+                + ", bones −" + bonesRemoved
+                + ", components −" + componentsRemoved
+                + ", objects −" + objectsRemoved
+                + ", PhysBones −" + physBonesDisabled
+                + ", FX layers −" + fxLayersRemoved;
+        }
     }
 
     public static class KaleidoAvatarPass
@@ -58,6 +70,11 @@ namespace KaleidoVR.EditorTools
             "vrc.v_dd", "vrc.v_kk", "vrc.v_ch", "vrc.v_ss", "vrc.v_nn",
             "vrc.v_rr", "vrc.v_aa", "vrc.v_e", "vrc.v_ih", "vrc.v_oh", "vrc.v_ou"
         };
+
+        public static HashSet<Transform> ExclusionsOnCopy(KaleidoVRCOptimizer window, GameObject source, GameObject copy)
+        {
+            return RemapExclusions(source, copy, ExclusionsFrom(window, source));
+        }
 
         public static HashSet<Transform> ExclusionsFrom(KaleidoVRCOptimizer window, GameObject root)
         {
@@ -486,7 +503,7 @@ namespace KaleidoVR.EditorTools
                 Dictionary<string, float> weights = SnapshotShapeWeights(smr);
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_Kaleido";
-                copy.hideFlags = HideFlags.HideAndDontSave;
+                copy.hideFlags = HideFlags.None;
                 StripShapes(copy, drop, ratioInto);
                 smr.sharedMesh = copy;
                 RestoreShapeWeights(smr, weights);
@@ -640,7 +657,7 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoBones";
-                copy.hideFlags = HideFlags.HideAndDontSave;
+                copy.hideFlags = HideFlags.None;
                 BoneWeight[] nw = new BoneWeight[weights.Length];
                 for (int i = 0; i < weights.Length; i++)
                 {
@@ -716,7 +733,7 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoSlots";
-                copy.hideFlags = HideFlags.HideAndDontSave;
+                copy.hideFlags = HideFlags.None;
                 copy.subMeshCount = newMats.Count;
                 for (int i = 0; i < newMats.Count; i++) copy.SetTriangles(tris[i], i);
                 smr.sharedMesh = copy;
@@ -856,7 +873,7 @@ namespace KaleidoVR.EditorTools
 
             Mesh combined = new Mesh();
             combined.name = dest.name + "_KaleidoMerged";
-            combined.hideFlags = HideFlags.HideAndDontSave;
+            combined.hideFlags = HideFlags.None;
             combined.indexFormat = verts.Count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
             combined.SetVertices(verts);
             combined.SetNormals(norms);
@@ -1012,7 +1029,7 @@ namespace KaleidoVR.EditorTools
 
                 AnimatorController copy = UnityEngine.Object.Instantiate(src);
                 copy.name = src.name + "_KaleidoFX";
-                copy.hideFlags = HideFlags.HideAndDontSave;
+                copy.hideFlags = HideFlags.None;
                 StripFx(copy, root, settings.mmdCompatibility);
                 animator.runtimeAnimatorController = copy;
             }

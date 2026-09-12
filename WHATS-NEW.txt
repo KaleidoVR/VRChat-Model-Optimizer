@@ -1,6 +1,5 @@
-What's new in 1.0.39
+What's new in 1.0.40
 
-On Upload no longer bakes leftover blend-shape weights into the face. Unused shapes drop only at zero weight. Blink / wink / squint stay, and weights are restored by name after a strip.
-Merge same-ratio blend shapes is off by default.
-The two tab rows use the same four-column widths.
-Reopen the tool once so existing projects pick up the new default.
+On Upload meshes stay in the build so the avatar does not go invisible in-game or in the scene copy.
+A Kaleido splash and a Console line show when On Upload runs.
+Rank Scan / Dry Run adds Now / On Upload / Change next to the performance stats.
