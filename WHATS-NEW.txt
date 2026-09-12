@@ -1,8 +1,8 @@
 What's new
 
 1.0.49
-The Optimize FX warning on On Upload is twice as large.
-Textures On This Model keeps only a small gap after Ignore.
+UI — On Upload: the Optimize FX warning is twice as large.
+UI — Textures On This Model: only a small gap remains after the Ignore checkboxes. The empty strip to the right of the list is gone.
 
 1.0.48
 On Upload can merge extras after other upload passes have attached them to this avatar's skeleton.
