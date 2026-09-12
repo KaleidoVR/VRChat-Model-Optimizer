@@ -23,11 +23,12 @@ namespace KaleidoVR.EditorTools
             Open();
         }
 
+        const float WindowWidth = 380f;
+
         public static void Open()
         {
             KaleidoVRCreditsWindow window = GetWindow<KaleidoVRCreditsWindow>(true, "KaleidoVR (Credits)", true);
-            window.minSize = new Vector2(380, 420);
-            window.maxSize = new Vector2(520, 580);
+            window.LockToContent(EstimateHeight());
             window.Show();
         }
 
@@ -63,6 +64,39 @@ namespace KaleidoVR.EditorTools
                 Application.OpenURL(WebsiteUrl);
             if (GUILayout.Button("Discord", GUILayout.Height(28)))
                 Application.OpenURL(DiscordUrl);
+
+            GUILayout.Space(12);
+            if (Event.current.type == EventType.Repaint)
+                FitToContent(GUILayoutUtility.GetLastRect().yMax);
+        }
+
+        static float EstimateHeight()
+        {
+            const float textWidth = 340f;
+            GUIStyle title = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 16 };
+            GUIStyle body = new GUIStyle(EditorStyles.wordWrappedLabel) { alignment = TextAnchor.MiddleCenter };
+            float height = 16f + 160f + 8f;
+            height += title.CalcHeight(new GUIContent("KaleidoVR"), textWidth);
+            height += body.CalcHeight(new GUIContent("Created and maintained by KaleidoVR"), textWidth);
+            height += EditorStyles.centeredGreyMiniLabel.CalcHeight(new GUIContent("Copyright (c) 2026 KaleidoVR  ·  MIT License"), textWidth);
+            height += 14f + 28f + 6f + 28f + 12f;
+            return Mathf.Ceil(height);
+        }
+
+        void FitToContent(float contentHeight)
+        {
+            LockToContent(contentHeight);
+        }
+
+        void LockToContent(float contentHeight)
+        {
+            float height = Mathf.Ceil(Mathf.Max(120f, contentHeight));
+            Vector2 size = new Vector2(WindowWidth, height);
+            if (minSize == size && maxSize == size)
+                return;
+
+            minSize = size;
+            maxSize = size;
         }
 
         static string FindLogoPath()
