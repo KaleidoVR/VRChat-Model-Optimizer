@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.26";
+        public static readonly string VERSION = "1.0.27";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -2004,7 +2004,7 @@ namespace KaleidoVR.EditorTools
                 Rect thumb = GUILayoutUtility.GetRect(52, 52, GUILayout.Width(52), GUILayout.Height(52));
                 if (usage.texture != null)
                 {
-                    if (GUI.Button(thumb, usage.texture))
+                    if (GUI.Button(thumb, GUIContent.none))
                     {
                         if (selected) window.previewTexturePath = "";
                         else
@@ -2013,6 +2013,7 @@ namespace KaleidoVR.EditorTools
                             EditorGUIUtility.PingObject(usage.texture);
                         }
                     }
+                    DrawTextureImage(new Rect(thumb.x + 2, thumb.y + 2, thumb.width - 4, thumb.height - 4), usage);
                 }
                 else
                 {
@@ -2210,6 +2211,27 @@ namespace KaleidoVR.EditorTools
             KaleidoVRCOptimizerLogic.QueueImmediateTextureSize(window, usage.path, picked, questPlatform, current);
         }
 
+        private static Material normalPreviewMaterial;
+
+        // BC5 / DXT5nm drop the blue channel, so normals preview green until Z is rebuilt.
+        private static Material NormalPreviewMaterial()
+        {
+            if (normalPreviewMaterial != null) return normalPreviewMaterial;
+            Shader shader = Shader.Find("Hidden/KaleidoVR/NormalMapPreview");
+            if (shader == null) return null;
+            normalPreviewMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            return normalPreviewMaterial;
+        }
+
+        private static void DrawTextureImage(Rect rect, KaleidoTextureUsage usage)
+        {
+            if (usage == null || usage.texture == null) return;
+            if (Event.current.type != EventType.Repaint) return;
+
+            Material material = usage.kind == KaleidoTextureKind.Normal ? NormalPreviewMaterial() : null;
+            EditorGUI.DrawPreviewTexture(rect, usage.texture, material, ScaleMode.ScaleToFit);
+        }
+
         private static void DrawTexturePreview(KaleidoVRCOptimizer window)
         {
             KaleidoTextureUsage usage = KaleidoVRCOptimizerLogic.FindTextureUsage(window, window.previewTexturePath);
@@ -2225,10 +2247,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel);
 
             Rect preview = GUILayoutUtility.GetRect(16, 220, GUILayout.ExpandWidth(true), GUILayout.Height(220));
-            if (usage.texture != null)
-            {
-                EditorGUI.DrawPreviewTexture(preview, usage.texture, null, ScaleMode.ScaleToFit);
-            }
+            DrawTextureImage(preview, usage);
             if (Event.current.type == EventType.MouseDown && preview.Contains(Event.current.mousePosition))
             {
                 window.previewTexturePath = "";
