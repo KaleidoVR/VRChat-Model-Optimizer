@@ -1,5 +1,9 @@
 What's new
 
+1.0.47
+On Upload no longer parks hair, ears, and other extras in T-pose when meshes merge. Bind poses move with the vertices.
+Extras that still use their own armature are left alone until other upload passes attach them.
+
 1.0.46
 The Optimize FX warning is a bit larger so it is easier to read.
 
