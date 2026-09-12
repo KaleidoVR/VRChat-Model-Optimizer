@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.40";
+        public static readonly string VERSION = "1.0.41";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -1966,7 +1966,6 @@ namespace KaleidoVR.EditorTools
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
             window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, FX", window.includeAvatar);
-            DrawSpecialUseCaseHeader();
             window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
 
@@ -5982,7 +5981,7 @@ namespace KaleidoVR.EditorTools
                     GameObject copy = UnityEngine.Object.Instantiate(root);
                     copy.name = root.name + "_KaleidoRank";
                     copy.hideFlags = HideFlags.HideAndDontSave | HideFlags.HideInHierarchy;
-                    KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy));
+                    KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
                     copies.Add(copy);
                 }
                 if (copies.Count == 0) return;
