@@ -1,5 +1,8 @@
 What's new
 
+1.0.46
+The Optimize FX warning is a bit larger so it is easier to read.
+
 1.0.45
 Optimize FX layer is off by default and shows a warning. Reopen the tool once so existing projects pick that up.
 Hand gesture clips stay as-is when Optimize FX runs (detected by GestureLeft / GestureRight).
