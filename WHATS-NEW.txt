@@ -1,8 +1,6 @@
-What's new in 1.0.38
+What's new in 1.0.39
 
-Linking additional features that were already in the works.
-
-On Upload: merge meshes that animate together, merge identical slots, unused blend shapes, unused components, unused bones, unused PhysBones, and FX cleanup. Those run on the assembled upload copy; the scene stays as-is. Meshes and markers Kaleido did not create are left alone. Setup Ignore List skips those objects. Upload skips Play Mode. Scan, Dry Run, and Apply stay on importer, Scene, and Special writes.
-
-Standard is the default built-in. Type max-size caps, format rewrite, weld, bone-quality cuts, Scene disables, and Special stay off.
-Reopen the tool once so existing projects pick up the new defaults.
+On Upload no longer bakes leftover blend-shape weights into the face. Unused shapes drop only at zero weight. Blink / wink / squint stay, and weights are restored by name after a strip.
+Merge same-ratio blend shapes is off by default.
+The two tab rows use the same four-column widths.
+Reopen the tool once so existing projects pick up the new default.
