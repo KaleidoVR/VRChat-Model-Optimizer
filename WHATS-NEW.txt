@@ -1,5 +1,12 @@
 What's new
 
+1.0.43
+Remove unused blend shapes keeps Eye Look blink / look-up / look-down and rewrites those descriptor indices, so idle no longer drives leftover smiles.
+Apply on upload is off by default. Reopen the tool once so existing projects pick that up.
+On Upload has Clear cache for generated meshes and FX in Assets/KaleidoVR/Generated.
+With no avatar on Setup, Rank shows Select a model on Setup instead of Scan Performance.
+The On Upload splash stays on screen for the whole pass, with the loading bar inside it.
+
 1.0.42
 Splash and loading bar only appear on a VRChat upload. Create optimized copy in the scene no longer shows them, and no longer logs a layout error.
 
