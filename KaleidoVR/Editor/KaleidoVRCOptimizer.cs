@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.23";
+        public static readonly string VERSION = "1.0.24";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1898,7 +1898,7 @@ namespace KaleidoVR.EditorTools
             DrawWhy("Runs only the max-size-by-type settings above (and any per-texture selector you already changed). Type caps never raise a texture. Compression, mip maps, meshes, scene, and Special are not touched.");
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Dry Run Max Sizes Only", GUILayout.Height(26)))
+            if (DrawTintedButton("Dry Run Max Sizes Only", ActionDryRunTint(), GUILayout.Height(26)))
             {
                 int count;
                 string preview;
@@ -1913,7 +1913,7 @@ namespace KaleidoVR.EditorTools
                     "OK");
             }
             EditorGUI.BeginDisabledGroup(!window.ReadyToApplyMaxSizesOnly);
-            if (GUILayout.Button("Apply Max Sizes Only", GUILayout.Height(26)))
+            if (DrawTintedButton("Apply Max Sizes Only", ActionApplyTint(), GUILayout.Height(26)))
             {
                 if (EditorUtility.DisplayDialog(
                     "Apply max sizes only?",
@@ -1936,7 +1936,7 @@ namespace KaleidoVR.EditorTools
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
             if (!window.ReadyToApplyMaxSizesOnly)
-                EditorGUILayout.HelpBox("Dry run these max sizes first. Apply stays off until that dry run finds at least one size write.", MessageType.None);
+                EditorGUILayout.HelpBox("Orange Dry Run first. Green Apply stays off until that dry run finds at least one size write.", MessageType.None);
         }
 
         private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
@@ -2447,17 +2447,17 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(6);
             EditorGUILayout.HelpBox(
                 window.WorkspaceReadyToApply
-                    ? "Dry run finished. Review the Rank tab, then Apply to write those importer and scene changes for this workspace. Apply writes into Unity and stays on the assets."
-                    : "Scan reports only. Dry Run previews importer and scene writes. Apply, Confirm, and Fix write into this Unity project and stay there. Run again only if the avatar or settings change.",
+                    ? "Orange Dry Run finished. Review Rank, then press green Apply to write those importer and scene changes for this workspace. Apply stays on the assets."
+                    : "Blue Scan only looks — it does not write. Orange Dry Run previews importer and scene writes. Green Apply writes into this Unity project and stays. Apply stays off until a Dry Run succeeds.",
                 window.WorkspaceReadyToApply ? MessageType.Info : MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Scan Performance", GUILayout.Height(32)))
+            if (DrawTintedButton("Scan Performance", ActionScanTint(), GUILayout.Height(32)))
             {
                 window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
                 window.tab = 2;
             }
-            if (GUILayout.Button("Dry Run", GUILayout.Height(32)))
+            if (DrawTintedButton("Dry Run", ActionDryRunTint(), GUILayout.Height(32)))
             {
                 window.dryRun = true;
                 KaleidoOptimizerReport report = KaleidoVRCOptimizerLogic.Scan(window, true);
@@ -2471,7 +2471,7 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
 
             EditorGUI.BeginDisabledGroup(!window.WorkspaceReadyToApply);
-            if (GUILayout.Button("Apply", GUILayout.Height(32)))
+            if (DrawTintedButton("Apply", ActionApplyTint(), GUILayout.Height(32)))
             {
                 if (!EditorUtility.DisplayDialog(
                     "KaleidoVR VRChat Model Optimizer",
@@ -2489,6 +2489,64 @@ namespace KaleidoVR.EditorTools
                 window.tab = 2;
             }
             EditorGUI.EndDisabledGroup();
+            DrawActionColorKey();
+        }
+
+        private static Color ActionScanTint()
+        {
+            return EditorGUIUtility.isProSkin
+                ? new Color(0.38f, 0.70f, 1f, 1f)
+                : new Color(0.42f, 0.68f, 1f, 1f);
+        }
+
+        private static Color ActionDryRunTint()
+        {
+            return EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.78f, 0.28f, 1f)
+                : new Color(1f, 0.82f, 0.36f, 1f);
+        }
+
+        private static Color ActionApplyTint()
+        {
+            return EditorGUIUtility.isProSkin
+                ? new Color(0.38f, 0.88f, 0.48f, 1f)
+                : new Color(0.40f, 0.82f, 0.42f, 1f);
+        }
+
+        private static bool DrawTintedButton(string label, Color tint, params GUILayoutOption[] options)
+        {
+            Color previous = GUI.backgroundColor;
+            GUI.backgroundColor = tint;
+            bool clicked = GUILayout.Button(label, options);
+            GUI.backgroundColor = previous;
+            return clicked;
+        }
+
+        private static void DrawActionColorKey()
+        {
+            EnsureSizeStyles();
+            GUIStyle blue = new GUIStyle(EditorStyles.miniBoldLabel);
+            blue.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(0.55f, 0.82f, 1f, 1f)
+                : new Color(0.08f, 0.38f, 0.72f, 1f);
+            GUIStyle green = new GUIStyle(EditorStyles.miniBoldLabel);
+            green.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(0.48f, 0.92f, 0.55f, 1f)
+                : new Color(0.08f, 0.48f, 0.18f, 1f);
+
+            GUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Blue", blue, GUILayout.Width(52));
+            EditorGUILayout.LabelField("Scan looks only", MiniWrap());
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Orange", sizeUpStyle, GUILayout.Width(52));
+            EditorGUILayout.LabelField("Dry Run previews", MiniWrap());
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Green", green, GUILayout.Width(52));
+            EditorGUILayout.LabelField("Apply writes and stays", MiniWrap());
+            EditorGUILayout.EndHorizontal();
         }
 
         private static void DrawSpecialUseCaseHeader()
