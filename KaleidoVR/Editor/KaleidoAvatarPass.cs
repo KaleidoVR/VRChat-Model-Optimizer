@@ -855,23 +855,27 @@ namespace KaleidoVR.EditorTools
         static BoneWeight RemapWeight(BoneWeight w, bool[] used, int[] map)
         {
             BoneWeight n = new BoneWeight();
-            AssignWeight(ref n.weight0, ref n.boneIndex0, w.weight0, w.boneIndex0, used, map);
-            AssignWeight(ref n.weight1, ref n.boneIndex1, w.weight1, w.boneIndex1, used, map);
-            AssignWeight(ref n.weight2, ref n.boneIndex2, w.weight2, w.boneIndex2, used, map);
-            AssignWeight(ref n.weight3, ref n.boneIndex3, w.weight3, w.boneIndex3, used, map);
+            n.weight0 = MappedWeight(w.weight0, w.boneIndex0, used);
+            n.boneIndex0 = MappedIndex(w.weight0, w.boneIndex0, used, map);
+            n.weight1 = MappedWeight(w.weight1, w.boneIndex1, used);
+            n.boneIndex1 = MappedIndex(w.weight1, w.boneIndex1, used, map);
+            n.weight2 = MappedWeight(w.weight2, w.boneIndex2, used);
+            n.boneIndex2 = MappedIndex(w.weight2, w.boneIndex2, used, map);
+            n.weight3 = MappedWeight(w.weight3, w.boneIndex3, used);
+            n.boneIndex3 = MappedIndex(w.weight3, w.boneIndex3, used, map);
             return n;
         }
 
-        static void AssignWeight(ref float weight, ref int index, float srcWeight, int srcIndex, bool[] used, int[] map)
+        static float MappedWeight(float srcWeight, int srcIndex, bool[] used)
         {
-            if (srcIndex < 0 || srcIndex >= used.Length || !used[srcIndex] || srcWeight <= 0f)
-            {
-                weight = 0f;
-                index = 0;
-                return;
-            }
-            weight = srcWeight;
-            index = map[srcIndex];
+            if (srcIndex < 0 || srcIndex >= used.Length || !used[srcIndex] || srcWeight <= 0f) return 0f;
+            return srcWeight;
+        }
+
+        static int MappedIndex(float srcWeight, int srcIndex, bool[] used, int[] map)
+        {
+            if (srcIndex < 0 || srcIndex >= used.Length || !used[srcIndex] || srcWeight <= 0f) return 0;
+            return map[srcIndex];
         }
 
         static int SafeMap(int index, int[] map)
