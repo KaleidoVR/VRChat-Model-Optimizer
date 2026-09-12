@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.19";
+        public static readonly string VERSION = "1.0.20";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -339,6 +339,7 @@ namespace KaleidoVR.EditorTools
         public string previewTexturePath = "";
         public List<KaleidoTextureSizeEdit> textureSizeHistory = new List<KaleidoTextureSizeEdit>();
         public int textureSizeHistoryIndex = -1;
+        public int writeDefaultsAction;
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
         public static void ShowWindow()
@@ -1099,7 +1100,10 @@ namespace KaleidoVR.EditorTools
         public string layerCountQuality = "—";
         public bool writeDefaultsMixed;
         public bool writeDefaultsMostlyOn;
+        public int writeDefaultsOnCount;
+        public int writeDefaultsOffCount;
         public List<string> writeDefaultOutliers = new List<string>();
+        public int emptyStateCount;
         public List<string> emptyStates = new List<string>();
         public List<string> crunchedTextures = new List<string>();
         public List<string> nonBc5Normals = new List<string>();
@@ -2529,7 +2533,8 @@ namespace KaleidoVR.EditorTools
             }
 
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
-            EditorGUILayout.LabelField("Rank", window.IsQuestWorkspace ? report.questRank : report.pcRank);
+            string rank = window.IsQuestWorkspace ? report.questRank : report.pcRank;
+            DrawStatRow("Rank", rank, IsProblemRank(rank));
             if (report.meshReadWriteDisabled)
             {
                 EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor until Read/Write is enabled.", MessageType.Error);
@@ -2583,9 +2588,9 @@ namespace KaleidoVR.EditorTools
             if (evalVramOpen)
             {
                 DrawWhy("Video memory is what GPUs actually choke on. Rank ignores most of this. Active objects still keep inactive VRAM until memory is tight.");
-                EditorGUILayout.LabelField("Texture VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramAll) + "  " + report.textureVramQuality);
+                DrawStatRow("Texture VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramAll) + "  " + report.textureVramQuality, IsProblemRank(report.textureVramQuality));
                 EditorGUILayout.LabelField("Texture VRAM (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramActive));
-                EditorGUILayout.LabelField("Mesh VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.meshVramAll) + "  " + report.meshVramQuality);
+                DrawStatRow("Mesh VRAM (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.meshVramAll) + "  " + report.meshVramQuality, IsProblemRank(report.meshVramQuality));
                 EditorGUILayout.LabelField("Mesh VRAM (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.meshVramActive));
                 EditorGUILayout.LabelField("Combined (all)", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramAll));
                 EditorGUILayout.LabelField("Combined (active)", KaleidoVRCOptimizerHelpers.FormatBytes(report.vramActive));
@@ -2606,36 +2611,29 @@ namespace KaleidoVR.EditorTools
             evalHiddenOpen = EditorGUILayout.Foldout(evalHiddenOpen, "Hidden cost (animator / shaders / blendshapes)", true);
             if (evalHiddenOpen)
             {
-                DrawWhy("VRChat rank does not count these. GrabPass, Any State, mixed Write Defaults, empty states, and blendshape triangle load still hit CPU and GPU. Scan reports them here. Apply only writes the importer and scene options you ticked.");
-                EditorGUILayout.LabelField("GrabPasses", report.grabPasses.ToString("N0") + "  " + report.grabPassQuality);
+                DrawWhy("VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be fixed from this tab. GrabPass and blendshape load are reported only.");
+                DrawStatRow("GrabPasses", report.grabPasses.ToString("N0") + "  " + report.grabPassQuality, report.grabPasses > 0);
                 if (report.grabPassShaders != null && report.grabPassShaders.Count > 0)
                 {
                     evalGrabOpen = EditorGUILayout.Foldout(evalGrabOpen, "Shaders with GrabPass", false);
                     if (evalGrabOpen) DrawEvalList(report.grabPassShaders);
                 }
-                EditorGUILayout.LabelField("Blendshape triangles", report.blendshapeTriangles.ToString("N0") + "  " + report.blendshapeQuality);
+                DrawStatRow("Blendshape triangles", report.blendshapeTriangles.ToString("N0") + "  " + report.blendshapeQuality, report.blendshapeTriangles > 32000 || IsProblemRank(report.blendshapeQuality));
                 EditorGUILayout.LabelField("Meshes with blendshapes", report.blendshapeMeshes.ToString("N0"));
                 if (report.blendshapeMeshLines != null && report.blendshapeMeshLines.Count > 0)
                 {
                     evalBlendOpen = EditorGUILayout.Foldout(evalBlendOpen, "Blendshape meshes", false);
                     if (evalBlendOpen) DrawEvalList(report.blendshapeMeshLines);
                 }
-                EditorGUILayout.LabelField("Any State transitions", report.anyStateTransitions.ToString("N0") + "  " + report.anyStateQuality);
-                EditorGUILayout.LabelField("Animator layers", report.animatorLayers.ToString("N0") + "  " + report.layerCountQuality);
-                EditorGUILayout.LabelField("Write Defaults", report.writeDefaultsMixed
-                    ? "Mixed — should be all on or all off"
-                    : (report.writeDefaultsMostlyOn ? "On" : "Off"));
+                DrawStatRow("Any State transitions", report.anyStateTransitions.ToString("N0") + "  " + report.anyStateQuality, report.anyStateTransitions > 50 || IsProblemRank(report.anyStateQuality));
+                DrawStatRow("Animator layers", report.animatorLayers.ToString("N0") + "  " + report.layerCountQuality, IsProblemRank(report.layerCountQuality));
+                DrawWriteDefaultsRow(window, report);
                 if (report.writeDefaultsMixed && report.writeDefaultOutliers != null && report.writeDefaultOutliers.Count > 0)
                 {
                     evalWdOpen = EditorGUILayout.Foldout(evalWdOpen, "Write Default outliers (" + report.writeDefaultOutliers.Count + ")", false);
                     if (evalWdOpen) DrawEvalList(report.writeDefaultOutliers);
                 }
-                EditorGUILayout.LabelField("Empty animator states", report.emptyStates != null ? report.emptyStates.Count.ToString("N0") : "0");
-                if (report.emptyStates != null && report.emptyStates.Count > 0)
-                {
-                    evalEmptyOpen = EditorGUILayout.Foldout(evalEmptyOpen, "States with no motion", false);
-                    if (evalEmptyOpen) DrawEvalList(report.emptyStates);
-                }
+                DrawEmptyStatesRow(window, report);
             }
 
             GUILayout.Space(6);
@@ -2643,10 +2641,10 @@ namespace KaleidoVR.EditorTools
             if (evalFlagsOpen)
             {
                 DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual desktop normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused.");
-                EditorGUILayout.LabelField("Crunched textures", report.crunchedTextures != null ? report.crunchedTextures.Count.ToString("N0") : "0");
+                DrawStatRow("Crunched textures", report.crunchedTextures != null ? report.crunchedTextures.Count.ToString("N0") : "0", report.crunchedTextures != null && report.crunchedTextures.Count > 0);
                 if (report.crunchedTextures != null && report.crunchedTextures.Count > 0)
                     DrawEvalList(report.crunchedTextures);
-                EditorGUILayout.LabelField("Normals not BC5", report.nonBc5Normals != null ? report.nonBc5Normals.Count.ToString("N0") : "0");
+                DrawStatRow("Normals not BC5", report.nonBc5Normals != null ? report.nonBc5Normals.Count.ToString("N0") : "0", !window.IsQuestWorkspace && report.nonBc5Normals != null && report.nonBc5Normals.Count > 0);
                 if (!window.IsQuestWorkspace && report.nonBc5Normals != null && report.nonBc5Normals.Count > 0)
                     DrawEvalList(report.nonBc5Normals);
                 EditorGUILayout.LabelField("Animation-swap textures", report.materialSwapNames != null ? report.materialSwapNames.Count.ToString("N0") : "0");
@@ -2663,6 +2661,129 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < shown; i++) sb.AppendLine("• " + lines[i]);
             if (lines.Count > shown) sb.AppendLine("• … " + (lines.Count - shown) + " more");
             EditorGUILayout.HelpBox(sb.ToString().TrimEnd(), MessageType.None);
+        }
+
+        private static bool IsProblemRank(string quality)
+        {
+            return quality == "Poor" || quality == "Very Poor";
+        }
+
+        private static void DrawStatRow(string label, string value, bool warn)
+        {
+            EnsureSizeStyles();
+            EditorGUILayout.LabelField(label, value, warn ? sizeUpStyle : EditorStyles.label);
+        }
+
+        private static void DrawWriteDefaultsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            EnsureSizeStyles();
+            int onCount = report.writeDefaultsOnCount;
+            int offCount = report.writeDefaultsOffCount;
+            int total = onCount + offCount;
+            string status;
+            if (total == 0) status = "—";
+            else if (report.writeDefaultsMixed) status = "Mixed — should be all on or all off  (" + onCount + " on, " + offCount + " off)";
+            else status = report.writeDefaultsMostlyOn ? "On" : "Off";
+            DrawStatRow("Write Defaults", status, report.writeDefaultsMixed);
+            if (total == 0) return;
+
+            bool alreadyOn = !report.writeDefaultsMixed && report.writeDefaultsMostlyOn;
+            bool alreadyOff = !report.writeDefaultsMixed && !report.writeDefaultsMostlyOn;
+            bool pending = (window.writeDefaultsAction == 1 && !alreadyOn) || (window.writeDefaultsAction == 2 && !alreadyOff);
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            if (GUILayout.Toggle(window.writeDefaultsAction == 1, "On", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.writeDefaultsAction != 1)
+                window.writeDefaultsAction = 1;
+            if (GUILayout.Toggle(window.writeDefaultsAction == 2, "Off", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.writeDefaultsAction != 2)
+                window.writeDefaultsAction = 2;
+            if (GUILayout.Toggle(window.writeDefaultsAction == 0, "Ignore", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.writeDefaultsAction != 0)
+                window.writeDefaultsAction = 0;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            if (!pending) return;
+
+            const float MidCol = 88f;
+            GUIStyle midCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleCenter };
+            midCaption.normal.textColor = sizeUpStyle.normal.textColor;
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            EditorGUILayout.BeginVertical(GUILayout.Width(MidCol), GUILayout.MaxWidth(MidCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Will apply", midCaption, GUILayout.Width(MidCol));
+            Color prev = GUI.backgroundColor;
+            GUI.backgroundColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.72f, 0.28f, 1f)
+                : new Color(1f, 0.78f, 0.40f, 1f);
+            if (GUILayout.Button("Confirm", GUILayout.Width(MidCol), GUILayout.Height(18)))
+            {
+                bool turnOn = window.writeDefaultsAction == 1;
+                int written = KaleidoVRCOptimizerEval.SetWriteDefaults(CurrentAvatarRoots(window), turnOn);
+                window.writeDefaultsAction = 0;
+                window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
+                GUI.changed = false;
+                if (written > 0 && window.ActiveReport != null)
+                    window.ActiveReport.planned.Insert(0, "Write Defaults " + (turnOn ? "On" : "Off") + " on " + written + " animator state(s).");
+            }
+            GUI.backgroundColor = prev;
+            if (GUILayout.Button("Cancel", GUILayout.Width(MidCol), GUILayout.Height(18)))
+                window.writeDefaultsAction = 0;
+            EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            DrawWhy(window.writeDefaultsAction == 1
+                ? "Confirm writes Write Defaults On for every animator state on this avatar."
+                : "Confirm writes Write Defaults Off for every animator state on this avatar.");
+        }
+
+        private static void DrawEmptyStatesRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            int count = report.emptyStateCount;
+            DrawStatRow("Empty animator states", count.ToString("N0"), count > 0);
+            if (report.emptyStates != null && report.emptyStates.Count > 0)
+            {
+                evalEmptyOpen = EditorGUILayout.Foldout(evalEmptyOpen, "States with no motion", false);
+                if (evalEmptyOpen) DrawEvalList(report.emptyStates);
+            }
+            if (count == 0) return;
+            if (!DrawIgnoreOrFix()) return;
+
+            int written = KaleidoVRCOptimizerEval.SetEmptyMotions(CurrentAvatarRoots(window));
+            window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
+            GUI.changed = false;
+            if (written > 0 && window.ActiveReport != null)
+                window.ActiveReport.planned.Insert(0, "Assigned the shared empty motion to " + written + " animator state(s).");
+        }
+
+        private static bool DrawIgnoreOrFix()
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            GUILayout.Toggle(true, "Ignore", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70));
+            Color prev = GUI.backgroundColor;
+            GUI.backgroundColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.72f, 0.28f, 1f)
+                : new Color(1f, 0.78f, 0.40f, 1f);
+            bool fix = GUILayout.Button("Fix", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70));
+            GUI.backgroundColor = prev;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            return fix;
+        }
+
+        private static List<GameObject> CurrentAvatarRoots(KaleidoVRCOptimizer window)
+        {
+            List<GameObject> roots = new List<GameObject>();
+            if (window == null || window.targets == null) return roots;
+            HashSet<int> seen = new HashSet<int>();
+            for (int i = 0; i < window.targets.Count; i++)
+            {
+                GameObject root;
+                string reason;
+                if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(window.targets[i], out root, out reason)) continue;
+                if (root != null && seen.Add(root.GetInstanceID())) roots.Add(root);
+            }
+            return roots;
         }
 
         private static void DrawModelContents(KaleidoVRCOptimizer window)
@@ -3276,6 +3397,7 @@ namespace KaleidoVR.EditorTools
     {
         public static KaleidoOptimizerReport Scan(KaleidoVRCOptimizer window, bool apply)
         {
+            if (!apply) window.writeDefaultsAction = 0;
             KaleidoOptimizerReport report = new KaleidoOptimizerReport();
             List<string> logEntries = new List<string>
             {
@@ -4282,7 +4404,7 @@ namespace KaleidoVR.EditorTools
             if (report.grabPasses > 0) report.notes.Add("GrabPass shaders are very expensive. VRChat rank does not count them. " + report.grabPasses + " found.");
             if (report.anyStateTransitions > 50) report.notes.Add("Any State transitions are checked every frame. Around 50 is a healthy cap. This avatar has " + report.anyStateTransitions + ".");
             if (report.writeDefaultsMixed) report.notes.Add("Write Defaults is mixed across animator states. Unity wants all on or all off.");
-            if (report.emptyStates != null && report.emptyStates.Count > 0) report.notes.Add(report.emptyStates.Count + " animator state(s) have no motion. Put an empty clip in them.");
+            if (report.emptyStateCount > 0) report.notes.Add(report.emptyStateCount + " animator state(s) have no motion. Use Fix on Rank to assign the shared empty clip.");
             if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
             if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
         }
