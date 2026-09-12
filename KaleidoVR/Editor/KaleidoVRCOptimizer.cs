@@ -3914,9 +3914,9 @@ namespace KaleidoVR.EditorTools
             if (smallRedWarningStyle == null)
             {
                 smallRedWarningStyle = new GUIStyle(EditorStyles.boldLabel);
-                smallRedWarningStyle.fontSize = 12;
                 smallRedWarningStyle.wordWrap = true;
             }
+            smallRedWarningStyle.fontSize = 24;
             smallRedWarningStyle.normal.textColor = EditorGUIUtility.isProSkin
                 ? new Color(1f, 0.32f, 0.32f)
                 : new Color(0.82f, 0.04f, 0.04f);
