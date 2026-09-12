@@ -5,6 +5,7 @@
 // Does not write assets. Dry Run / Apply still own every importer change.
 
 using UnityEngine;
+using UnityEngine.Animations;
 using UnityEngine.Rendering;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -47,6 +48,7 @@ namespace KaleidoVR.EditorTools
             report.nonBc5Normals = new List<string>();
             report.blendshapeMeshLines = new List<string>();
             report.materialSwapNames = new List<string>();
+            report.missingStreamingMipmaps = new List<string>();
 
             HashSet<Shader> grabShaders = new HashSet<Shader>();
             HashSet<Mesh> seenMeshes = new HashSet<Mesh>();
@@ -226,6 +228,12 @@ namespace KaleidoVR.EditorTools
                     usage.crunched = true;
                     if (report.crunchedTextures.Count < 40) report.crunchedTextures.Add(usage.texture.name);
                 }
+                if (importer != null && importer.mipmapEnabled && !importer.streamingMipmaps)
+                {
+                    usage.missingStreamingMipmaps = true;
+                    report.missingStreamingCount++;
+                    if (report.missingStreamingMipmaps.Count < 40) report.missingStreamingMipmaps.Add(usage.texture.name);
+                }
                 if (usage.kind == KaleidoTextureKind.Normal && usage.texture is Texture2D tex2D && tex2D.format != TextureFormat.BC5)
                 {
                     if (report.nonBc5Normals.Count < 40) report.nonBc5Normals.Add(usage.texture.name);
@@ -253,6 +261,167 @@ namespace KaleidoVR.EditorTools
         }
 
         const string EmptyMotionName = "KaleidoEmptyMotion";
+
+        public static int ConvertUnityConstraints(List<GameObject> roots)
+        {
+            if (roots == null) return 0;
+            Type setup = FindAvatarDynamicsSetup();
+            if (setup == null) return -1;
+
+            int before = 0;
+            List<GameObject> targets = new List<GameObject>();
+            List<IConstraint> unityConstraints = new List<IConstraint>();
+            Component descriptor = null;
+            Type descType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            for (int i = 0; i < roots.Count; i++)
+            {
+                GameObject root = roots[i];
+                if (root == null) continue;
+                targets.Add(root);
+                IConstraint[] found = root.GetComponentsInChildren<IConstraint>(true);
+                if (found != null)
+                {
+                    before += found.Length;
+                    unityConstraints.AddRange(found);
+                }
+                if (descriptor == null && descType != null)
+                {
+                    descriptor = root.GetComponent(descType);
+                    if (descriptor == null) descriptor = root.GetComponentInChildren(descType, true);
+                }
+            }
+            if (before == 0) return 0;
+
+            if (TryInvokeConstraintConvert(setup, "ConvertUnityConstraintsAcrossGameObjects", targets, false))
+                return CountRemainingUnityConstraints(targets, before);
+            if (TryInvokeConstraintConvert(setup, "ConvertUnityConstraintsToVrChatConstraints", targets, false))
+                return CountRemainingUnityConstraints(targets, before);
+
+            MethodInfo doConvert = setup.GetMethod("DoConvertUnityConstraints", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (doConvert != null)
+            {
+                ParameterInfo[] args = doConvert.GetParameters();
+                if (args.Length >= 3)
+                {
+                    try
+                    {
+                        doConvert.Invoke(null, new object[] { unityConstraints.ToArray(), descriptor, true });
+                        return CountRemainingUnityConstraints(targets, before);
+                    }
+                    catch (TargetInvocationException)
+                    {
+                        return 0;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        static int CountRemainingUnityConstraints(List<GameObject> roots, int before)
+        {
+            int after = 0;
+            for (int i = 0; i < roots.Count; i++)
+            {
+                if (roots[i] == null) continue;
+                after += roots[i].GetComponentsInChildren<IConstraint>(true).Length;
+            }
+            int converted = before - after;
+            return converted > 0 ? converted : 0;
+        }
+
+        static bool TryInvokeConstraintConvert(Type setup, string methodName, List<GameObject> targets, bool isAutoFix)
+        {
+            MethodInfo[] methods = setup.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            for (int i = 0; i < methods.Length; i++)
+            {
+                MethodInfo method = methods[i];
+                if (method == null || method.Name != methodName) continue;
+                ParameterInfo[] args = method.GetParameters();
+                try
+                {
+                    if (args.Length == 1)
+                    {
+                        method.Invoke(null, new object[] { targets });
+                        return true;
+                    }
+                    if (args.Length == 2 && args[1].ParameterType == typeof(bool))
+                    {
+                        method.Invoke(null, new object[] { targets, isAutoFix });
+                        return true;
+                    }
+                }
+                catch (TargetInvocationException)
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        static Type FindAvatarDynamicsSetup()
+        {
+            string[] names =
+            {
+                "VRC.SDK3.Avatars.AvatarDynamicsSetup",
+                "VRC.SDK3.Avatars.Components.AvatarDynamicsSetup"
+            };
+            for (int i = 0; i < names.Length; i++)
+            {
+                Type found = KaleidoVRCOptimizerHelpers.FindTypeByFullName(names[i]);
+                if (found != null) return found;
+            }
+
+            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (int a = 0; a < assemblies.Length; a++)
+            {
+                Assembly assembly = assemblies[a];
+                if (assembly == null) continue;
+                string assemblyName = assembly.GetName().Name ?? "";
+                if (assemblyName.IndexOf("VRC", StringComparison.OrdinalIgnoreCase) < 0
+                    && assemblyName.IndexOf("VRChat", StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    Type found = assembly.GetType(names[i], false);
+                    if (found != null) return found;
+                }
+                try
+                {
+                    Type[] types = assembly.GetTypes();
+                    for (int t = 0; t < types.Length; t++)
+                    {
+                        if (types[t] != null && types[t].Name == "AvatarDynamicsSetup") return types[t];
+                    }
+                }
+                catch (ReflectionTypeLoadException)
+                {
+                }
+            }
+            return null;
+        }
+
+        public static int SetStreamingMipmaps(KaleidoVRCOptimizer window)
+        {
+            if (window == null || window.textureUsages == null) return 0;
+            int changed = 0;
+            List<TextureImporter> importers = new List<TextureImporter>();
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null || string.IsNullOrEmpty(usage.path)) continue;
+                TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                if (importer == null || !importer.mipmapEnabled || importer.streamingMipmaps) continue;
+                Undo.RecordObject(importer, "Enable Streaming Mip Maps");
+                importer.streamingMipmaps = true;
+                EditorUtility.SetDirty(importer);
+                importers.Add(importer);
+                changed++;
+            }
+            for (int i = 0; i < importers.Count; i++)
+                importers[i].SaveAndReimport();
+            return changed;
+        }
 
         public static int SetEmptyMotions(List<GameObject> roots)
         {

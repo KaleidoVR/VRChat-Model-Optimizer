@@ -100,7 +100,7 @@ namespace KaleidoVR.EditorTools
         public bool textureDisableReadWrite = true;
         public bool textureApplyMipmaps = true;
         public bool textureEnableMipmaps = true;
-        public bool textureDisableStreamingMipmaps = true;
+        public bool textureEnableStreamingMipmaps = true;
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.20";
+        public static readonly string VERSION = "1.0.21";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -230,7 +230,7 @@ namespace KaleidoVR.EditorTools
         public bool textureDisableReadWrite = true;
         public bool textureApplyMipmaps = true;
         public bool textureEnableMipmaps = true;
-        public bool textureDisableStreamingMipmaps = true;
+        public bool textureEnableStreamingMipmaps = true;
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
@@ -436,7 +436,7 @@ namespace KaleidoVR.EditorTools
             textureDisableReadWrite = true;
             textureApplyMipmaps = true;
             textureEnableMipmaps = true;
-            textureDisableStreamingMipmaps = true;
+            textureEnableStreamingMipmaps = true;
             textureDisableCrunch = true;
             textureEnableCrunch = false;
             textureApplyAniso = true;
@@ -560,7 +560,7 @@ namespace KaleidoVR.EditorTools
                 applyAndroidTexFormat = applyAndroidTexFormat, androidTexFormat = androidTexFormat,
                 textureDisableReadWrite = textureDisableReadWrite,
                 textureApplyMipmaps = textureApplyMipmaps, textureEnableMipmaps = textureEnableMipmaps,
-                textureDisableStreamingMipmaps = textureDisableStreamingMipmaps,
+                textureEnableStreamingMipmaps = textureEnableStreamingMipmaps,
                 textureDisableCrunch = textureDisableCrunch, textureEnableCrunch = textureEnableCrunch,
                 textureApplyAniso = textureApplyAniso, textureAniso = textureAniso,
                 autoDetectNormalMaps = autoDetectNormalMaps, autoLinearMaskMaps = autoLinearMaskMaps,
@@ -619,7 +619,7 @@ namespace KaleidoVR.EditorTools
                 applyAndroidTexFormat = p.applyAndroidTexFormat; androidTexFormat = p.androidTexFormat;
                 textureDisableReadWrite = p.textureDisableReadWrite;
                 textureApplyMipmaps = p.textureApplyMipmaps; textureEnableMipmaps = p.textureEnableMipmaps;
-                textureDisableStreamingMipmaps = p.textureDisableStreamingMipmaps;
+                textureEnableStreamingMipmaps = p.textureEnableStreamingMipmaps;
                 textureDisableCrunch = p.textureDisableCrunch; textureEnableCrunch = p.textureEnableCrunch;
                 textureApplyAniso = p.textureApplyAniso; textureAniso = p.textureAniso;
                 autoDetectNormalMaps = p.autoDetectNormalMaps; autoLinearMaskMaps = p.autoLinearMaskMaps;
@@ -765,7 +765,7 @@ namespace KaleidoVR.EditorTools
             textureDisableReadWrite = GetBool("TexRW", true);
             textureApplyMipmaps = GetBool("TexMipsOn", true);
             textureEnableMipmaps = GetBool("TexMips", true);
-            textureDisableStreamingMipmaps = GetBool("TexStream", true);
+            textureEnableStreamingMipmaps = GetBool("TexStreamOn", true);
             textureDisableCrunch = GetBool("TexCrunch", true);
             textureEnableCrunch = GetBool("TexCrunchOn", false);
             textureApplyAniso = GetBool("TexAnisoOn", true);
@@ -871,7 +871,7 @@ namespace KaleidoVR.EditorTools
             SetBool("TexRW", textureDisableReadWrite);
             SetBool("TexMipsOn", textureApplyMipmaps);
             SetBool("TexMips", textureEnableMipmaps);
-            SetBool("TexStream", textureDisableStreamingMipmaps);
+            SetBool("TexStreamOn", textureEnableStreamingMipmaps);
             SetBool("TexCrunch", textureDisableCrunch);
             SetBool("TexCrunchOn", textureEnableCrunch);
             SetBool("TexAnisoOn", textureApplyAniso);
@@ -1040,6 +1040,7 @@ namespace KaleidoVR.EditorTools
         public bool isActive;
         public bool fromAnimationSwap;
         public bool crunched;
+        public bool missingStreamingMipmaps;
     }
 
     [Serializable]
@@ -1065,6 +1066,8 @@ namespace KaleidoVR.EditorTools
         public int physBones;
         public int contacts;
         public int constraints;
+        public int unityConstraints;
+        public int vrcConstraints;
         public int blendShapes;
         public int bones;
         public int animators;
@@ -1108,6 +1111,8 @@ namespace KaleidoVR.EditorTools
         public List<string> crunchedTextures = new List<string>();
         public List<string> nonBc5Normals = new List<string>();
         public List<string> materialSwapNames = new List<string>();
+        public int missingStreamingCount;
+        public List<string> missingStreamingMipmaps = new List<string>();
     }
 
     public static class KaleidoVRCOptimizerUI
@@ -1846,6 +1851,7 @@ namespace KaleidoVR.EditorTools
                 window.applyAndroidTexFormat = DrawToggle(window.applyAndroidTexFormat, "Set compression format", "ASTC 6x6 is the usual balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
                 if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Format", window.androidTexFormat);
                 window.higherQualityNormalMaps = DrawToggle(window.higherQualityNormalMaps, "Higher quality normals (ASTC)", "Uses a sharper ASTC block for detected normals. Does not change the other workspace's format.");
+                window.textureEnableStreamingMipmaps = DrawToggle(window.textureEnableStreamingMipmaps, "Enable streaming mip maps", "VRChat expects this on when mip maps are on. The client streams lower mips when VRAM is tight. Avatar streaming priority is ignored (always 0).");
             }
             else
             {
@@ -1865,7 +1871,7 @@ namespace KaleidoVR.EditorTools
                 window.textureDisableReadWrite = DrawToggle(window.textureDisableReadWrite, "Disable Read / Write", "Saves RAM. Turn off only if a script or editor tool reads pixels from the texture.");
                 window.textureApplyMipmaps = DrawToggle(window.textureApplyMipmaps, "Set mip maps", "Avatars in 3D should generate mip maps. Uncheck to leave each texture as-is.");
                 if (window.textureApplyMipmaps) window.textureEnableMipmaps = EditorGUILayout.Toggle("Generate Mip Maps", window.textureEnableMipmaps);
-                window.textureDisableStreamingMipmaps = DrawToggle(window.textureDisableStreamingMipmaps, "Disable streaming mip maps", "Avatar textures should stay resident. Streaming is for large world textures.");
+                window.textureEnableStreamingMipmaps = DrawToggle(window.textureEnableStreamingMipmaps, "Enable streaming mip maps", "VRChat expects this on when mip maps are on. The client streams lower mips when VRAM is tight. Avatar streaming priority is ignored (always 0).");
                 window.textureDisableCrunch = DrawToggle(window.textureDisableCrunch, "Disable crunch compression", "Crunch does not reduce VRChat texture memory. Enable crunch only on the Special tab.");
                 window.textureApplyAniso = DrawToggle(window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
                 if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
@@ -2014,6 +2020,7 @@ namespace KaleidoVR.EditorTools
                     string extra = (fmt + "  " + vram).Trim();
                     if (usage.fromAnimationSwap) extra += "  swap";
                     if (usage.crunched) extra += "  crunch";
+                    if (usage.missingStreamingMipmaps) extra += "  no stream";
                     GUILayout.Label(extra, EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
                 }
                 EditorGUILayout.BeginHorizontal();
@@ -2554,7 +2561,7 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.LabelField("PhysBones", report.physBones.ToString("N0"));
             EditorGUILayout.LabelField("PhysBone Colliders", report.physBoneColliders.ToString("N0"));
             EditorGUILayout.LabelField("Contacts", report.contacts.ToString("N0"));
-            EditorGUILayout.LabelField("Constraints", report.constraints.ToString("N0"));
+            DrawConstraintsRow(window, report);
 
             DrawEvalSections(window, report);
 
@@ -2637,10 +2644,10 @@ namespace KaleidoVR.EditorTools
             }
 
             GUILayout.Space(6);
-            evalFlagsOpen = EditorGUILayout.Foldout(evalFlagsOpen, "Texture flags (crunch / normals / swaps)", true);
+            evalFlagsOpen = EditorGUILayout.Foldout(evalFlagsOpen, "Texture flags (crunch / normals / swaps / streaming)", true);
             if (evalFlagsOpen)
             {
-                DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual desktop normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused.");
+                DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual desktop normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused. Streaming mip maps should be on when mip maps are on.");
                 DrawStatRow("Crunched textures", report.crunchedTextures != null ? report.crunchedTextures.Count.ToString("N0") : "0", report.crunchedTextures != null && report.crunchedTextures.Count > 0);
                 if (report.crunchedTextures != null && report.crunchedTextures.Count > 0)
                     DrawEvalList(report.crunchedTextures);
@@ -2650,6 +2657,7 @@ namespace KaleidoVR.EditorTools
                 EditorGUILayout.LabelField("Animation-swap textures", report.materialSwapNames != null ? report.materialSwapNames.Count.ToString("N0") : "0");
                 if (report.materialSwapNames != null && report.materialSwapNames.Count > 0)
                     DrawEvalList(report.materialSwapNames);
+                DrawStreamingMipmapsRow(window, report);
             }
         }
 
@@ -2753,6 +2761,53 @@ namespace KaleidoVR.EditorTools
             GUI.changed = false;
             if (written > 0 && window.ActiveReport != null)
                 window.ActiveReport.planned.Insert(0, "Assigned the shared empty motion to " + written + " animator state(s).");
+        }
+
+        private static void DrawStreamingMipmapsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            int count = report.missingStreamingCount;
+            DrawStatRow("Streaming mip maps off", count.ToString("N0"), count > 0);
+            if (report.missingStreamingMipmaps != null && report.missingStreamingMipmaps.Count > 0)
+                DrawEvalList(report.missingStreamingMipmaps);
+            if (count == 0) return;
+            if (!DrawIgnoreOrFix()) return;
+
+            int written = KaleidoVRCOptimizerEval.SetStreamingMipmaps(window);
+            window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
+            GUI.changed = false;
+            if (written > 0 && window.ActiveReport != null)
+                window.ActiveReport.planned.Insert(0, "Enabled streaming mip maps on " + written + " texture(s).");
+        }
+
+        private static void DrawConstraintsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            DrawStatRow("Constraints", report.constraints.ToString("N0"), report.unityConstraints > 0);
+            DrawStatRow("Unity constraints", report.unityConstraints.ToString("N0"), report.unityConstraints > 0);
+            EditorGUILayout.LabelField("VRChat constraints", report.vrcConstraints.ToString("N0"));
+            if (report.unityConstraints <= 0)
+            {
+                if (report.vrcConstraints > 0)
+                    DrawWhy("Unity constraints are already converted. Play Mode and rank match what VRChat loads.");
+                return;
+            }
+            DrawWhy("The client converts these on load. Fix runs the VRChat SDK converter now so Unity matches that.");
+            if (!DrawIgnoreOrFix()) return;
+
+            int written = KaleidoVRCOptimizerEval.ConvertUnityConstraints(CurrentAvatarRoots(window));
+            if (written < 0)
+            {
+                EditorUtility.DisplayDialog(
+                    "VRChat Model Optimizer",
+                    "VRChat SDK3 Avatars is required to convert Unity constraints. Open the SDK control panel Utilities menu if you need to install it.",
+                    "OK");
+                return;
+            }
+            window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
+            GUI.changed = false;
+            if (window.ActiveReport != null)
+                window.ActiveReport.planned.Insert(0, written > 0
+                    ? "Converted " + written + " Unity constraint(s) to VRChat constraints."
+                    : "Constraint converter ran. Scan again if any Unity constraints remain.");
         }
 
         private static bool DrawIgnoreOrFix()
@@ -3379,17 +3434,26 @@ namespace KaleidoVR.EditorTools
 
         public static int CountUnityConstraints(GameObject root)
         {
-            if (root == null) return 0;
-            int count = root.GetComponentsInChildren<IConstraint>(true).Length;
+            int unity;
+            int vrc;
+            CountConstraints(root, out unity, out vrc);
+            return unity + vrc;
+        }
+
+        public static void CountConstraints(GameObject root, out int unity, out int vrc)
+        {
+            unity = 0;
+            vrc = 0;
+            if (root == null) return;
+            unity = root.GetComponentsInChildren<IConstraint>(true).Length;
             foreach (Component component in root.GetComponentsInChildren<Component>(true))
             {
                 if (component == null) continue;
                 string fullName = component.GetType().FullName ?? "";
                 if (fullName.IndexOf("VRC", StringComparison.OrdinalIgnoreCase) < 0) continue;
                 if (fullName.IndexOf("Constraint", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                count++;
+                vrc++;
             }
-            return count;
         }
     }
 
@@ -4217,7 +4281,12 @@ namespace KaleidoVR.EditorTools
                 report.physBoneColliders += KaleidoVRCOptimizerHelpers.CountComponents(root, physBoneColliderType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactSenderType);
-                report.constraints += KaleidoVRCOptimizerHelpers.CountUnityConstraints(root);
+                int unityConstraints;
+                int vrcConstraints;
+                KaleidoVRCOptimizerHelpers.CountConstraints(root, out unityConstraints, out vrcConstraints);
+                report.unityConstraints += unityConstraints;
+                report.vrcConstraints += vrcConstraints;
+                report.constraints += unityConstraints + vrcConstraints;
                 report.animators += root.GetComponentsInChildren<Animator>(true).Length;
                 report.lights += root.GetComponentsInChildren<Light>(true).Length;
                 report.audioSources += root.GetComponentsInChildren<AudioSource>(true).Length;
@@ -4387,7 +4456,7 @@ namespace KaleidoVR.EditorTools
                 if (report.textureBytesEstimate > 40L * 1024 * 1024) report.notes.Add("Texture memory Poor is 40 MB. Drop max size; Crunch does not reduce this number.");
                 if (report.physBones > 8) report.notes.Add("VRChat strips PhysBones if you exceed 8 components.");
                 if (report.lights > 0) report.notes.Add("Android disables avatar lights.");
-                if (report.constraints > 0) report.notes.Add("Unity constraints are disabled on Android avatars. Use VRChat Constraints; they still count toward rank.");
+                if (report.unityConstraints > 0) report.notes.Add(report.unityConstraints + " Unity constraint(s) are still on the avatar. Android disables those. Use Fix on Rank to convert them with the VRChat SDK.");
                 if (report.audioSources > 0) report.notes.Add("Audio sources are disabled on Android avatars.");
             }
             else
@@ -4407,6 +4476,8 @@ namespace KaleidoVR.EditorTools
             if (report.emptyStateCount > 0) report.notes.Add(report.emptyStateCount + " animator state(s) have no motion. Use Fix on Rank to assign the shared empty clip.");
             if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
             if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
+            if (report.missingStreamingCount > 0) report.notes.Add(report.missingStreamingCount + " mipmapped texture(s) have streaming mip maps off. VRChat expects them on. Use Fix on Rank.");
+            if (!quest && report.unityConstraints > 0) report.notes.Add(report.unityConstraints + " Unity constraint(s) are still on the avatar. Use Fix on Rank to convert them with the VRChat SDK so Play Mode matches what the client loads.");
         }
 
         private static void ApplyOptimizations(
@@ -4557,6 +4628,15 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        private static bool ApplyStreamingMipmaps(KaleidoVRCOptimizer window, TextureImporter importer, bool write)
+        {
+            if (window == null || importer == null || !window.textureEnableStreamingMipmaps) return false;
+            bool mipsOn = window.textureApplyMipmaps ? window.textureEnableMipmaps : importer.mipmapEnabled;
+            if (!mipsOn || importer.streamingMipmaps) return false;
+            if (write) importer.streamingMipmaps = true;
+            return true;
+        }
+
         private static bool ApplyTextureImporter(KaleidoVRCOptimizer window, string path, TextureImporter importer, bool write)
         {
             KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, importer);
@@ -4590,6 +4670,7 @@ namespace KaleidoVR.EditorTools
                 TextureImporterFormat androidFormat = ToAndroidFormat(window.androidTexFormat, normalHq);
                 if (ApplyPlatform(importer, "Android", writeQuestSize, questSize, window.applyAndroidTexFormat, androidFormat, TextureImporterCompression.Compressed, false, write))
                     dirty = true;
+                if (ApplyStreamingMipmaps(window, importer, write)) dirty = true;
                 return dirty;
             }
 
@@ -4611,11 +4692,7 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            if (window.textureDisableStreamingMipmaps && importer.streamingMipmaps)
-            {
-                if (write) importer.streamingMipmaps = false;
-                dirty = true;
-            }
+            if (ApplyStreamingMipmaps(window, importer, write)) dirty = true;
 
             if (window.textureApplyAniso && importer.anisoLevel != window.textureAniso)
             {
