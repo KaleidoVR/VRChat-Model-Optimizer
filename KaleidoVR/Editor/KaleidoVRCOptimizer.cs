@@ -1,6 +1,6 @@
 // KaleidoVR VRChat Model Optimizer
 // Created and maintained by KaleidoVR - https://kalivr.com
-// Copyright (c) 2026 KaleidoVR. Released under the MIT License.
+// Copyright (c) 2026 KaleidoVR. All rights reserved.
 // Compatible with Unity 2022.3.22f1 through Unity 6 (6000.x)
 // VRChat SDK3 Avatars optional (performance counts for PhysBones / contacts)
 // Uses 2022.3 LTS AssetDatabase / importer APIs only (no 2023+/Unity 6-only types)
@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.25";
+        public static readonly string VERSION = "1.0.26";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";

@@ -1,6 +1,6 @@
 // KaleidoVR Credits
 // Created and maintained by KaleidoVR - https://kalivr.com
-// Copyright (c) 2026 KaleidoVR. Released under the MIT License.
+// Copyright (c) 2026 KaleidoVR. All rights reserved.
 // Shared by every KaleidoVR Unity editor tool. Same GUID in each repo so packages merge.
 
 using System;
@@ -57,7 +57,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("KaleidoVR", title);
             GUILayout.Label("Created and maintained by KaleidoVR", body);
-            GUILayout.Label("Copyright (c) 2026 KaleidoVR  ·  MIT License", EditorStyles.centeredGreyMiniLabel);
+            GUILayout.Label("Copyright (c) 2026 KaleidoVR. All rights reserved.", EditorStyles.centeredGreyMiniLabel);
             GUILayout.Space(14);
 
             if (GUILayout.Button("Website  —  kalivr.com", GUILayout.Height(28)))
@@ -78,7 +78,7 @@ namespace KaleidoVR.EditorTools
             float height = 16f + 160f + 8f;
             height += title.CalcHeight(new GUIContent("KaleidoVR"), textWidth);
             height += body.CalcHeight(new GUIContent("Created and maintained by KaleidoVR"), textWidth);
-            height += EditorStyles.centeredGreyMiniLabel.CalcHeight(new GUIContent("Copyright (c) 2026 KaleidoVR  ·  MIT License"), textWidth);
+            height += EditorStyles.centeredGreyMiniLabel.CalcHeight(new GUIContent("Copyright (c) 2026 KaleidoVR. All rights reserved."), textWidth);
             height += 14f + 28f + 6f + 28f + 12f;
             return Mathf.Ceil(height);
         }

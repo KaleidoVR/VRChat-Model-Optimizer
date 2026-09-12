@@ -1,6 +1,6 @@
 // KaleidoVR VRChat Model Optimizer
 // Created and maintained by KaleidoVR - https://kalivr.com
-// Copyright (c) 2026 KaleidoVR. Released under the MIT License.
+// Copyright (c) 2026 KaleidoVR. All rights reserved.
 // Scan-time evaluator: VRAM, GrabPass, animator cost, and asset flags.
 // Does not write assets. Dry Run / Apply still own every importer change.
 
