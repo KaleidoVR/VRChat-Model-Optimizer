@@ -72,25 +72,26 @@ namespace KaleidoVR.EditorTools
         public bool includeRenderers = true;
         public bool includeAudio = true;
         public bool includeAnimators = true;
+        public bool includeAvatar = true;
         public bool includeSpecial = false;
 
         public bool optimizeTextures = true;
-        public bool applyAlbedoSize = true;
+        public bool applyAlbedoSize = false;
         public int albedoPc = 2048;
         public int albedoQuest = 1024;
-        public bool applyNormalSize = true;
+        public bool applyNormalSize = false;
         public int normalPc = 2048;
         public int normalQuest = 1024;
-        public bool applyMaskSize = true;
+        public bool applyMaskSize = false;
         public int maskPc = 1024;
         public int maskQuest = 512;
-        public bool applyEmissionSize = true;
+        public bool applyEmissionSize = false;
         public int emissionPc = 1024;
         public int emissionQuest = 512;
-        public bool applyMatcapSize = true;
+        public bool applyMatcapSize = false;
         public int matcapPc = 512;
         public int matcapQuest = 256;
-        public bool applyOtherSize = true;
+        public bool applyOtherSize = false;
         public int otherPc = 1024;
         public int otherQuest = 512;
         public bool applyPcTexFormat = false;
@@ -110,42 +111,42 @@ namespace KaleidoVR.EditorTools
         public bool autoLinearMaskMaps = true;
         public bool autoSrgbMaskMaps = false;
         public bool higherQualityNormalMaps = true;
-        public bool alphaIsTransparencyOnAlbedo = true;
+        public bool alphaIsTransparencyOnAlbedo = false;
         public bool alphaIsTransparencyOffAlbedo = false;
 
         public bool optimizeMeshes = true;
         public bool meshEnableReadWrite = true;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
-        public bool meshWeldVertices = true;
+        public bool meshWeldVertices = false;
         public bool meshKeepBlendShapes = true;
         public bool meshDisableQuads = true;
         public bool meshDisableLightmapUVs = true;
         public bool meshDisableImportLightsCameras = true;
-        public bool meshOptimizeAnimation = true;
-        public bool applySkinWeights = true;
+        public bool meshOptimizeAnimation = false;
+        public bool applySkinWeights = false;
         public KaleidoSkinWeightChoice skinWeights = KaleidoSkinWeightChoice.FourBones;
 
         public bool optimizeRenderers = true;
-        public bool rendererDisableUpdateWhenOffscreen = true;
-        public bool rendererDisableShadows = true;
-        public bool rendererDisableReceiveShadows = true;
-        public bool rendererDisableProbes = true;
-        public bool rendererDisableMotionVectors = true;
-        public bool rendererForceBone4 = true;
+        public bool rendererDisableUpdateWhenOffscreen = false;
+        public bool rendererDisableShadows = false;
+        public bool rendererDisableReceiveShadows = false;
+        public bool rendererDisableProbes = false;
+        public bool rendererDisableMotionVectors = false;
+        public bool rendererForceBone4 = false;
         public bool rendererRecalculateBounds = false;
         public bool applyToPrefabAssets = true;
-        public bool optimizeParticles = true;
+        public bool optimizeParticles = false;
         public bool disableLightsOnAvatar = false;
         public bool enableLightsOnAvatar = false;
 
         public bool optimizeAudio = true;
-        public bool audioLoadInBackground = true;
-        public bool audioApplyVorbis = true;
+        public bool audioLoadInBackground = false;
+        public bool audioApplyVorbis = false;
         public float audioQuality = 0.7f;
 
         public bool optimizeAnimators = true;
-        public bool animatorCullWhenOffscreen = true;
+        public bool animatorCullWhenOffscreen = false;
 
         public KaleidoMeshCompressionChoice meshCompression = KaleidoMeshCompressionChoice.Off;
         public bool applyMeshCompression = false;
@@ -160,6 +161,18 @@ namespace KaleidoVR.EditorTools
         public bool meshRestoreBlendShapes = false;
         public bool textureEnableCrunch = false;
         public int textureCrunchQuality = 50;
+        public bool avatarApplyOnUpload = true;
+        public bool avatarMergeSkinnedMeshes = true;
+        public bool avatarMergeIdenticalSlots = true;
+        public bool avatarShuffleSlots = true;
+        public bool avatarOptimizeBlendShapes = true;
+        public bool avatarMergeSameRatioShapes = true;
+        public bool avatarMmdCompatibility = true;
+        public bool avatarRemoveUnusedComponents = true;
+        public bool avatarRemoveUnusedGameObjects = false;
+        public bool avatarStripUnusedBones = true;
+        public bool avatarOptimizePhysBones = true;
+        public bool avatarOptimizeFxLayer = true;
     }
 
     [Serializable]
@@ -181,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.37";
+        public static readonly string VERSION = "1.0.38";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -214,22 +227,22 @@ namespace KaleidoVR.EditorTools
         public bool readyToApplyMaxSizesPc;
         public bool readyToApplyMaxSizesQuest;
 
-        public bool applyAlbedoSize = true;
+        public bool applyAlbedoSize = false;
         public int albedoPc = 2048;
         public int albedoQuest = 1024;
-        public bool applyNormalSize = true;
+        public bool applyNormalSize = false;
         public int normalPc = 2048;
         public int normalQuest = 1024;
-        public bool applyMaskSize = true;
+        public bool applyMaskSize = false;
         public int maskPc = 1024;
         public int maskQuest = 512;
-        public bool applyEmissionSize = true;
+        public bool applyEmissionSize = false;
         public int emissionPc = 1024;
         public int emissionQuest = 512;
-        public bool applyMatcapSize = true;
+        public bool applyMatcapSize = false;
         public int matcapPc = 512;
         public int matcapQuest = 256;
-        public bool applyOtherSize = true;
+        public bool applyOtherSize = false;
         public int otherPc = 1024;
         public int otherQuest = 512;
 
@@ -268,11 +281,11 @@ namespace KaleidoVR.EditorTools
         public KaleidoSkinWeightChoice skinWeights = KaleidoSkinWeightChoice.FourBones;
 
         public bool optimizeRenderers = true;
-        public bool rendererDisableUpdateWhenOffscreen = true;
+        public bool rendererDisableUpdateWhenOffscreen = false;
         public bool rendererDisableShadows = false;
         public bool rendererDisableReceiveShadows = false;
         public bool rendererDisableProbes = false;
-        public bool rendererDisableMotionVectors = true;
+        public bool rendererDisableMotionVectors = false;
         public bool rendererForceBone4 = false;
         public bool rendererRecalculateBounds = false;
         public bool optimizeParticles = false;
@@ -280,12 +293,12 @@ namespace KaleidoVR.EditorTools
         public bool enableLightsOnAvatar = false;
 
         public bool optimizeAudio = true;
-        public bool audioLoadInBackground = true;
+        public bool audioLoadInBackground = false;
         public bool audioApplyVorbis = false;
         public float audioQuality = 0.7f;
 
         public bool optimizeAnimators = true;
-        public bool animatorCullWhenOffscreen = true;
+        public bool animatorCullWhenOffscreen = false;
 
         public bool applyMeshCompression = false;
         public KaleidoMeshCompressionChoice meshCompression = KaleidoMeshCompressionChoice.Off;
@@ -301,6 +314,20 @@ namespace KaleidoVR.EditorTools
         public bool textureEnableCrunch = false;
         public int textureCrunchQuality = 50;
         public bool optimizeSceneExtras = false;
+        public bool includeAvatar = true;
+        public bool avatarApplyOnUpload = true;
+        public bool avatarMergeSkinnedMeshes = true;
+        public bool avatarMergeIdenticalSlots = true;
+        public bool avatarShuffleSlots = true;
+        public bool avatarOptimizeBlendShapes = true;
+        public bool avatarMergeSameRatioShapes = true;
+        public bool avatarMmdCompatibility = true;
+        public bool avatarRemoveUnusedComponents = true;
+        public bool avatarRemoveUnusedGameObjects = false;
+        public bool avatarStripUnusedBones = true;
+        public bool avatarOptimizePhysBones = true;
+        public bool avatarOptimizeFxLayer = true;
+        public readonly List<string> onUploadPreviewLines = new List<string>();
 
         public KaleidoOptimizerReport lastReport;
         public KaleidoOptimizerReport lastPcReport;
@@ -458,10 +485,12 @@ namespace KaleidoVR.EditorTools
             includeRenderers = true;
             includeAudio = true;
             includeAnimators = true;
+            includeAvatar = true;
             includeSpecial = false;
+            ApplyAvatarTabDefaults(index);
 
             optimizeTextures = true;
-            applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
+            applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = false;
             applyPcTexFormat = false;
             applyAndroidTexFormat = false;
             pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
@@ -502,11 +531,11 @@ namespace KaleidoVR.EditorTools
             meshRestoreBlendShapes = false;
 
             optimizeRenderers = true;
-            rendererDisableUpdateWhenOffscreen = true;
+            rendererDisableUpdateWhenOffscreen = false;
             rendererDisableShadows = false;
             rendererDisableReceiveShadows = false;
             rendererDisableProbes = false;
-            rendererDisableMotionVectors = true;
+            rendererDisableMotionVectors = false;
             rendererForceBone4 = false;
             rendererRecalculateBounds = false;
             applyToPrefabAssets = true;
@@ -517,12 +546,12 @@ namespace KaleidoVR.EditorTools
             optimizeAudio = true;
             audioForceToMono = false;
             audioForceToStereo = false;
-            audioLoadInBackground = true;
+            audioLoadInBackground = false;
             audioApplyVorbis = false;
             audioQuality = 0.7f;
 
             optimizeAnimators = true;
-            animatorCullWhenOffscreen = true;
+            animatorCullWhenOffscreen = false;
             optimizeMaterials = false;
             materialEnableGpuInstancing = false;
             disableCamerasOnAvatar = false;
@@ -543,6 +572,7 @@ namespace KaleidoVR.EditorTools
             else if (index == 1)
             {
                 SetTypeSizes(1024, 1024, 1024, 1024, 512, 512, 512, 512, 256, 256, 512, 512);
+                applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
                 applySkinWeights = true;
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = true;
@@ -556,10 +586,16 @@ namespace KaleidoVR.EditorTools
                 rendererForceBone4 = false;
                 if (index == 3)
                 {
+                    avatarRemoveUnusedGameObjects = true;
+                    applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
                     meshOptimizeAnimation = true;
                     audioApplyVorbis = true;
+                    audioLoadInBackground = true;
                     optimizeParticles = true;
                     optimizeSceneExtras = true;
+                    rendererDisableUpdateWhenOffscreen = true;
+                    rendererDisableMotionVectors = true;
+                    animatorCullWhenOffscreen = true;
                 }
             }
         }
@@ -583,6 +619,7 @@ namespace KaleidoVR.EditorTools
             p.includeRenderers = includeRenderers;
             p.includeAudio = includeAudio;
             p.includeAnimators = includeAnimators;
+            p.includeAvatar = includeAvatar;
             p.includeSpecial = includeSpecial;
             return p;
         }
@@ -634,7 +671,20 @@ namespace KaleidoVR.EditorTools
                 applyMeshCompression = applyMeshCompression, meshCompression = meshCompression,
                 meshForceHumanoid = meshForceHumanoid, meshStripBlendShapes = meshStripBlendShapes,
                 meshRestoreBlendShapes = meshRestoreBlendShapes,
-                audioForceToMono = audioForceToMono, audioForceToStereo = audioForceToStereo
+                audioForceToMono = audioForceToMono, audioForceToStereo = audioForceToStereo,
+                includeAvatar = includeAvatar,
+                avatarApplyOnUpload = avatarApplyOnUpload,
+                avatarMergeSkinnedMeshes = avatarMergeSkinnedMeshes,
+                avatarMergeIdenticalSlots = avatarMergeIdenticalSlots,
+                avatarShuffleSlots = avatarShuffleSlots,
+                avatarOptimizeBlendShapes = avatarOptimizeBlendShapes,
+                avatarMergeSameRatioShapes = avatarMergeSameRatioShapes,
+                avatarMmdCompatibility = avatarMmdCompatibility,
+                avatarRemoveUnusedComponents = avatarRemoveUnusedComponents,
+                avatarRemoveUnusedGameObjects = avatarRemoveUnusedGameObjects,
+                avatarStripUnusedBones = avatarStripUnusedBones,
+                avatarOptimizePhysBones = avatarOptimizePhysBones,
+                avatarOptimizeFxLayer = avatarOptimizeFxLayer
             };
         }
 
@@ -646,6 +696,7 @@ namespace KaleidoVR.EditorTools
             bool rend = !respectIncludes || p.includeRenderers;
             bool aud = !respectIncludes || p.includeAudio;
             bool anim = !respectIncludes || p.includeAnimators;
+            bool avatar = !respectIncludes || p.includeAvatar;
             bool spec = !respectIncludes || p.includeSpecial;
 
             includeTextures = p.includeTextures;
@@ -653,6 +704,7 @@ namespace KaleidoVR.EditorTools
             includeRenderers = p.includeRenderers;
             includeAudio = p.includeAudio;
             includeAnimators = p.includeAnimators;
+            includeAvatar = p.includeAvatar;
             includeSpecial = p.includeSpecial;
 
             if (tex)
@@ -720,6 +772,21 @@ namespace KaleidoVR.EditorTools
             {
                 optimizeAnimators = p.optimizeAnimators;
                 animatorCullWhenOffscreen = p.animatorCullWhenOffscreen;
+            }
+            if (avatar)
+            {
+                avatarApplyOnUpload = p.avatarApplyOnUpload;
+                avatarMergeSkinnedMeshes = p.avatarMergeSkinnedMeshes;
+                avatarMergeIdenticalSlots = p.avatarMergeIdenticalSlots;
+                avatarShuffleSlots = p.avatarShuffleSlots;
+                avatarOptimizeBlendShapes = p.avatarOptimizeBlendShapes;
+                avatarMergeSameRatioShapes = p.avatarMergeSameRatioShapes;
+                avatarMmdCompatibility = p.avatarMmdCompatibility;
+                avatarRemoveUnusedComponents = p.avatarRemoveUnusedComponents;
+                avatarRemoveUnusedGameObjects = p.avatarRemoveUnusedGameObjects;
+                avatarStripUnusedBones = p.avatarStripUnusedBones;
+                avatarOptimizePhysBones = p.avatarOptimizePhysBones;
+                avatarOptimizeFxLayer = p.avatarOptimizeFxLayer;
             }
             if (spec)
             {
@@ -823,20 +890,33 @@ namespace KaleidoVR.EditorTools
             includeRenderers = GetBool("IncRend", true);
             includeAudio = GetBool("IncAud", true);
             includeAnimators = GetBool("IncAnim", true);
+            includeAvatar = GetBool("IncAvatar", true);
             includeSpecial = GetBool("IncSpec", false);
+            avatarApplyOnUpload = GetBool("AvUp", true);
+            avatarMergeSkinnedMeshes = GetBool("AvMerge", true);
+            avatarMergeIdenticalSlots = GetBool("AvSlots", true);
+            avatarShuffleSlots = GetBool("AvShuffle", true);
+            avatarOptimizeBlendShapes = GetBool("AvShape", true);
+            avatarMergeSameRatioShapes = GetBool("AvRatio", true);
+            avatarMmdCompatibility = GetBool("AvMmd", true);
+            avatarRemoveUnusedComponents = GetBool("AvComp", true);
+            avatarRemoveUnusedGameObjects = GetBool("AvGo", false);
+            avatarStripUnusedBones = GetBool("AvBone", true);
+            avatarOptimizePhysBones = GetBool("AvPb", true);
+            avatarOptimizeFxLayer = GetBool("AvFx", true);
 
             optimizeTextures = GetBool("OptTex", true);
-            applyAlbedoSize = GetBool("ASize", true);
+            applyAlbedoSize = GetBool("ASize", false);
             albedoPc = GetInt("APc", 2048); albedoQuest = GetInt("AQ", 1024);
-            applyNormalSize = GetBool("NSize", true);
+            applyNormalSize = GetBool("NSize", false);
             normalPc = GetInt("NPc", 2048); normalQuest = GetInt("NQ", 1024);
-            applyMaskSize = GetBool("MSize", true);
+            applyMaskSize = GetBool("MSize", false);
             maskPc = GetInt("MPc", 1024); maskQuest = GetInt("MQ", 512);
-            applyEmissionSize = GetBool("ESize", true);
+            applyEmissionSize = GetBool("ESize", false);
             emissionPc = GetInt("EPc", 1024); emissionQuest = GetInt("EQ", 512);
-            applyMatcapSize = GetBool("CSize", true);
+            applyMatcapSize = GetBool("CSize", false);
             matcapPc = GetInt("CPc", 512); matcapQuest = GetInt("CQ", 256);
-            applyOtherSize = GetBool("OSize", true);
+            applyOtherSize = GetBool("OSize", false);
             otherPc = GetInt("OPc", 1024); otherQuest = GetInt("OQ", 512);
             applyPcTexFormat = GetBool("PcFmtOn", false);
             applyAndroidTexFormat = GetBool("AndFmtOn", false);
@@ -885,11 +965,11 @@ namespace KaleidoVR.EditorTools
             meshForceHumanoid = GetBool("MeshHum", false);
 
             optimizeRenderers = GetBool("OptRend", true);
-            rendererDisableUpdateWhenOffscreen = GetBool("RendOff", true);
+            rendererDisableUpdateWhenOffscreen = GetBool("RendOff", false);
             rendererDisableShadows = GetBool("RendShad", false);
             rendererDisableReceiveShadows = GetBool("RendRecv", false);
             rendererDisableProbes = GetBool("RendProbe", false);
-            rendererDisableMotionVectors = GetBool("RendMV", true);
+            rendererDisableMotionVectors = GetBool("RendMV", false);
             rendererForceBone4 = GetBool("RendBone4", false);
             rendererRecalculateBounds = GetBool("RendBounds", false);
 
@@ -897,12 +977,12 @@ namespace KaleidoVR.EditorTools
             audioForceToMono = GetBool("AudMono", false);
             audioForceToStereo = GetBool("AudStereo", false);
             if (audioForceToMono) audioForceToStereo = false;
-            audioLoadInBackground = GetBool("AudBG", true);
+            audioLoadInBackground = GetBool("AudBG", false);
             audioApplyVorbis = GetBool("AudVorb", false);
             audioQuality = EditorPrefs.HasKey(PrefsPrefix + "AudQ") ? EditorPrefs.GetFloat(PrefsPrefix + "AudQ") : 0.7f;
 
             optimizeAnimators = GetBool("OptAnim", true);
-            animatorCullWhenOffscreen = GetBool("AnimCull", true);
+            animatorCullWhenOffscreen = GetBool("AnimCull", false);
 
             optimizeMaterials = GetBool("OptMat", false);
             materialEnableGpuInstancing = GetBool("MatGPU", false);
@@ -922,7 +1002,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 3;
+            const int currentSchema = 6;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -939,16 +1019,183 @@ namespace KaleidoVR.EditorTools
                 applyAndroidTexFormat = false;
             }
 
+            if (schema < 4)
+            {
+                rendererDisableUpdateWhenOffscreen = false;
+                rendererDisableMotionVectors = false;
+                animatorCullWhenOffscreen = false;
+                audioLoadInBackground = false;
+            }
+
+            if (schema < 5)
+            {
+                if (builtinPresetIndex != 1 && builtinPresetIndex != 3)
+                {
+                    applyAlbedoSize = false;
+                    applyNormalSize = false;
+                    applyMaskSize = false;
+                    applyEmissionSize = false;
+                    applyMatcapSize = false;
+                    applyOtherSize = false;
+                }
+            }
+
+            if (schema < 6)
+            {
+                ApplySharedSafeDefaults(builtinPresetIndex);
+            }
+
             SetInt("Schema", currentSchema);
+            PersistSharedSafeDefaults();
+        }
+
+        private void ApplySharedSafeDefaults(int presetIndex)
+        {
+            optimizeTextures = true;
+            applyPcTexFormat = false;
+            applyAndroidTexFormat = false;
+            textureEnableCrunch = false;
+            textureDisableCrunch = true;
+            textureApplyMipmaps = true;
+            textureEnableMipmaps = true;
+            textureEnableStreamingMipmaps = true;
+            textureDisableStreamingMipmaps = false;
+
+            optimizeMeshes = true;
+            meshKeepBlendShapes = true;
+            meshStripBlendShapes = false;
+            meshRestoreBlendShapes = false;
+            meshWeldVertices = false;
+            meshOptimizeAnimation = presetIndex == 3;
+            applyMeshCompression = false;
+            meshForceHumanoid = false;
+            if (presetIndex != 1) applySkinWeights = false;
+
+            optimizeAnimators = true;
+            if (presetIndex != 3) animatorCullWhenOffscreen = false;
+
+            includeSpecial = false;
+            rendererRecalculateBounds = false;
+            optimizeMaterials = false;
+            materialEnableGpuInstancing = false;
+            audioForceToMono = false;
+            audioForceToStereo = false;
+
+            if (presetIndex != 1)
+            {
+                rendererForceBone4 = false;
+                rendererDisableShadows = false;
+            }
+
+            if (presetIndex != 1 && presetIndex != 3)
+            {
+                applyAlbedoSize = false;
+                applyNormalSize = false;
+                applyMaskSize = false;
+                applyEmissionSize = false;
+                applyMatcapSize = false;
+                applyOtherSize = false;
+                rendererDisableUpdateWhenOffscreen = false;
+                rendererDisableReceiveShadows = false;
+                rendererDisableProbes = false;
+                rendererDisableMotionVectors = false;
+                audioLoadInBackground = false;
+                audioApplyVorbis = false;
+                optimizeParticles = false;
+                disableLightsOnAvatar = false;
+                enableLightsOnAvatar = false;
+                disableCamerasOnAvatar = false;
+                enableCamerasOnAvatar = false;
+                optimizeSceneExtras = false;
+            }
+
+            ApplyAvatarTabDefaults(presetIndex);
+        }
+
+        private void ApplyAvatarTabDefaults(int presetIndex)
+        {
+            includeAvatar = true;
+            avatarApplyOnUpload = true;
+            avatarMergeSkinnedMeshes = true;
+            avatarMergeIdenticalSlots = true;
+            avatarShuffleSlots = true;
+            avatarOptimizeBlendShapes = true;
+            avatarMergeSameRatioShapes = true;
+            avatarMmdCompatibility = true;
+            avatarRemoveUnusedComponents = true;
+            avatarRemoveUnusedGameObjects = presetIndex == 3;
+            avatarStripUnusedBones = true;
+            avatarOptimizePhysBones = true;
+            avatarOptimizeFxLayer = true;
+        }
+
+        private void PersistSharedSafeDefaults()
+        {
             SetInt("PcFmt", (int)pcTexFormat);
             SetBool("TexNorm", autoDetectNormalMaps);
             SetBool("PcFmtOn", applyPcTexFormat);
             SetBool("AndFmtOn", applyAndroidTexFormat);
+            SetBool("TexCrunch", textureDisableCrunch);
+            SetBool("TexCrunchOn", textureEnableCrunch);
+            SetBool("TexMipsOn", textureApplyMipmaps);
+            SetBool("TexMips", textureEnableMipmaps);
+            SetBool("TexStreamOn", textureEnableStreamingMipmaps);
+            SetBool("TexStreamOff", textureDisableStreamingMipmaps);
+            SetBool("OptTex", optimizeTextures);
+            SetBool("OptMesh", optimizeMeshes);
+            SetBool("MeshBS", meshKeepBlendShapes);
+            SetBool("MeshBSOff", meshStripBlendShapes);
+            SetBool("MeshBSOn", meshRestoreBlendShapes);
+            SetBool("MeshWeld", meshWeldVertices);
+            SetBool("MeshAnim", meshOptimizeAnimation);
+            SetBool("MeshCompOn", applyMeshCompression);
+            SetBool("MeshHum", meshForceHumanoid);
+            SetBool("SkinOn", applySkinWeights);
+            SetBool("OptAnim", optimizeAnimators);
+            SetBool("AnimCull", animatorCullWhenOffscreen);
+            SetBool("IncSpec", includeSpecial);
+            SetBool("RendBounds", rendererRecalculateBounds);
+            SetBool("OptMat", optimizeMaterials);
+            SetBool("MatGPU", materialEnableGpuInstancing);
+            SetBool("AudMono", audioForceToMono);
+            SetBool("AudStereo", audioForceToStereo);
+            SetBool("RendBone4", rendererForceBone4);
+            SetBool("RendShad", rendererDisableShadows);
+            SetBool("ASize", applyAlbedoSize);
+            SetBool("NSize", applyNormalSize);
+            SetBool("MSize", applyMaskSize);
+            SetBool("ESize", applyEmissionSize);
+            SetBool("CSize", applyMatcapSize);
+            SetBool("OSize", applyOtherSize);
+            SetBool("RendOff", rendererDisableUpdateWhenOffscreen);
+            SetBool("RendRecv", rendererDisableReceiveShadows);
+            SetBool("RendProbe", rendererDisableProbes);
+            SetBool("RendMV", rendererDisableMotionVectors);
+            SetBool("AudBG", audioLoadInBackground);
+            SetBool("AudVorb", audioApplyVorbis);
+            SetBool("ExtraPart", optimizeParticles);
+            SetBool("ExtraLight", disableLightsOnAvatar);
+            SetBool("ExtraLightOn", enableLightsOnAvatar);
+            SetBool("ExtraCam", disableCamerasOnAvatar);
+            SetBool("ExtraCamOn", enableCamerasOnAvatar);
+            SetBool("IncAvatar", includeAvatar);
+            SetBool("AvUp", avatarApplyOnUpload);
+            SetBool("AvMerge", avatarMergeSkinnedMeshes);
+            SetBool("AvSlots", avatarMergeIdenticalSlots);
+            SetBool("AvShuffle", avatarShuffleSlots);
+            SetBool("AvShape", avatarOptimizeBlendShapes);
+            SetBool("AvRatio", avatarMergeSameRatioShapes);
+            SetBool("AvMmd", avatarMmdCompatibility);
+            SetBool("AvComp", avatarRemoveUnusedComponents);
+            SetBool("AvGo", avatarRemoveUnusedGameObjects);
+            SetBool("AvBone", avatarStripUnusedBones);
+            SetBool("AvPb", avatarOptimizePhysBones);
+            SetBool("AvFx", avatarOptimizeFxLayer);
         }
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 3);
+            SetInt("Schema", 6);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -962,7 +1209,20 @@ namespace KaleidoVR.EditorTools
             SetBool("IncRend", includeRenderers);
             SetBool("IncAud", includeAudio);
             SetBool("IncAnim", includeAnimators);
+            SetBool("IncAvatar", includeAvatar);
             SetBool("IncSpec", includeSpecial);
+            SetBool("AvUp", avatarApplyOnUpload);
+            SetBool("AvMerge", avatarMergeSkinnedMeshes);
+            SetBool("AvSlots", avatarMergeIdenticalSlots);
+            SetBool("AvShuffle", avatarShuffleSlots);
+            SetBool("AvShape", avatarOptimizeBlendShapes);
+            SetBool("AvRatio", avatarMergeSameRatioShapes);
+            SetBool("AvMmd", avatarMmdCompatibility);
+            SetBool("AvComp", avatarRemoveUnusedComponents);
+            SetBool("AvGo", avatarRemoveUnusedGameObjects);
+            SetBool("AvBone", avatarStripUnusedBones);
+            SetBool("AvPb", avatarOptimizePhysBones);
+            SetBool("AvFx", avatarOptimizeFxLayer);
 
             SetBool("OptTex", optimizeTextures);
             SetBool("ASize", applyAlbedoSize); SetInt("APc", albedoPc); SetInt("AQ", albedoQuest);
@@ -1271,13 +1531,13 @@ namespace KaleidoVR.EditorTools
             "Largest VRAM first"
         };
         private static Rect pendingOutlineRect;
-        private static readonly string[] BuiltinNames = { "PC", "Quest", "Dual Platform", "Everything" };
+        private static readonly string[] BuiltinNames = { "PC", "Quest", "Standard", "Everything" };
         private static readonly string[] BuiltinSummaries =
         {
-            "Booth-safe PC start. Caps maps at 2K, leaves each texture's compression format as-is, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
-            "Quest start. 1K body maps, leaves ASTC as-is, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
-            "Booth-safe dual start. 2K PC / 1K Quest body maps, does not rewrite compression formats. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off.",
-            "Full pack. Dual 2K/1K caps, leaves compression formats as-is (Set compression lives on Special), Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
+            "PC start. Leaves max sizes and compression formats as-is, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
+            "Quest start. Turns on 1K body map caps, leaves ASTC as-is, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
+            "Default start. Suggested 2K PC / 1K Quest sizes stay in the dropdowns but are not written until you tick a type. Does not rewrite compression, skin weights, weld, or force 4-bone quality. Special stays off.",
+            "Full pack. Dual 2K/1K caps on, leaves compression formats as-is (Set compression lives on Special), offscreen cull, motion vectors off, Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
         };
         private static readonly string[] PcFormatLabels =
         {
@@ -1323,6 +1583,8 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle sizeValueStyle;
         private static GUIStyle sizeNewStyle;
         private static GUIStyle sizeUpStyle;
+        private static GUIStyle textureNameClipStyle;
+        private static GUIStyle textureMetaClipStyle;
         private static bool cachedDropProSkin = true;
 
         private static GUIStyle MiniWrap()
@@ -1533,7 +1795,7 @@ namespace KaleidoVR.EditorTools
         {
             DrawWorkspaceBar(window);
             DrawTabRow(window, new[] { "Setup", "Profiles", "Rank", "Textures" }, 0);
-            DrawTabRow(window, new[] { "Meshes", "Scene", "Special" }, 4);
+            DrawTabRow(window, new[] { "Meshes", "On Upload", "Scene", "Special" }, 4);
         }
 
         private static void DrawWorkspaceBar(KaleidoVRCOptimizer window)
@@ -1583,7 +1845,8 @@ namespace KaleidoVR.EditorTools
                 case 2: DrawRankTab(window); break;
                 case 3: DrawTexturesTab(window); break;
                 case 4: DrawMeshesTab(window); break;
-                case 5: DrawSceneTab(window); break;
+                case 5: DrawAvatarTab(window); break;
+                case 6: DrawSceneTab(window); break;
                 default: DrawSpecialTab(window); break;
             }
             EditorGUIUtility.labelWidth = originalLabelWidth;
@@ -1619,7 +1882,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("1. Start from a built-in", EditorStyles.boldLabel);
-            DrawWhy("Click one to fill every tab with that recipe. Everything is the full recommended pack. Special stays off. You can still uncheck options afterward.");
+            DrawWhy("Click one to fill every tab with that recipe. Standard leaves sizes and formats as-is and keeps Special off. Everything is the full pack. You can still uncheck options afterward.");
             EditorGUILayout.BeginHorizontal();
             for (int i = 0; i < BuiltinNames.Length; i++)
             {
@@ -1671,6 +1934,7 @@ namespace KaleidoVR.EditorTools
             window.includeRenderers = EditorGUILayout.ToggleLeft("Scene  —  offscreen, probes, particles, shadows, 4-bone quality", window.includeRenderers);
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
+            window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, FX", window.includeAvatar);
             DrawSpecialUseCaseHeader();
             window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
@@ -2201,6 +2465,32 @@ namespace KaleidoVR.EditorTools
             return selectedTextureRowStyle;
         }
 
+        private static GUIStyle TextureNameClipStyle()
+        {
+            if (textureNameClipStyle == null)
+            {
+                textureNameClipStyle = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    clipping = TextClipping.Clip,
+                    alignment = TextAnchor.MiddleLeft
+                };
+            }
+            return textureNameClipStyle;
+        }
+
+        private static GUIStyle TextureMetaClipStyle()
+        {
+            if (textureMetaClipStyle == null)
+            {
+                textureMetaClipStyle = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    clipping = TextClipping.Clip,
+                    alignment = TextAnchor.MiddleLeft
+                };
+            }
+            return textureMetaClipStyle;
+        }
+
         private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
         {
             GUILayout.Label("Textures On This Model", EditorStyles.boldLabel);
@@ -2269,9 +2559,10 @@ namespace KaleidoVR.EditorTools
                     GUI.Box(thumb, "?");
                 }
 
-                EditorGUILayout.BeginVertical(GUILayout.MinWidth(120), GUILayout.ExpandWidth(true));
-                GUILayout.Label(usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path), EditorStyles.boldLabel, GUILayout.ExpandWidth(false));
-                GUILayout.Label(KindLabel(usage.kind), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                EditorGUILayout.BeginVertical(GUILayout.MinWidth(80), GUILayout.ExpandWidth(true));
+                string textureName = usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path);
+                GUILayout.Label(new GUIContent(textureName, textureName), TextureNameClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
+                GUILayout.Label(KindLabel(usage.kind), TextureMetaClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
                 if (usage.vramBytes > 0 || !string.IsNullOrEmpty(usage.formatLabel))
                 {
                     string vram = usage.vramBytes > 0 ? KaleidoVRCOptimizerHelpers.FormatBytes(usage.vramBytes) : "";
@@ -2280,7 +2571,7 @@ namespace KaleidoVR.EditorTools
                     if (usage.fromAnimationSwap) extra += "  swap";
                     if (usage.crunched) extra += "  crunch";
                     if (usage.missingStreamingMipmaps) extra += "  no stream";
-                    GUILayout.Label(extra, EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                    GUILayout.Label(new GUIContent(extra, extra), TextureMetaClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
                 }
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
@@ -2316,8 +2607,8 @@ namespace KaleidoVR.EditorTools
             };
             EditorGUILayout.BeginHorizontal(headerPad);
             GUILayout.Space(TextureThumb);
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(120), GUILayout.ExpandWidth(true));
-            GUILayout.Label("Texture", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(80), GUILayout.ExpandWidth(true));
+            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.Width(0), GUILayout.ExpandWidth(true));
             EditorGUILayout.EndVertical();
             EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
             GUILayout.Label("Current", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
@@ -2737,6 +3028,80 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
             EditorGUI.EndDisabledGroup();
             GUILayout.Space(4);
+        }
+
+        private static void DrawAvatarTab(KaleidoVRCOptimizer window)
+        {
+            EditorGUILayout.HelpBox("Everything on this tab stays here. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Meshes and components another upload pass already replaced are left alone.", MessageType.Info);
+
+            window.avatarApplyOnUpload = DrawToggle(window.avatarApplyOnUpload, "Apply on upload", "Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
+
+            EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
+            GUILayout.Space(8);
+            GUILayout.Label("Meshes", EditorStyles.boldLabel);
+            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. Meshes with toggles, material animations, blend shapes, or penetrator names stay separate.");
+            window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone.");
+            window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
+            window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove / bake unused blend shapes", "Upload-only. Meshes tab Keep blend shapes only leaves import on. This drops unused shapes after that. Special Blend shape import Disable turns this off.");
+            window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Combines shapes that every clip always drives in the same ratio.");
+            window.avatarMmdCompatibility = DrawToggle(window.avatarMmdCompatibility, "MMD world compatibility", "Keeps MMD viseme / face shapes and the first three FX layers.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("Cleanup", EditorStyles.boldLabel);
+            window.avatarRemoveUnusedComponents = DrawToggle(window.avatarRemoveUnusedComponents, "Remove unused components", "Deletes disabled components that no animation turns on, plus EditorOnly objects.");
+            window.avatarRemoveUnusedGameObjects = DrawToggle(window.avatarRemoveUnusedGameObjects, "Remove unused GameObjects", "Deletes inactive objects that never turn on. Off by default. Humanoid bones are kept.");
+            window.avatarStripUnusedBones = DrawToggle(window.avatarStripUnusedBones, "Keep only weighted bones", "Drops bone references with zero weight unless an animation moves them.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("PhysBones", EditorStyles.boldLabel);
+            window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Disable PhysBones when unused", "Removes PhysBones that no remaining mesh uses, and colliders nothing references.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("Animator", EditorStyles.boldLabel);
+            window.avatarOptimizeFxLayer = DrawToggle(window.avatarOptimizeFxLayer, "Optimize FX layer", "On the upload copy only: drops empty layers and animation curves whose bindings are gone. MMD keeps layers 0–2.");
+            EditorGUI.EndDisabledGroup();
+
+            GUILayout.Space(10);
+            if (GUILayout.Button("Dry Run On Upload", GUILayout.Height(26)))
+            {
+                window.onUploadPreviewLines.Clear();
+                GameObject previewRoot = FirstDroppedAvatarRoot(window);
+                if (previewRoot == null)
+                {
+                    EditorUtility.DisplayDialog("No avatar", "Drop a VRChat avatar on Setup first.", "OK");
+                }
+                else
+                {
+                    if (!window.avatarApplyOnUpload)
+                        window.onUploadPreviewLines.Add("Apply on upload is off. Upload will not run these options.");
+                    KaleidoAvatarPass.Preview(previewRoot, KaleidoAvatarPass.FromWindow(window), window.onUploadPreviewLines, KaleidoAvatarPass.ExclusionsFrom(window, previewRoot));
+                }
+            }
+            if (window.onUploadPreviewLines.Count > 0)
+            {
+                GUILayout.Space(6);
+                GUILayout.Label("On Upload preview", EditorStyles.boldLabel);
+                for (int i = 0; i < window.onUploadPreviewLines.Count; i++)
+                    EditorGUILayout.LabelField(window.onUploadPreviewLines[i], MiniWrap());
+            }
+
+            GUILayout.Space(10);
+            if (GUILayout.Button("Create optimized copy in the scene", GUILayout.Height(26)))
+            {
+                GameObject source = FirstDroppedAvatarRoot(window);
+                if (source == null)
+                {
+                    EditorUtility.DisplayDialog("No avatar", "Drop a VRChat avatar on Setup first.", "OK");
+                }
+                else
+                {
+                    KaleidoAvatarPass.CreatePreviewCopy(source, KaleidoAvatarPass.FromWindow(window), KaleidoAvatarPass.ExclusionsFrom(window, source));
+                }
+            }
+            DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy.");
         }
 
         private static void DrawMeshesTab(KaleidoVRCOptimizer window)
@@ -3792,6 +4157,12 @@ namespace KaleidoVR.EditorTools
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
             return fix;
+        }
+
+        private static GameObject FirstDroppedAvatarRoot(KaleidoVRCOptimizer window)
+        {
+            List<GameObject> roots = CurrentAvatarRoots(window);
+            return roots.Count > 0 ? roots[0] : null;
         }
 
         private static List<GameObject> CurrentAvatarRoots(KaleidoVRCOptimizer window)
