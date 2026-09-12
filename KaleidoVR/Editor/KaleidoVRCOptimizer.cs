@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.32";
+        public static readonly string VERSION = "1.0.33";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1033,6 +1033,8 @@ namespace KaleidoVR.EditorTools
         public int questSize;
         public bool usedCustomPc;
         public bool usedCustomQuest;
+        public bool ignorePc;
+        public bool ignoreQuest;
         public int pcRevertSize;
         public int questRevertSize;
         public List<KaleidoTextureLink> links = new List<KaleidoTextureLink>();
@@ -2060,6 +2062,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.FlexibleSpace();
             GUILayout.Label("New max size", EditorStyles.miniBoldLabel, GUILayout.Width(100));
             GUILayout.Space(8);
+            GUILayout.Label("Ignore", EditorStyles.miniBoldLabel, GUILayout.Width(52));
             EditorGUILayout.EndHorizontal();
 
             for (int i = 0; i < rows.Count; i++)
@@ -2106,7 +2109,10 @@ namespace KaleidoVR.EditorTools
                 }
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
+                bool rowIgnored = questPlatform ? usage.ignoreQuest : usage.ignorePc;
+                EditorGUI.BeginDisabledGroup(rowIgnored);
                 HandleTextureSizePopup(window, usage, questPlatform);
+                EditorGUI.EndDisabledGroup();
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
@@ -2166,10 +2172,11 @@ namespace KaleidoVR.EditorTools
             int typeQuest;
             KaleidoVRCOptimizerLogic.GetTypeSizes(window, usage.kind, out typeApply, out typePc, out typeQuest);
             int current = questPlatform ? usage.currentQuest : usage.currentPc;
+            bool ignored = questPlatform ? usage.ignoreQuest : usage.ignorePc;
             int planned = KaleidoVRCOptimizerLogic.GetPlannedRowSize(window, usage, questPlatform);
-            bool willWrite = questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply);
+            bool willWrite = !ignored && (questPlatform ? (usage.usedCustomQuest || typeApply) : (usage.usedCustomPc || typeApply));
             int revert = questPlatform ? usage.questRevertSize : usage.pcRevertSize;
-            bool increasing = revert > 0 && planned > revert;
+            bool increasing = !ignored && revert > 0 && planned > revert;
             bool changing = (willWrite && planned != current) || increasing;
             GUIStyle changeStyle = increasing ? sizeUpStyle : sizeNewStyle;
 
@@ -2220,7 +2227,19 @@ namespace KaleidoVR.EditorTools
 
             EditorGUILayout.BeginVertical(GUILayout.Width(SizeCol), GUILayout.MaxWidth(SizeCol), GUILayout.ExpandWidth(false));
             GUILayout.Label("New", sizeCaptionStyle, GUILayout.Width(SizeCol));
-            GUILayout.Label(((willWrite || increasing) ? planned : current) + " px", changing ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
+            GUILayout.Label((ignored ? current : ((willWrite || increasing) ? planned : current)) + " px", changing && !ignored ? changeStyle : sizeValueStyle, GUILayout.Width(SizeCol));
+            EditorGUILayout.EndVertical();
+
+            GUILayout.Space(8);
+            EditorGUILayout.BeginVertical(GUILayout.Width(52), GUILayout.MaxWidth(52));
+            GUILayout.Label(" ", sizeCaptionStyle, GUILayout.Width(52));
+            bool nextIgnore = GUILayout.Toggle(ignored, GUIContent.none, GUILayout.Width(18));
+            if (nextIgnore != ignored)
+            {
+                if (questPlatform) usage.ignoreQuest = nextIgnore;
+                else usage.ignorePc = nextIgnore;
+                window.ReadyToApplyMaxSizesOnly = false;
+            }
             EditorGUILayout.EndVertical();
         }
 
@@ -3608,6 +3627,29 @@ namespace KaleidoVR.EditorTools
             return KaleidoTextureKind.Other;
         }
 
+        public static bool IsPrimaryAlbedoProperty(string propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName)) return false;
+            return propertyName.Equals("_MainTex", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_BaseMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_BaseColorMap", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsSpecificNonAlbedoProperty(string propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName)) return false;
+            return propertyName.Equals("_BumpMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_NormalMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_DetailNormalMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_MetallicGlossMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_SpecGlossMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_OcclusionMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_ParallaxMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_EmissionMap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_MatCap", StringComparison.OrdinalIgnoreCase)
+                || propertyName.Equals("_MatcapTex", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static Type FindTypeByFullName(string fullName)
         {
             Type direct = Type.GetType(fullName + ", VRC.SDK3A") ?? Type.GetType(fullName);
@@ -4127,6 +4169,7 @@ namespace KaleidoVR.EditorTools
             int typeQuest;
             GetTypeSizes(window, usage.kind, out typeApply, out typePc, out typeQuest);
             current = questPlatform ? usage.currentQuest : usage.currentPc;
+            if (questPlatform ? usage.ignoreQuest : usage.ignorePc) return false;
             bool custom = questPlatform ? usage.usedCustomQuest : usage.usedCustomPc;
             if (!typeApply && !custom) return false;
             planned = GetPlannedRowSize(window, usage, questPlatform);
@@ -4305,6 +4348,9 @@ namespace KaleidoVR.EditorTools
                 }
             }
 
+            for (int i = 0; i < window.textureUsages.Count; i++)
+                PromoteMainSlotKind(window.textureUsages[i]);
+
             window.textureUsages.Sort(delegate (KaleidoTextureUsage a, KaleidoTextureUsage b)
             {
                 int kind = ((int)a.kind).CompareTo((int)b.kind);
@@ -4313,6 +4359,20 @@ namespace KaleidoVR.EditorTools
                 string bn = b.texture != null ? b.texture.name : b.path;
                 return string.Compare(an, bn, StringComparison.OrdinalIgnoreCase);
             });
+        }
+
+        private static void PromoteMainSlotKind(KaleidoTextureUsage usage)
+        {
+            if (usage == null || usage.kind != KaleidoTextureKind.Other || usage.links == null) return;
+            bool mainSlot = false;
+            for (int i = 0; i < usage.links.Count; i++)
+            {
+                KaleidoTextureLink link = usage.links[i];
+                if (link == null) continue;
+                if (KaleidoVRCOptimizerHelpers.IsSpecificNonAlbedoProperty(link.propertyName)) return;
+                if (KaleidoVRCOptimizerHelpers.IsPrimaryAlbedoProperty(link.propertyName)) mainSlot = true;
+            }
+            if (mainSlot) usage.kind = KaleidoTextureKind.Albedo;
         }
 
         private static void CollectMaterialTextures(
@@ -4402,19 +4462,24 @@ namespace KaleidoVR.EditorTools
             else usage.formatLabel = texture.GetType().Name;
 
             KaleidoTextureUsage old;
-            if (previous != null && previous.TryGetValue(path, out old) && (old.usedCustomPc || old.usedCustomQuest))
+            if (previous != null && previous.TryGetValue(path, out old))
             {
-                if (old.usedCustomPc)
+                usage.ignorePc = old.ignorePc;
+                usage.ignoreQuest = old.ignoreQuest;
+                if (old.usedCustomPc || old.usedCustomQuest)
                 {
-                    usage.pcSize = old.pcSize;
-                    usage.usedCustomPc = true;
-                    usage.pcRevertSize = old.pcRevertSize;
-                }
-                if (old.usedCustomQuest)
-                {
-                    usage.questSize = old.questSize;
-                    usage.usedCustomQuest = true;
-                    usage.questRevertSize = old.questRevertSize;
+                    if (old.usedCustomPc)
+                    {
+                        usage.pcSize = old.pcSize;
+                        usage.usedCustomPc = true;
+                        usage.pcRevertSize = old.pcRevertSize;
+                    }
+                    if (old.usedCustomQuest)
+                    {
+                        usage.questSize = old.questSize;
+                        usage.usedCustomQuest = true;
+                        usage.questRevertSize = old.questRevertSize;
+                    }
                 }
             }
 
@@ -4770,7 +4835,10 @@ namespace KaleidoVR.EditorTools
                     {
                         if (ApplyTextureImporter(window, path, textureImporter, write))
                         {
-                            KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter);
+                            KaleidoTextureUsage logged = FindTextureUsage(window, path);
+                            KaleidoTextureKind kind = logged != null
+                                ? logged.kind
+                                : KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter);
                             string formatHint = DescribePlannedTextureFormat(window, textureImporter, kind);
                             string line = "Texture (" + kind + "): " + path;
                             if (!string.IsNullOrEmpty(formatHint)) line += " [" + formatHint + "]";
@@ -4906,7 +4974,10 @@ namespace KaleidoVR.EditorTools
 
         private static bool ApplyTextureImporter(KaleidoVRCOptimizer window, string path, TextureImporter importer, bool write)
         {
-            KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, importer);
+            KaleidoTextureUsage row = FindTextureUsage(window, path);
+            KaleidoTextureKind kind = row != null
+                ? row.kind
+                : KaleidoVRCOptimizerHelpers.ClassifyTexture(path, importer);
             bool normal = kind == KaleidoTextureKind.Normal;
             bool mask = kind == KaleidoTextureKind.Mask;
             bool albedo = kind == KaleidoTextureKind.Albedo;
@@ -4915,14 +4986,15 @@ namespace KaleidoVR.EditorTools
             int pcSize;
             int questSize;
             GetTypeSizes(window, kind, out applySize, out pcSize, out questSize);
-            KaleidoTextureUsage row = FindTextureUsage(window, path);
             if (row != null)
             {
                 pcSize = GetPlannedRowSize(window, row, false);
                 questSize = GetPlannedRowSize(window, row, true);
             }
-            bool applyPcSize = applySize || (row != null && row.usedCustomPc);
-            bool applyQuestSize = applySize || (row != null && row.usedCustomQuest);
+            bool ignorePc = row != null && row.ignorePc;
+            bool ignoreQuest = row != null && row.ignoreQuest;
+            bool applyPcSize = !ignorePc && (applySize || (row != null && row.usedCustomPc));
+            bool applyQuestSize = !ignoreQuest && (applySize || (row != null && row.usedCustomQuest));
             bool customPc = row != null && row.usedCustomPc;
             bool customQuest = row != null && row.usedCustomQuest;
             bool questWorkspace = window.IsQuestWorkspace;
