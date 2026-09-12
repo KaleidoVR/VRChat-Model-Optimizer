@@ -3079,7 +3079,7 @@ namespace KaleidoVR.EditorTools
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
             GUILayout.Label("Meshes", EditorStyles.boldLabel);
-            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. Meshes with toggles, material animations, blend shapes, or penetrator names stay separate.");
+            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. Toggles, material animations, blend shapes, contact-system meshes, and extras that still use their own armature stay separate.");
             window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone.");
             window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders.");
 
