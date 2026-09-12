@@ -1,5 +1,10 @@
 What's new
 
+1.0.48
+On Upload can merge extras after other upload passes have attached them to this avatar's skeleton.
+Extras that still use their own armature stay separate.
+Textures On This Model stays centered when the window is wide.
+
 1.0.47
 On Upload no longer parks hair, ears, and other extras in T-pose when meshes merge. Bind poses move with the vertices.
 Extras that still use their own armature are left alone until other upload passes attach them.
