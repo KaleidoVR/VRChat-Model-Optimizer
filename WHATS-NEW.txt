@@ -1,5 +1,10 @@
 What's new
 
+1.0.45
+Optimize FX layer is off by default and shows a warning. Reopen the tool once so existing projects pick that up.
+Hand gesture clips stay as-is when Optimize FX runs (detected by GestureLeft / GestureRight).
+After a successful VRChat upload, Generated is cleared. Optimized Copies that used that cache are removed and the original is turned back on.
+
 1.0.44
 Create optimized copy asks first. The clone is for checking what a VRChat upload will do. Do not edit it or use it as the master. The original is turned off, not deleted.
 
