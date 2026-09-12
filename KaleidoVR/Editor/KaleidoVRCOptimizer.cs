@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.27";
+        public static readonly string VERSION = "1.0.28";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -358,6 +358,7 @@ namespace KaleidoVR.EditorTools
             LoadEditorPreferences();
             tab = 0;
             ApplyWindowIcon();
+            KaleidoVRCOptimizerUI.ClearNormalPreviews();
         }
 
         private void InitializeLocalLogo()
@@ -2004,7 +2005,7 @@ namespace KaleidoVR.EditorTools
                 Rect thumb = GUILayoutUtility.GetRect(52, 52, GUILayout.Width(52), GUILayout.Height(52));
                 if (usage.texture != null)
                 {
-                    if (GUI.Button(thumb, GUIContent.none))
+                    if (GUI.Button(thumb, DisplayTexture(usage)))
                     {
                         if (selected) window.previewTexturePath = "";
                         else
@@ -2013,7 +2014,6 @@ namespace KaleidoVR.EditorTools
                             EditorGUIUtility.PingObject(usage.texture);
                         }
                     }
-                    DrawTextureImage(new Rect(thumb.x + 2, thumb.y + 2, thumb.width - 4, thumb.height - 4), usage);
                 }
                 else
                 {
@@ -2212,6 +2212,8 @@ namespace KaleidoVR.EditorTools
         }
 
         private static Material normalPreviewMaterial;
+        private static readonly Dictionary<string, string> normalPreviewKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Texture2D> normalPreviews = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
 
         // BC5 / DXT5nm drop the blue channel, so normals preview green until Z is rebuilt.
         private static Material NormalPreviewMaterial()
@@ -2223,13 +2225,74 @@ namespace KaleidoVR.EditorTools
             return normalPreviewMaterial;
         }
 
+        // Baked once into a plain texture. Drawing the material straight to the GUI would
+        // bypass the scroll view's clip rect and paint rows over the rest of the window.
+        private static Texture DisplayTexture(KaleidoTextureUsage usage)
+        {
+            if (usage == null || usage.texture == null) return null;
+            if (usage.kind != KaleidoTextureKind.Normal) return usage.texture;
+
+            string key = usage.texture.width + "x" + usage.texture.height + "|" + usage.formatLabel;
+            string cachedKey;
+            Texture2D cached;
+            if (normalPreviewKeys.TryGetValue(usage.path, out cachedKey)
+                && cachedKey == key
+                && normalPreviews.TryGetValue(usage.path, out cached)
+                && cached != null)
+            {
+                return cached;
+            }
+
+            Material material = NormalPreviewMaterial();
+            if (material == null) return usage.texture;
+
+            const int MaxSide = 256;
+            float scale = Mathf.Min(1f, (float)MaxSide / Mathf.Max(usage.texture.width, usage.texture.height, 1));
+            int width = Mathf.Max(1, Mathf.RoundToInt(usage.texture.width * scale));
+            int height = Mathf.Max(1, Mathf.RoundToInt(usage.texture.height * scale));
+
+            RenderTexture temp = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            RenderTexture active = RenderTexture.active;
+            Texture2D baked = new Texture2D(width, height, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            try
+            {
+                Graphics.Blit(usage.texture, temp, material);
+                RenderTexture.active = temp;
+                baked.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                baked.Apply(false, false);
+            }
+            finally
+            {
+                RenderTexture.active = active;
+                RenderTexture.ReleaseTemporary(temp);
+            }
+
+            Texture2D previous;
+            if (normalPreviews.TryGetValue(usage.path, out previous) && previous != null)
+                UnityEngine.Object.DestroyImmediate(previous);
+
+            normalPreviews[usage.path] = baked;
+            normalPreviewKeys[usage.path] = key;
+            return baked;
+        }
+
         private static void DrawTextureImage(Rect rect, KaleidoTextureUsage usage)
         {
-            if (usage == null || usage.texture == null) return;
             if (Event.current.type != EventType.Repaint) return;
+            Texture display = DisplayTexture(usage);
+            if (display == null) return;
 
-            Material material = usage.kind == KaleidoTextureKind.Normal ? NormalPreviewMaterial() : null;
-            EditorGUI.DrawPreviewTexture(rect, usage.texture, material, ScaleMode.ScaleToFit);
+            EditorGUI.DrawPreviewTexture(rect, display, null, ScaleMode.ScaleToFit);
+        }
+
+        public static void ClearNormalPreviews()
+        {
+            foreach (KeyValuePair<string, Texture2D> entry in normalPreviews)
+            {
+                if (entry.Value != null) UnityEngine.Object.DestroyImmediate(entry.Value);
+            }
+            normalPreviews.Clear();
+            normalPreviewKeys.Clear();
         }
 
         private static void DrawTexturePreview(KaleidoVRCOptimizer window)
