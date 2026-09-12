@@ -161,7 +161,7 @@ namespace KaleidoVR.EditorTools
         public bool meshRestoreBlendShapes = false;
         public bool textureEnableCrunch = false;
         public int textureCrunchQuality = 50;
-        public bool avatarApplyOnUpload = true;
+        public bool avatarApplyOnUpload = false;
         public bool avatarMergeSkinnedMeshes = true;
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
@@ -315,7 +315,7 @@ namespace KaleidoVR.EditorTools
         public int textureCrunchQuality = 50;
         public bool optimizeSceneExtras = false;
         public bool includeAvatar = true;
-        public bool avatarApplyOnUpload = true;
+        public bool avatarApplyOnUpload = false;
         public bool avatarMergeSkinnedMeshes = true;
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
@@ -892,7 +892,7 @@ namespace KaleidoVR.EditorTools
             includeAnimators = GetBool("IncAnim", true);
             includeAvatar = GetBool("IncAvatar", true);
             includeSpecial = GetBool("IncSpec", false);
-            avatarApplyOnUpload = GetBool("AvUp", true);
+            avatarApplyOnUpload = GetBool("AvUp", false);
             avatarMergeSkinnedMeshes = GetBool("AvMerge", true);
             avatarMergeIdenticalSlots = GetBool("AvSlots", true);
             avatarShuffleSlots = GetBool("AvShuffle", true);
@@ -1002,7 +1002,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 7;
+            const int currentSchema = 8;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -1048,6 +1048,11 @@ namespace KaleidoVR.EditorTools
             if (schema < 7)
             {
                 avatarMergeSameRatioShapes = false;
+            }
+
+            if (schema < 8)
+            {
+                avatarApplyOnUpload = false;
             }
 
             SetInt("Schema", currentSchema);
@@ -1120,7 +1125,7 @@ namespace KaleidoVR.EditorTools
         private void ApplyAvatarTabDefaults(int presetIndex)
         {
             includeAvatar = true;
-            avatarApplyOnUpload = true;
+            avatarApplyOnUpload = false;
             avatarMergeSkinnedMeshes = true;
             avatarMergeIdenticalSlots = true;
             avatarShuffleSlots = true;
@@ -1200,7 +1205,7 @@ namespace KaleidoVR.EditorTools
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 7);
+            SetInt("Schema", 8);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -3062,9 +3067,9 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawAvatarTab(KaleidoVRCOptimizer window)
         {
-            EditorGUILayout.HelpBox("Everything on this tab stays here. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Meshes and components another upload pass already replaced are left alone.", MessageType.Info);
+            EditorGUILayout.HelpBox("Off until you tick Apply on upload. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Meshes and components another upload pass already replaced are left alone.", MessageType.Info);
 
-            window.avatarApplyOnUpload = DrawToggle(window.avatarApplyOnUpload, "Apply on upload", "Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
+            window.avatarApplyOnUpload = DrawToggle(window.avatarApplyOnUpload, "Apply on upload", "Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
 
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
@@ -3075,7 +3080,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
-            window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove unused blend shapes", "Upload-only. Drops unused shapes that are at zero weight. Eye / wink / blink shapes stay, and any shape that still has weight is left as-is so the face does not change.");
+            window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove unused blend shapes", "Upload-only. Drops unused shapes that are at zero weight. Visemes, Eye Look blink / look-up / look-down, wink / blink names, and any shape that still has weight stay. Eye Look indices are rewritten to the new mesh.");
             window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Off by default. Combines shapes that every clip always drives in the same ratio. Can change expressions. Leave off unless you want that rewrite.");
             window.avatarMmdCompatibility = DrawToggle(window.avatarMmdCompatibility, "MMD world compatibility", "Keeps MMD viseme / face shapes and the first three FX layers.");
 
@@ -3135,6 +3140,23 @@ namespace KaleidoVR.EditorTools
                 }
             }
             DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy.");
+
+            GUILayout.Space(10);
+            bool hasCache = KaleidoAvatarPass.GeneratedCacheHasFiles();
+            EditorGUI.BeginDisabledGroup(!hasCache);
+            if (GUILayout.Button("Clear cache", GUILayout.Height(26)))
+            {
+                if (EditorUtility.DisplayDialog(
+                    "Clear cache",
+                    "Delete generated meshes and FX controllers in " + KaleidoAvatarPass.GeneratedFolderPath + "?\n\nScene Optimized Copies that still use those files will go empty.",
+                    "Delete",
+                    "Cancel"))
+                {
+                    EditorApplication.delayCall += () => KaleidoAvatarPass.ClearGeneratedCache();
+                }
+            }
+            EditorGUI.EndDisabledGroup();
+            DrawWhy("Deletes " + KaleidoAvatarPass.GeneratedFolderPath + ". Only available when that folder has generated files.");
         }
 
         private static void DrawMeshesTab(KaleidoVRCOptimizer window)
@@ -3350,7 +3372,12 @@ namespace KaleidoVR.EditorTools
                 window.WorkspaceReadyToApply ? MessageType.Info : MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
-            if (DrawTintedButton("Scan Performance", ActionScanTint(), GUILayout.Height(32)))
+            if (!HasSelectedAvatar(window))
+            {
+                if (GUILayout.Button("Select a model on Setup", GUILayout.Height(32)))
+                    window.tab = 0;
+            }
+            else if (DrawTintedButton("Scan Performance", ActionScanTint(), GUILayout.Height(32)))
             {
                 window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
                 window.tab = 2;
@@ -3874,7 +3901,9 @@ namespace KaleidoVR.EditorTools
             if (report == null)
             {
                 EditorGUILayout.HelpBox(
-                    "No scan yet. Drop a VRChat avatar on Setup and press Scan Performance.",
+                    HasSelectedAvatar(window)
+                        ? "No scan yet. Press Scan Performance."
+                        : "No scan yet. Select a VRChat avatar on Setup first.",
                     MessageType.None);
                 return;
             }
@@ -4242,6 +4271,11 @@ namespace KaleidoVR.EditorTools
         {
             List<GameObject> roots = CurrentAvatarRoots(window);
             return roots.Count > 0 ? roots[0] : null;
+        }
+
+        private static bool HasSelectedAvatar(KaleidoVRCOptimizer window)
+        {
+            return CurrentAvatarRoots(window).Count > 0;
         }
 
         private static List<GameObject> CurrentAvatarRoots(KaleidoVRCOptimizer window)

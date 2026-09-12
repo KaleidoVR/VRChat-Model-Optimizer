@@ -17,7 +17,7 @@ namespace KaleidoVR.EditorTools
 {
     public sealed class KaleidoAvatarPassSettings
     {
-        public bool applyOnUpload = true;
+        public bool applyOnUpload = false;
         public bool mergeSkinnedMeshes = true;
         public bool mergeIdenticalSlots = true;
         public bool shuffleMaterialSlots = true;
@@ -110,7 +110,7 @@ namespace KaleidoVR.EditorTools
             string p = KaleidoVRCOptimizer.PrefsPrefix;
             KaleidoAvatarPassSettings settings = new KaleidoAvatarPassSettings
             {
-                applyOnUpload = EditorPrefs.GetBool(p + "AvUp", true),
+                applyOnUpload = EditorPrefs.GetBool(p + "AvUp", false),
                 mergeSkinnedMeshes = EditorPrefs.GetBool(p + "AvMerge", true),
                 mergeIdenticalSlots = EditorPrefs.GetBool(p + "AvSlots", true),
                 shuffleMaterialSlots = EditorPrefs.GetBool(p + "AvShuffle", true),
@@ -163,8 +163,8 @@ namespace KaleidoVR.EditorTools
             return -1;
         }
 
+        public const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
         const string GeneratedRoot = "Assets/KaleidoVR";
-        const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
         static bool persistGenerated;
 
         public static void Preview(GameObject root, KaleidoAvatarPassSettings settings, List<string> lines, HashSet<Transform> extraExclusions)
@@ -258,6 +258,29 @@ namespace KaleidoVR.EditorTools
                 File.WriteAllText(GeneratedFolderPath + "/.gitignore", "*\n!.gitignore\n");
             }
             return GeneratedFolderPath;
+        }
+
+        public static bool GeneratedCacheHasFiles()
+        {
+            if (!Directory.Exists(GeneratedFolderPath)) return false;
+            string[] files = Directory.GetFiles(GeneratedFolderPath, "*", SearchOption.AllDirectories);
+            for (int i = 0; i < files.Length; i++)
+            {
+                string name = Path.GetFileName(files[i]);
+                if (string.IsNullOrEmpty(name) || name == ".gitignore" || name.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                return true;
+            }
+            return false;
+        }
+
+        public static void ClearGeneratedCache()
+        {
+            if (AssetDatabase.IsValidFolder(GeneratedFolderPath))
+                AssetDatabase.DeleteAsset(GeneratedFolderPath);
+            if (Directory.Exists(GeneratedFolderPath))
+                FileUtil.DeleteFileOrDirectory(GeneratedFolderPath);
+            AssetDatabase.Refresh();
         }
 
         static string SafeAssetName(string name)
@@ -614,8 +637,13 @@ namespace KaleidoVR.EditorTools
             {
                 for (int i = 0; i < MmdShapeNames.Length; i++) keep.Add(MmdShapeNames[i]);
             }
-            AddDescriptorShapes(root, keep);
+            HashSet<string> descriptorShapes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddDescriptorShapes(root, descriptorShapes);
+            List<DescriptorShapeIndexMap> indexMaps = new List<DescriptorShapeIndexMap>();
+            CollectIndexedDescriptorShapes(root, descriptorShapes, indexMaps);
+            foreach (string name in descriptorShapes) keep.Add(name);
 
+            bool remapped = false;
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
             {
@@ -645,8 +673,10 @@ namespace KaleidoVR.EditorTools
                     List<int> skip = new List<int>();
                     foreach (KeyValuePair<int, int> pair in ratioInto)
                     {
-                        if (IsProtectedShape(mesh.GetBlendShapeName(pair.Key))
-                            || IsProtectedShape(mesh.GetBlendShapeName(pair.Value)))
+                        string na = mesh.GetBlendShapeName(pair.Key);
+                        string nb = mesh.GetBlendShapeName(pair.Value);
+                        if (IsProtectedShape(na) || IsProtectedShape(nb)
+                            || descriptorShapes.Contains(na) || descriptorShapes.Contains(nb))
                             skip.Add(pair.Key);
                     }
                     for (int i = 0; i < skip.Count; i++) ratioInto.Remove(skip[i]);
@@ -665,6 +695,13 @@ namespace KaleidoVR.EditorTools
                 StripShapes(copy, drop, ratioInto);
                 smr.sharedMesh = PersistMesh(copy);
                 RestoreShapeWeights(smr, weights);
+                if (RemapIndexedDescriptorShapes(smr, copy, indexMaps)) remapped = true;
+            }
+
+            if (remapped)
+            {
+                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+                if (desc != null) EditorUtility.SetDirty(desc);
             }
         }
 
@@ -721,7 +758,8 @@ namespace KaleidoVR.EditorTools
             Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
             if (desc == null) return;
             Type t = desc.GetType();
-            FieldInfo visemes = t.GetField("VisemeBlendShapes");
+            const BindingFlags fields = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            FieldInfo visemes = t.GetField("VisemeBlendShapes", fields);
             if (visemes != null)
             {
                 string[] names = visemes.GetValue(desc) as string[];
@@ -731,14 +769,123 @@ namespace KaleidoVR.EditorTools
                         if (!string.IsNullOrEmpty(names[i])) keep.Add(names[i]);
                 }
             }
+            FieldInfo mouth = t.GetField("MouthOpenBlendShapeName", fields);
+            if (mouth != null)
+            {
+                string mouthName = mouth.GetValue(desc) as string;
+                if (!string.IsNullOrEmpty(mouthName)) keep.Add(mouthName);
+            }
             foreach (string field in new[] { "customEyeLookSettings", "lipSync" })
             {
-                FieldInfo f = t.GetField(field);
+                FieldInfo f = t.GetField(field, fields);
                 if (f == null) continue;
                 object val = f.GetValue(desc);
                 if (val == null) continue;
                 CollectStringFields(val, keep);
             }
+        }
+
+        static void CollectIndexedDescriptorShapes(GameObject root, HashSet<string> keep, List<DescriptorShapeIndexMap> maps)
+        {
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return;
+            const BindingFlags fields = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            FieldInfo eye = desc.GetType().GetField("customEyeLookSettings", fields);
+            if (eye == null) return;
+            object settings = eye.GetValue(desc);
+            if (settings == null) return;
+
+            Type st = settings.GetType();
+            FieldInfo lidsMesh = st.GetField("eyelidsSkinnedMesh", fields);
+            FieldInfo lidsIdx = st.GetField("eyelidsBlendshapes", fields);
+            if (lidsMesh == null || lidsIdx == null) return;
+
+            SkinnedMeshRenderer smr = lidsMesh.GetValue(settings) as SkinnedMeshRenderer;
+            int[] indices = lidsIdx.GetValue(settings) as int[];
+            Mesh mesh = smr != null ? smr.sharedMesh : null;
+            if (smr == null || mesh == null || indices == null || indices.Length == 0) return;
+
+            string[] names = new string[indices.Length];
+            bool any = false;
+            for (int i = 0; i < indices.Length; i++)
+            {
+                int idx = indices[i];
+                if (idx < 0 || idx >= mesh.blendShapeCount) continue;
+                string name = mesh.GetBlendShapeName(idx);
+                if (string.IsNullOrEmpty(name)) continue;
+                names[i] = name;
+                keep.Add(name);
+                any = true;
+            }
+            if (any)
+            {
+                DescriptorShapeIndexMap map = new DescriptorShapeIndexMap();
+                map.descriptor = desc;
+                map.settingsField = eye;
+                map.settings = settings;
+                map.indicesField = lidsIdx;
+                map.smr = smr;
+                map.indices = indices;
+                map.names = names;
+                maps.Add(map);
+            }
+        }
+
+        static bool RemapIndexedDescriptorShapes(SkinnedMeshRenderer smr, Mesh newMesh, List<DescriptorShapeIndexMap> maps)
+        {
+            if (smr == null || newMesh == null || maps == null) return false;
+            bool changed = false;
+            for (int m = 0; m < maps.Count; m++)
+            {
+                DescriptorShapeIndexMap map = maps[m];
+                if (map.smr != smr || map.indices == null || map.names == null) continue;
+                int n = map.indices.Length;
+                if (map.names.Length < n) n = map.names.Length;
+                bool mapChanged = false;
+                for (int i = 0; i < n; i++)
+                {
+                    if (string.IsNullOrEmpty(map.names[i])) continue;
+                    int found = IndexOfBlendShape(newMesh, map.names[i]);
+                    if (found < 0 || map.indices[i] == found) continue;
+                    map.indices[i] = found;
+                    mapChanged = true;
+                    changed = true;
+                }
+                if (!mapChanged || map.descriptor == null) continue;
+                SerializedObject so = new SerializedObject(map.descriptor);
+                SerializedProperty prop = so.FindProperty("customEyeLookSettings.eyelidsBlendshapes");
+                if (prop != null && prop.isArray)
+                {
+                    int count = prop.arraySize;
+                    if (map.indices.Length < count) count = map.indices.Length;
+                    for (int i = 0; i < count; i++)
+                        prop.GetArrayElementAtIndex(i).intValue = map.indices[i];
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+                else if (map.indicesField != null && map.settings != null)
+                {
+                    map.indicesField.SetValue(map.settings, map.indices);
+                    if (map.settingsField != null)
+                        map.settingsField.SetValue(map.descriptor, map.settings);
+                }
+            }
+            return changed;
+        }
+
+        static int IndexOfBlendShape(Mesh mesh, string name)
+        {
+            if (mesh == null || string.IsNullOrEmpty(name)) return -1;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                if (string.Equals(mesh.GetBlendShapeName(i), name, StringComparison.Ordinal))
+                    return i;
+            }
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                if (string.Equals(mesh.GetBlendShapeName(i), name, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+            return -1;
         }
 
         static void CollectStringFields(object obj, HashSet<string> keep)
@@ -1329,6 +1476,17 @@ namespace KaleidoVR.EditorTools
             {
                 foreach (AnimationClip c in ClipsFromMotion(children[i].motion)) yield return c;
             }
+        }
+
+        sealed class DescriptorShapeIndexMap
+        {
+            public Component descriptor;
+            public FieldInfo settingsField;
+            public object settings;
+            public FieldInfo indicesField;
+            public SkinnedMeshRenderer smr;
+            public int[] indices;
+            public string[] names;
         }
 
         sealed class AvatarAnimInfo
