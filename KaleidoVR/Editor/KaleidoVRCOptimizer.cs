@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.18";
+        public static readonly string VERSION = "1.0.19";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1300,23 +1300,19 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(4);
             EditorGUILayout.BeginHorizontal();
             bool pcOn = !window.IsQuestWorkspace;
-            if (GUILayout.Toggle(pcOn, "PC Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)))
-            {
-                if (window.workspace != 0) window.workspace = 0;
-            }
-            if (GUILayout.Toggle(!pcOn, "Quest / Android Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)))
-            {
-                if (window.workspace != 1) window.workspace = 1;
-            }
+            if (GUILayout.Toggle(pcOn, "PC Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)) && !pcOn)
+                window.workspace = 0;
+            if (GUILayout.Toggle(!pcOn, "Quest / Android Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)) && pcOn)
+                window.workspace = 1;
             EditorGUILayout.EndHorizontal();
 
             if (window.IsQuestWorkspace)
             {
-                EditorGUILayout.HelpBox("Quest / Android workspace. Scan, Dry Run, and Apply only write Android texture overrides and Quest renderer settings. PC sizes and PC scene options are left alone.", MessageType.Info);
+                EditorGUILayout.HelpBox("Scan, Dry Run, and Apply only write Android texture overrides and the renderer settings shown here. The other workspace is left alone.", MessageType.Info);
             }
             else
             {
-                EditorGUILayout.HelpBox("PC workspace. Scan, Dry Run, and Apply only write PC / Standalone texture settings and PC scene options. Android overrides stay untouched until you switch to Quest.", MessageType.Info);
+                EditorGUILayout.HelpBox("Scan, Dry Run, and Apply only write Standalone / default importer sizes and the scene options shown here. Android overrides stay untouched until you switch workspaces.", MessageType.Info);
             }
         }
 
@@ -1368,7 +1364,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Run Safety", EditorStyles.boldLabel);
-            DrawWhy("PC and Quest each have their own Scan / Dry Run / Apply. A Quest run cannot write PC sizes, and a PC run cannot write Android overrides.");
+            DrawWhy("Each workspace has its own Scan / Dry Run / Apply. A run in one workspace does not write the other.");
             window.writeLog = DrawToggle(window.writeLog, "Write Log File", "Saves a timestamped report under Logs/KaleidoVR/Optimizer.");
             window.applyToPrefabAssets = DrawToggle(window.applyToPrefabAssets, "Apply renderer changes to prefab assets", "Writes Scene-tab renderer edits onto the .prefab, not only the scene instance. Turn off to test on the instance first.");
         }
@@ -1429,9 +1425,9 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("3. When this profile loads, change these tabs", EditorStyles.boldLabel);
             DrawWhy("Unchecked tabs keep whatever you already set. Tick only what this recipe should overwrite. Special never runs unless you tick it.");
 
-            window.includeTextures = EditorGUILayout.ToggleLeft("Textures  —  PC sizes in the PC workspace, Quest sizes in the Quest workspace", window.includeTextures);
+            window.includeTextures = EditorGUILayout.ToggleLeft("Textures  —  max sizes and compression for the active workspace", window.includeTextures);
             window.includeMeshes = EditorGUILayout.ToggleLeft("Meshes tab  —  read/write, weld, blend shapes, skin weights", window.includeMeshes);
-            window.includeRenderers = EditorGUILayout.ToggleLeft("Scene + Quest renderer options  —  offscreen, probes, particles, Quest shadows, 4-bone quality", window.includeRenderers);
+            window.includeRenderers = EditorGUILayout.ToggleLeft("Scene  —  offscreen, probes, particles, shadows, 4-bone quality", window.includeRenderers);
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
             DrawSpecialUseCaseHeader();
@@ -1787,16 +1783,8 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
-            if (window.IsQuestWorkspace)
-            {
-                GUILayout.Label("Quest / Android Performance Snapshot", EditorStyles.boldLabel);
-                DrawWhy("VRChat mobile rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
-            }
-            else
-            {
-                GUILayout.Label("PC Performance Snapshot", EditorStyles.boldLabel);
-                DrawWhy("VRChat PC rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
-            }
+            GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
+            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
             DrawStats(window);
         }
 
@@ -1808,10 +1796,8 @@ namespace KaleidoVR.EditorTools
 
             window.optimizeTextures = DrawToggle(
                 window.optimizeTextures,
-                quest ? "Process Android / Quest texture overrides" : "Process PC texture importers",
-                quest
-                    ? "Quest workspace only writes Android platform overrides. Off = skip every Quest texture write."
-                    : "PC workspace only writes Standalone / default importer sizes. Off = skip every PC texture write.");
+                "Process texture importers",
+                "This workspace only writes the texture settings shown here. Off = skip every texture write.");
             EditorGUI.BeginDisabledGroup(!window.optimizeTextures);
 
             EditorGUI.BeginChangeCheck();
@@ -1820,12 +1806,12 @@ namespace KaleidoVR.EditorTools
             {
                 GUILayout.Label("Max Size By Type", EditorStyles.boldLabel);
                 DrawWhy("Caps each type at this size. Textures already smaller stay as they are. Unticked types keep their current size unless you change that row's selector.");
-                DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Suggested Quest 512–1024.", ref window.albedoQuest);
-                DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Suggested Quest 512–1024.", ref window.normalQuest);
-                DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Suggested Quest 256–512.", ref window.maskQuest);
-                DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Suggested Quest 256–512.", ref window.emissionQuest);
+                DrawTypeSizeRow(ref window.applyAlbedoSize, "Albedo / Diffuse / Main", "Suggested 512–1024.", ref window.albedoQuest);
+                DrawTypeSizeRow(ref window.applyNormalSize, "Normal", "Suggested 512–1024.", ref window.normalQuest);
+                DrawTypeSizeRow(ref window.applyMaskSize, "Mask / Metallic / Rough / AO / ORM", "Suggested 256–512.", ref window.maskQuest);
+                DrawTypeSizeRow(ref window.applyEmissionSize, "Emission", "Suggested 256–512.", ref window.emissionQuest);
                 DrawTypeSizeRow(ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Suggested 256–512.", ref window.matcapQuest);
-                DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Suggested Quest 512.", ref window.otherQuest);
+                DrawTypeSizeRow(ref window.applyOtherSize, "Other / Unclassified", "Suggested 512.", ref window.otherQuest);
             }
             else
             {
@@ -1852,19 +1838,19 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             if (quest)
             {
-                GUILayout.Label("Android / Quest Format", EditorStyles.boldLabel);
-                window.applyAndroidTexFormat = DrawToggle(window.applyAndroidTexFormat, "Set Android / Quest format", "ASTC 6x6 is the usual Quest balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
-                if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Android Format", window.androidTexFormat);
-                window.higherQualityNormalMaps = DrawToggle(window.higherQualityNormalMaps, "Higher quality normals (ASTC)", "Uses a sharper ASTC block on Quest for detected normals. Does not change the PC format from this workspace.");
+                GUILayout.Label("Format", EditorStyles.boldLabel);
+                window.applyAndroidTexFormat = DrawToggle(window.applyAndroidTexFormat, "Set compression format", "ASTC 6x6 is the usual balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
+                if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Format", window.androidTexFormat);
+                window.higherQualityNormalMaps = DrawToggle(window.higherQualityNormalMaps, "Higher quality normals (ASTC)", "Uses a sharper ASTC block for detected normals. Does not change the other workspace's format.");
             }
             else
             {
-                GUILayout.Label("PC Importer Settings", EditorStyles.boldLabel);
-                window.applyPcTexFormat = DrawToggle(window.applyPcTexFormat, "Set PC compression", "Auto uses DXT1 on opaque maps (4 bpp) and BC7 when alpha is present (8 bpp). Same VRAM as DXT5 for alpha, better quality. Leave off to keep each texture's current PC format.");
+                GUILayout.Label("Importer Settings", EditorStyles.boldLabel);
+                window.applyPcTexFormat = DrawToggle(window.applyPcTexFormat, "Set compression", "Auto uses DXT1 on opaque maps (4 bpp) and BC7 when alpha is present (8 bpp). Same VRAM as DXT5 for alpha, better quality. Leave off to keep each texture's current format.");
                 if (window.applyPcTexFormat)
                 {
                     window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.IntPopup(
-                        "PC Format",
+                        "Format",
                         (int)window.pcTexFormat,
                         PcFormatLabels,
                         PcFormatValues);
@@ -1880,7 +1866,7 @@ namespace KaleidoVR.EditorTools
                 window.textureApplyAniso = DrawToggle(window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
                 if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
                 window.autoDetectNormalMaps = DrawToggle(window.autoDetectNormalMaps, "Detect normal maps by name", "Sets Texture Type to Normal Map when the file looks like _n / _norm / _normal. Prevents sRGB lighting errors.");
-                window.higherQualityNormalMaps = DrawToggle(window.higherQualityNormalMaps, "Higher quality normals (BC5)", "Uses BC5 on PC for detected normals. Quest ASTC sharpness is set in the Quest workspace.");
+                window.higherQualityNormalMaps = DrawToggle(window.higherQualityNormalMaps, "Higher quality normals (BC5)", "Uses BC5 for detected normals. ASTC sharpness is set in the other workspace.");
                 window.autoLinearMaskMaps = DrawToggle(window.autoLinearMaskMaps, "Linear color for mask maps", "Turns sRGB off on metallic/rough/AO/ORM so packed masks do not get gamma-crushed.");
                 window.alphaIsTransparencyOnAlbedo = DrawToggle(window.alphaIsTransparencyOnAlbedo, "Alpha Is Transparency on albedo", "Only if the albedo has an alpha channel (cutout/transparent clothing).");
             }
@@ -1889,12 +1875,11 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawMaxSizesOnlyActions(KaleidoVRCOptimizer window, bool quest)
         {
-            string platform = quest ? "Quest" : "PC";
-            GUILayout.Label(platform + " Max Sizes Only", EditorStyles.boldLabel);
+            GUILayout.Label("Max Sizes Only", EditorStyles.boldLabel);
             DrawWhy("Runs only the max-size-by-type settings above (and any per-texture selector you already changed). Type caps never raise a texture. Compression, mip maps, meshes, scene, and Special are not touched.");
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Dry Run " + platform + " Max Sizes Only", GUILayout.Height(26)))
+            if (GUILayout.Button("Dry Run Max Sizes Only", GUILayout.Height(26)))
             {
                 int count;
                 string preview;
@@ -1902,17 +1887,17 @@ namespace KaleidoVR.EditorTools
                 window.ReadyToApplyMaxSizesOnly = count > 0;
                 GUI.changed = false;
                 EditorUtility.DisplayDialog(
-                    platform + " max sizes only",
+                    "Max sizes only",
                     count == 0
-                        ? "No " + platform + " max-size writes. Tick a type above, or change a row selector. Everything else is already at the planned size."
-                        : "Would write " + platform + " max size on " + count + " texture(s). Nothing else is included.\n\n" + preview,
+                        ? "No max-size writes. Tick a type above, or change a row selector. Everything else is already at the planned size."
+                        : "Would write max size on " + count + " texture(s). Nothing else is included.\n\n" + preview,
                     "OK");
             }
             EditorGUI.BeginDisabledGroup(!window.ReadyToApplyMaxSizesOnly);
-            if (GUILayout.Button("Apply " + platform + " Max Sizes Only", GUILayout.Height(26)))
+            if (GUILayout.Button("Apply Max Sizes Only", GUILayout.Height(26)))
             {
                 if (EditorUtility.DisplayDialog(
-                    "Apply " + platform + " max sizes only?",
+                    "Apply max sizes only?",
                     "This writes max texture size for ticked types (and custom row selectors). It will not change compression, mip maps, Read/Write, meshes, or scene settings.",
                     "Apply sizes only",
                     "Cancel"))
@@ -1922,10 +1907,10 @@ namespace KaleidoVR.EditorTools
                     KaleidoVRCOptimizerLogic.ApplyMaxSizesOnly(window, quest, out written, out preview);
                     window.ReadyToApplyMaxSizesOnly = false;
                     EditorUtility.DisplayDialog(
-                        platform + " max sizes applied",
+                        "Max sizes applied",
                         written == 0
-                            ? "No textures needed a " + platform + " max-size write."
-                            : "Wrote " + platform + " max size on " + written + " texture(s).\n\n" + preview,
+                            ? "No textures needed a max-size write."
+                            : "Wrote max size on " + written + " texture(s).\n\n" + preview,
                         "OK");
                 }
             }
@@ -1937,10 +1922,8 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
         {
-            GUILayout.Label(questPlatform ? "Quest Sizes On This Model" : "Textures On This Model", EditorStyles.boldLabel);
-            DrawWhy(questPlatform
-                ? "Quest / Android max size only. Current is what Unity has now. New is what the selector will write. Changing the selector reimports that texture."
-                : "PC max size only. Current is what Unity has now. New is what the selector will write. Changing the selector reimports that texture.");
+            GUILayout.Label("Textures On This Model", EditorStyles.boldLabel);
+            DrawWhy("Max size for this workspace. Current is what Unity has now. New is what the selector will write. Changing the selector reimports that texture.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
@@ -2339,12 +2322,12 @@ namespace KaleidoVR.EditorTools
         {
             if (window.IsQuestWorkspace)
             {
-                GUILayout.Label("Quest Mesh Writes", EditorStyles.boldLabel);
-                DrawWhy("Quest Dry Run / Apply only writes these importer flags. Weld, quads, lightmap UVs, and animation compression stay on the PC workspace so a Quest run cannot rewrite the PC mesh setup.");
-                window.optimizeMeshes = DrawToggle(window.optimizeMeshes, "Process model importers", "Master switch for the Quest mesh writes below.");
+                GUILayout.Label("Mesh Writes", EditorStyles.boldLabel);
+                DrawWhy("Dry Run / Apply only writes these importer flags. Weld, quads, lightmap UVs, and animation compression stay in the other workspace.");
+                window.optimizeMeshes = DrawToggle(window.optimizeMeshes, "Process model importers", "Master switch for the mesh writes below.");
                 EditorGUI.BeginDisabledGroup(!window.optimizeMeshes);
                 window.meshEnableReadWrite = DrawToggle(window.meshEnableReadWrite, "Enable mesh Read / Write", "Required by VRChat on every platform. If any mesh has Read/Write off, rank is Very Poor and upload is blocked.");
-                window.applySkinWeights = DrawToggle(window.applySkinWeights, "Set skin weights to 4 bones", "Quest default. Caps import weights at 4 influences. PC unlimited weights are set from the PC workspace.");
+                window.applySkinWeights = DrawToggle(window.applySkinWeights, "Set skin weights to 4 bones", "Caps import weights at 4 influences. Unlimited weights are set from the other workspace.");
                 if (window.applySkinWeights) window.skinWeights = KaleidoSkinWeightChoice.FourBones;
                 EditorGUI.EndDisabledGroup();
                 return;
@@ -2361,7 +2344,7 @@ namespace KaleidoVR.EditorTools
             window.meshDisableLightmapUVs = DrawToggle(window.meshDisableLightmapUVs, "Disable lightmap UVs", "Avatars are not lightmapped. Turns off extra UV generation and import time.");
             window.meshDisableImportLightsCameras = DrawToggle(window.meshDisableImportLightsCameras, "Skip embedded lights / cameras", "FBX extras become extra components. Avatars should not import them.");
             window.meshOptimizeAnimation = DrawToggle(window.meshOptimizeAnimation, "Optimal animation compression", "Compresses clips on the model importer. Use for character FBX animations.");
-            window.applySkinWeights = DrawToggle(window.applySkinWeights, "Set skin weights", "Unlimited is the usual PC choice. 4 bones is a Quest write — set that from the Quest workspace.");
+            window.applySkinWeights = DrawToggle(window.applySkinWeights, "Set skin weights", "Unlimited is the usual desktop choice. 4 bones is set from the other workspace.");
             if (window.applySkinWeights) window.skinWeights = (KaleidoSkinWeightChoice)EditorGUILayout.EnumPopup("Skin Weights", window.skinWeights);
             EditorGUI.EndDisabledGroup();
         }
@@ -2370,12 +2353,12 @@ namespace KaleidoVR.EditorTools
         {
             if (window.IsQuestWorkspace)
             {
-                GUILayout.Label("Quest Renderers", EditorStyles.boldLabel);
-                DrawWhy("Quest Dry Run / Apply only writes these renderer flags. Offscreen, probes, particles, and audio stay on the PC workspace.");
-                window.optimizeRenderers = DrawToggle(window.optimizeRenderers, "Process skinned / mesh renderers", "Master switch for Quest renderer writes.");
+                GUILayout.Label("Renderers", EditorStyles.boldLabel);
+                DrawWhy("Dry Run / Apply only writes these renderer flags. Offscreen, probes, particles, and audio stay in the other workspace.");
+                window.optimizeRenderers = DrawToggle(window.optimizeRenderers, "Process skinned / mesh renderers", "Master switch for the renderer writes below.");
                 EditorGUI.BeginDisabledGroup(!window.optimizeRenderers);
-                window.rendererDisableShadows = DrawToggle(window.rendererDisableShadows, "Disable shadow casting", "Quest default. Uncheck if this Quest avatar should still cast shadows.");
-                window.rendererForceBone4 = DrawToggle(window.rendererForceBone4, "Force 4 bone quality on skinned meshes", "Caps GPU skinning at 4 influences to match Quest.");
+                window.rendererDisableShadows = DrawToggle(window.rendererDisableShadows, "Disable shadow casting", "Uncheck if this avatar should still cast shadows.");
+                window.rendererForceBone4 = DrawToggle(window.rendererForceBone4, "Force 4 bone quality on skinned meshes", "Caps GPU skinning at 4 influences.");
                 EditorGUI.EndDisabledGroup();
                 return;
             }
@@ -2416,11 +2399,11 @@ namespace KaleidoVR.EditorTools
             DrawSpecialUseCaseHeader();
             if (window.IsQuestWorkspace)
             {
-                EditorGUILayout.HelpBox("Quest Special writes only. These can break cameras, lighting, or Quest-only material flags. Leave them off unless you know you need them.", MessageType.Warning);
-                window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Set GPU instancing on materials", "Writes enableInstancing on .mat files. VRChat Android docs recommend this. Little effect on skinned meshes.");
+                EditorGUILayout.HelpBox("These can break cameras, lighting, or material flags. Leave them off unless you know you need them.", MessageType.Warning);
+                window.optimizeMaterials = DrawToggle(window.optimizeMaterials, "Set GPU instancing on materials", "Writes enableInstancing on .mat files. Recommended on mobile. Little effect on skinned meshes.");
                 if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
-                window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "Android/Quest strips avatar lights. Can change how the avatar looks.");
-                window.disableCamerasOnAvatar = DrawToggle(window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Android/Quest disable avatar cameras. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
+                window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "Mobile strips avatar lights. Can change how the avatar looks.");
+                window.disableCamerasOnAvatar = DrawToggle(window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Mobile disables avatar cameras. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
                 window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
                 return;
             }
@@ -2433,7 +2416,7 @@ namespace KaleidoVR.EditorTools
             window.meshForceHumanoid = DrawToggle(window.meshForceHumanoid, "Force Humanoid rig", "Rewrites the FBX avatar to Humanoid. Can destroy a working Generic/Humanoid mapping. Prefer the Rig tab in the importer.");
             window.meshStripBlendShapes = DrawToggle(window.meshStripBlendShapes, "Disable blend shape import", "Turns blend shapes off on the model. Breaks visemes and face tracking. Only for meshes that truly have none you need.");
             window.rendererRecalculateBounds = DrawToggle(window.rendererRecalculateBounds, "Recalculate skinned bounds", "Resets local bounds from the mesh AABB. Breaks meshes that used oversized bounds so toggled parts stay visible.");
-            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat PC Excellent allows 0 lights. Can change how the avatar looks.");
+            window.disableLightsOnAvatar = DrawToggle(window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat Excellent allows 0 lights. Can change how the avatar looks.");
             window.audioForceToMono = DrawToggle(window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX.");
             window.textureEnableCrunch = DrawToggle(window.textureEnableCrunch, "Enable crunch compression", "Does not lower VRChat texture memory rank. Only download size. VRChat says the package should fit limits without Crunch.");
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
@@ -2441,22 +2424,20 @@ namespace KaleidoVR.EditorTools
 
         public static void DrawActions(KaleidoVRCOptimizer window)
         {
-            bool quest = window.IsQuestWorkspace;
-            string platform = quest ? "Quest" : "PC";
             GUILayout.Space(6);
             EditorGUILayout.HelpBox(
                 window.WorkspaceReadyToApply
-                    ? platform + " dry run finished. Review the Rank tab, then Apply " + platform + " to write only those platform changes."
-                    : "This bar is " + platform + " only. Step 1: Dry Run " + platform + " (no files change). Step 2: Apply " + platform + " appears after that dry run.",
+                    ? "Dry run finished. Review the Rank tab, then Apply to write those changes for this workspace."
+                    : "Step 1: Dry Run (no files change). Step 2: Apply appears after that dry run.",
                 window.WorkspaceReadyToApply ? MessageType.Info : MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Scan " + platform + " Performance", GUILayout.Height(32)))
+            if (GUILayout.Button("Scan Performance", GUILayout.Height(32)))
             {
                 window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
                 window.tab = 2;
             }
-            if (GUILayout.Button("Dry Run " + platform, GUILayout.Height(32)))
+            if (GUILayout.Button("Dry Run", GUILayout.Height(32)))
             {
                 window.dryRun = true;
                 KaleidoOptimizerReport report = KaleidoVRCOptimizerLogic.Scan(window, true);
@@ -2470,14 +2451,12 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
 
             EditorGUI.BeginDisabledGroup(!window.WorkspaceReadyToApply);
-            if (GUILayout.Button("Apply " + platform, GUILayout.Height(32)))
+            if (GUILayout.Button("Apply", GUILayout.Height(32)))
             {
                 if (!EditorUtility.DisplayDialog(
                     "KaleidoVR VRChat Model Optimizer",
-                    quest
-                        ? "This writes the Quest / Android dry-run changes only. PC texture sizes and PC scene settings are not touched. Continue?"
-                        : "This writes the PC dry-run changes only. Android / Quest overrides are not touched. Continue?",
-                    "Apply " + platform,
+                    "This writes the dry-run changes for this workspace only. The other workspace is not touched. Continue?",
+                    "Apply",
                     "Cancel"))
                 {
                     EditorGUI.EndDisabledGroup();
@@ -2544,18 +2523,13 @@ namespace KaleidoVR.EditorTools
             if (report == null)
             {
                 EditorGUILayout.HelpBox(
-                    window.IsQuestWorkspace
-                        ? "No Quest scan yet. Drop a VRChat avatar on Setup and press Scan Quest Performance."
-                        : "No PC scan yet. Drop a VRChat avatar on Setup and press Scan PC Performance.",
+                    "No scan yet. Drop a VRChat avatar on Setup and press Scan Performance.",
                     MessageType.None);
                 return;
             }
 
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
-            if (window.IsQuestWorkspace)
-                EditorGUILayout.LabelField("Quest Rank", report.questRank);
-            else
-                EditorGUILayout.LabelField("PC Rank", report.pcRank);
+            EditorGUILayout.LabelField("Rank", window.IsQuestWorkspace ? report.questRank : report.pcRank);
             if (report.meshReadWriteDisabled)
             {
                 EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor until Read/Write is enabled.", MessageType.Error);
@@ -2668,7 +2642,7 @@ namespace KaleidoVR.EditorTools
             evalFlagsOpen = EditorGUILayout.Foldout(evalFlagsOpen, "Texture flags (crunch / normals / swaps)", true);
             if (evalFlagsOpen)
             {
-                DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual PC normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused.");
+                DrawWhy("Crunch does not lower VRChat texture memory. BC5 is the usual desktop normal format at the same VRAM as BC7. Animation material swaps still cost VRAM even when the slot is unused.");
                 EditorGUILayout.LabelField("Crunched textures", report.crunchedTextures != null ? report.crunchedTextures.Count.ToString("N0") : "0");
                 if (report.crunchedTextures != null && report.crunchedTextures.Count > 0)
                     DrawEvalList(report.crunchedTextures);
@@ -3306,7 +3280,7 @@ namespace KaleidoVR.EditorTools
             List<string> logEntries = new List<string>
             {
                 "KaleidoVR VRChat Model Optimizer " + KaleidoVRCOptimizer.VERSION + " at " + DateTime.Now,
-                "Workspace: " + (window.IsQuestWorkspace ? "Quest / Android" : "PC"),
+                "Workspace: " + (window.IsQuestWorkspace ? "Quest / Android Workspace" : "PC Workspace"),
                 apply ? (window.dryRun ? "Mode: Dry Run" : "Mode: Apply") : "Mode: Scan only"
             };
 
@@ -3347,19 +3321,18 @@ namespace KaleidoVR.EditorTools
 
                 GatherStats(roots, assetPaths, report, logEntries);
                 KaleidoVRCOptimizerEval.Evaluate(window, roots, report);
-                BuildHints(report);
+                BuildHints(report, window.IsQuestWorkspace);
 
                 if (apply)
                 {
                     ApplyOptimizations(window, roots, assetPaths, ignorePaths, report, logEntries);
                 }
 
-                string workspaceName = window.IsQuestWorkspace ? "Quest" : "PC";
                 report.summary = apply
                     ? (window.dryRun
-                        ? workspaceName + " dry run complete. " + report.planned.Count + " change(s) would be applied."
-                        : "Applied " + report.planned.Count + " " + workspaceName + " change(s). Reimport may take a moment.")
-                    : workspaceName + " scan complete for " + roots.Count + " VRChat avatar model(s) and " + assetPaths.Count + " related asset(s).";
+                        ? "Dry run complete. " + report.planned.Count + " change(s) would be applied."
+                        : "Applied " + report.planned.Count + " change(s). Reimport may take a moment.")
+                    : "Scan complete for " + roots.Count + " VRChat avatar model(s) and " + assetPaths.Count + " related asset(s).";
                 if (report.textureVramAll > 0)
                 {
                     report.summary += " Texture VRAM " + KaleidoVRCOptimizerHelpers.FormatBytes(report.textureVramAll);
@@ -3396,7 +3369,7 @@ namespace KaleidoVR.EditorTools
             {
                 EditorUtility.DisplayDialog(
                     "KaleidoVR VRChat Model Optimizer",
-                    report.summary + "\n" + (window.IsQuestWorkspace ? "Quest: " + report.questRank : "PC: " + report.pcRank),
+                    report.summary + "\nRank: " + (window.IsQuestWorkspace ? report.questRank : report.pcRank),
                     "OK");
             }
 
@@ -4280,30 +4253,38 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        private static void BuildHints(KaleidoOptimizerReport report)
+        private static void BuildHints(KaleidoOptimizerReport report, bool quest)
         {
             if (report.meshReadWriteDisabled) report.notes.Add("Enable Mesh Read/Write. VRChat ranks any avatar with it off as Very Poor and the SDK blocks upload.");
-            if (report.triangles > 70000) report.notes.Add("PC triangles are above 70k (Poor/Very Poor cutoff). Decimate in Blender.");
-            if (report.triangles > 20000) report.notes.Add("Quest Poor allows 20k triangles. Over that, mobile viewers cannot see the avatar without Show Avatar.");
-            else if (report.triangles > 10000) report.notes.Add("VRChat recommends under 10k triangles on Android. Quest Good is 10k, Excellent is 7.5k.");
-            if (report.triangles > 32000 && report.triangles <= 70000) report.notes.Add("Above PC Excellent (32k triangles).");
-            if (report.materialSlots > 32) report.notes.Add("PC material slots are above Poor (32).");
-            else if (report.materialSlots > 4) report.notes.Add("Quest Poor allows 4 material slots. Atlas toward 1 material for Excellent/Good on mobile.");
-            if (report.skinnedMeshes > 2) report.notes.Add("Quest Poor allows 2 skinned meshes. Aim for 1 skinned mesh on mobile.");
-            if (report.textureBytesEstimate > 40L * 1024 * 1024) report.notes.Add("Quest texture memory Poor is 40 MB. Drop max size; Crunch does not reduce this number.");
-            else if (report.textureBytesEstimate > 75L * 1024 * 1024) report.notes.Add("PC texture memory is past Good (75 MB). Drop max size.");
-            if (report.physBones > 8) report.notes.Add("Quest strips PhysBones if you exceed 8 components. PC Poor allows 32.");
-            if (report.lights > 0) report.notes.Add("Any realtime light is already worse than PC Excellent (0). Android disables avatar lights.");
-            if (report.constraints > 0) report.notes.Add("Unity constraints are disabled on Android avatars. Use VRChat Constraints; they still count toward rank.");
-            if (report.audioSources > 0) report.notes.Add("Audio sources are disabled on Android avatars. PC Excellent allows 1.");
+            if (quest)
+            {
+                if (report.triangles > 20000) report.notes.Add("Poor allows 20k triangles. Over that, mobile viewers cannot see the avatar without Show Avatar.");
+                else if (report.triangles > 10000) report.notes.Add("VRChat recommends under 10k triangles on Android. Good is 10k, Excellent is 7.5k.");
+                if (report.materialSlots > 4) report.notes.Add("Poor allows 4 material slots. Atlas toward 1 material for Excellent/Good on mobile.");
+                if (report.skinnedMeshes > 2) report.notes.Add("Poor allows 2 skinned meshes. Aim for 1 skinned mesh on mobile.");
+                if (report.textureBytesEstimate > 40L * 1024 * 1024) report.notes.Add("Texture memory Poor is 40 MB. Drop max size; Crunch does not reduce this number.");
+                if (report.physBones > 8) report.notes.Add("VRChat strips PhysBones if you exceed 8 components.");
+                if (report.lights > 0) report.notes.Add("Android disables avatar lights.");
+                if (report.constraints > 0) report.notes.Add("Unity constraints are disabled on Android avatars. Use VRChat Constraints; they still count toward rank.");
+                if (report.audioSources > 0) report.notes.Add("Audio sources are disabled on Android avatars.");
+            }
+            else
+            {
+                if (report.triangles > 70000) report.notes.Add("Triangles are above 70k (Poor/Very Poor cutoff). Decimate in Blender.");
+                else if (report.triangles > 32000) report.notes.Add("Above Excellent (32k triangles).");
+                if (report.materialSlots > 32) report.notes.Add("Material slots are above Poor (32).");
+                if (report.textureBytesEstimate > 75L * 1024 * 1024) report.notes.Add("Texture memory is past Good (75 MB). Drop max size.");
+                if (report.lights > 0) report.notes.Add("Any realtime light is already worse than Excellent (0).");
+                if (report.audioSources > 1) report.notes.Add("Excellent allows 1 audio source.");
+                if (report.nonBc5Normals != null && report.nonBc5Normals.Count > 0)
+                    report.notes.Add(report.nonBc5Normals.Count + " normal map(s) are not BC5. BC5 matches BC7 VRAM with better normals.");
+            }
             if (report.grabPasses > 0) report.notes.Add("GrabPass shaders are very expensive. VRChat rank does not count them. " + report.grabPasses + " found.");
             if (report.anyStateTransitions > 50) report.notes.Add("Any State transitions are checked every frame. Around 50 is a healthy cap. This avatar has " + report.anyStateTransitions + ".");
             if (report.writeDefaultsMixed) report.notes.Add("Write Defaults is mixed across animator states. Unity wants all on or all off.");
             if (report.emptyStates != null && report.emptyStates.Count > 0) report.notes.Add(report.emptyStates.Count + " animator state(s) have no motion. Put an empty clip in them.");
             if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
             if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
-            if (report.nonBc5Normals != null && report.nonBc5Normals.Count > 0)
-                report.notes.Add(report.nonBc5Normals.Count + " normal map(s) are not BC5. On PC, BC5 matches BC7 VRAM with better normals.");
         }
 
         private static void ApplyOptimizations(
@@ -4331,8 +4312,7 @@ namespace KaleidoVR.EditorTools
                         {
                             KaleidoTextureKind kind = KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter);
                             string formatHint = DescribePlannedTextureFormat(window, textureImporter, kind);
-                            string line = (window.IsQuestWorkspace ? "Quest texture (" : "PC texture (")
-                                + kind + "): " + path;
+                            string line = "Texture (" + kind + "): " + path;
                             if (!string.IsNullOrEmpty(formatHint)) line += " [" + formatHint + "]";
                             report.planned.Add(line);
                             logEntries.Add(line);
@@ -4344,7 +4324,7 @@ namespace KaleidoVR.EditorTools
                     {
                         if (ApplyModelImporter(window, path, modelImporter, write))
                         {
-                            string line = (window.IsQuestWorkspace ? "Quest model: " : "PC model: ") + path;
+                            string line = "Model: " + path;
                             report.planned.Add(line);
                             logEntries.Add(line);
                             changedImporters.Add(path);
@@ -4874,7 +4854,7 @@ namespace KaleidoVR.EditorTools
                 {
                     if (ApplyRenderer(window, renderer, write))
                     {
-                        string line = (window.IsQuestWorkspace ? "Quest renderer: " : "PC renderer: ") + GetPath(renderer.transform);
+                        string line = "Renderer: " + GetPath(renderer.transform);
                         report.planned.Add(line);
                         logEntries.Add(line);
                     }
