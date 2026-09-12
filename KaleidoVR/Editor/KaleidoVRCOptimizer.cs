@@ -1608,13 +1608,15 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle pingLinkStyle;
         private const float TextureThumb = 52f;
         private const float TextureListInnerPad = 8f;
-        private const float TextureSectionMaxWidth = 780f;
+        private const float TextureNameCol = 200f;
+        private const float TextureListAfterIgnore = 8f;
         private const float TextureSectionSidePad = 16f;
         private const float TextureSizeCol = 88f;
         private const float TextureMidCol = 72f;
         private const float TextureIgnoreCol = 52f;
         private const float TextureStatusGap = 4f;
         private const float TextureStatusWidth = TextureSizeCol + TextureStatusGap + TextureMidCol + TextureStatusGap + TextureSizeCol + TextureStatusGap + TextureIgnoreCol;
+        private const float TextureSectionMaxWidth = TextureThumb + 6f + TextureNameCol + TextureStatusWidth + TextureListAfterIgnore + TextureListInnerPad * 2f + 16f;
         private static GUIStyle sizeCaptionStyle;
         private static GUIStyle sizeValueStyle;
         private static GUIStyle sizeNewStyle;
@@ -2618,10 +2620,10 @@ namespace KaleidoVR.EditorTools
                     GUI.Box(thumb, "?");
                 }
 
-                EditorGUILayout.BeginVertical(GUILayout.MinWidth(80), GUILayout.ExpandWidth(true));
+                EditorGUILayout.BeginVertical(GUILayout.Width(TextureNameCol), GUILayout.MaxWidth(TextureNameCol), GUILayout.ExpandWidth(false));
                 string textureName = usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path);
-                GUILayout.Label(new GUIContent(textureName, textureName), TextureNameClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
-                GUILayout.Label(KindLabel(usage.kind), TextureMetaClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
+                GUILayout.Label(new GUIContent(textureName, textureName), TextureNameClipStyle(), GUILayout.Width(TextureNameCol));
+                GUILayout.Label(KindLabel(usage.kind), TextureMetaClipStyle(), GUILayout.Width(TextureNameCol));
                 if (usage.vramBytes > 0 || !string.IsNullOrEmpty(usage.formatLabel))
                 {
                     string vram = usage.vramBytes > 0 ? KaleidoVRCOptimizerHelpers.FormatBytes(usage.vramBytes) : "";
@@ -2630,7 +2632,7 @@ namespace KaleidoVR.EditorTools
                     if (usage.fromAnimationSwap) extra += "  swap";
                     if (usage.crunched) extra += "  crunch";
                     if (usage.missingStreamingMipmaps) extra += "  no stream";
-                    GUILayout.Label(new GUIContent(extra, extra), TextureMetaClipStyle(), GUILayout.Width(0), GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent(extra, extra), TextureMetaClipStyle(), GUILayout.Width(TextureNameCol));
                 }
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Set", GUILayout.Width(28));
@@ -2640,6 +2642,7 @@ namespace KaleidoVR.EditorTools
                 EditorGUILayout.EndVertical();
 
                 DrawTextureSizeStatus(window, usage, questPlatform);
+                GUILayout.Space(TextureListAfterIgnore);
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
                 GUILayout.Space(4);
@@ -2667,8 +2670,8 @@ namespace KaleidoVR.EditorTools
             };
             EditorGUILayout.BeginHorizontal(headerPad);
             GUILayout.Space(TextureThumb);
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(80), GUILayout.ExpandWidth(true));
-            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.Width(0), GUILayout.ExpandWidth(true));
+            EditorGUILayout.BeginVertical(GUILayout.Width(TextureNameCol), GUILayout.MaxWidth(TextureNameCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.Width(TextureNameCol));
             EditorGUILayout.EndVertical();
             EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
             GUILayout.Label("Current", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
@@ -2679,6 +2682,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(TextureStatusGap);
             GUILayout.Label("Ignore", headerCenter, GUILayout.Width(TextureIgnoreCol), GUILayout.Height(16));
             EditorGUILayout.EndHorizontal();
+            GUILayout.Space(TextureListAfterIgnore);
             EditorGUILayout.EndHorizontal();
         }
 
