@@ -160,8 +160,8 @@ namespace KaleidoVR.EditorTools
 
         public static int UploadCallbackOrder()
         {
-            // Lower runs first. Late so the upload clone is already assembled.
-            return -1;
+            // Lower runs first. High so other upload passes can attach extras first.
+            return 10000;
         }
 
         public const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
@@ -632,10 +632,49 @@ namespace KaleidoVR.EditorTools
 
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded)
         {
+            return ShouldLeaveRenderer(renderer, excluded, null);
+        }
+
+        static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root)
+        {
             if (renderer == null || IsExcluded(renderer, excluded) || IsSensitiveMesh(renderer)) return true;
+            if (IsAttachedExtra(renderer, root)) return true;
             SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
             Mesh mesh = smr != null ? smr.sharedMesh : null;
             return IsExternalRuntimeAsset(mesh);
+        }
+
+        static bool IsAttachedExtra(Renderer renderer, GameObject root)
+        {
+            if (renderer == null) return false;
+            Transform stop = root != null ? root.transform : null;
+            Transform t = renderer.transform;
+            while (t != null && t != stop)
+            {
+                if (HasExternalWork(t.gameObject, false)) return true;
+                t = t.parent;
+            }
+            SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
+            return smr != null && !UsesAvatarHumanoidBones(smr, root);
+        }
+
+        static bool UsesAvatarHumanoidBones(SkinnedMeshRenderer smr, GameObject root)
+        {
+            if (smr == null || root == null) return true;
+            Animator animator = root.GetComponent<Animator>();
+            if (animator == null || !animator.isHuman) return true;
+            Transform[] bones = smr.bones;
+            if (bones == null || bones.Length == 0) return true;
+            for (int i = 0; i < bones.Length; i++)
+            {
+                if (bones[i] == null) continue;
+                for (int h = 0; h < (int)HumanBodyBones.LastBone; h++)
+                {
+                    if (animator.GetBoneTransform((HumanBodyBones)h) == bones[i])
+                        return true;
+                }
+            }
+            return false;
         }
 
         static bool IsSensitiveMesh(Renderer renderer)
@@ -789,7 +828,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
                 Mesh mesh = smr.sharedMesh;
                 if (mesh.blendShapeCount == 0) continue;
 
@@ -1056,7 +1095,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
                 Transform[] bones = smr.bones;
                 if (bones == null || bones.Length == 0) continue;
                 Mesh mesh = smr.sharedMesh;
@@ -1122,7 +1161,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
                 Material[] mats = smr.sharedMaterials;
                 Mesh mesh = smr.sharedMesh;
                 if (mats == null || mesh.subMeshCount <= 1) continue;
@@ -1192,7 +1231,7 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < skins.Length; i++)
             {
                 SkinnedMeshRenderer smr = skins[i];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
                 if (smr.sharedMesh.blendShapeCount > 0) continue;
                 string key = anim.TogetherKey(smr, root);
                 if (string.IsNullOrEmpty(key)) continue;
@@ -1240,16 +1279,19 @@ namespace KaleidoVR.EditorTools
                 Mesh mesh = smr.sharedMesh;
                 Transform[] sb = smr.bones;
                 Matrix4x4[] bp = mesh.bindposes;
+                Matrix4x4 local = dest.transform.worldToLocalMatrix * smr.transform.localToWorldMatrix;
+                Matrix4x4 invLocal = local.inverse;
                 int[] boneMap = new int[sb != null ? sb.Length : 0];
                 for (int b = 0; b < boneMap.Length; b++)
                 {
                     Transform bone = sb[b];
-                    int found = bones.IndexOf(bone);
+                    Matrix4x4 bind = (bp != null && b < bp.Length ? bp[b] : Matrix4x4.identity) * invLocal;
+                    int found = FindBoneSlot(bones, binds, bone, bind);
                     if (found < 0)
                     {
                         found = bones.Count;
                         bones.Add(bone);
-                        binds.Add(bp != null && b < bp.Length ? bp[b] : Matrix4x4.identity);
+                        binds.Add(bind);
                     }
                     boneMap[b] = found;
                 }
@@ -1260,7 +1302,6 @@ namespace KaleidoVR.EditorTools
                 Vector4[] mt = mesh.tangents;
                 Vector2[] mu = mesh.uv;
                 BoneWeight[] mw = mesh.boneWeights;
-                Matrix4x4 local = dest.transform.worldToLocalMatrix * smr.transform.localToWorldMatrix;
                 for (int i = 0; i < mv.Length; i++)
                 {
                     verts.Add(local.MultiplyPoint3x4(mv[i]));
@@ -1365,6 +1406,25 @@ namespace KaleidoVR.EditorTools
             if (map == null || map.Length == 0) return 0;
             if (index < 0 || index >= map.Length) return 0;
             return map[index];
+        }
+
+        static int FindBoneSlot(List<Transform> bones, List<Matrix4x4> binds, Transform bone, Matrix4x4 bind)
+        {
+            for (int i = 0; i < bones.Count; i++)
+            {
+                if (bones[i] != bone) continue;
+                if (BindposesMatch(binds[i], bind)) return i;
+            }
+            return -1;
+        }
+
+        static bool BindposesMatch(Matrix4x4 a, Matrix4x4 b)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                if (Mathf.Abs(a[i] - b[i]) > 0.0001f) return false;
+            }
+            return true;
         }
 
         static void SweepPhysBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
