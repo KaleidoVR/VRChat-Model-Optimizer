@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.21";
+        public static readonly string VERSION = "1.0.22";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1794,6 +1794,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
             DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
+            DrawRankColorKey();
             DrawStats(window);
         }
 
@@ -2674,6 +2675,32 @@ namespace KaleidoVR.EditorTools
         private static bool IsProblemRank(string quality)
         {
             return quality == "Poor" || quality == "Very Poor";
+        }
+
+        private static void DrawRankColorKey()
+        {
+            EnsureSizeStyles();
+            GUILayout.Space(4);
+            GUILayout.Label("Color key", EditorStyles.miniBoldLabel);
+
+            GUIStyle redStyle = new GUIStyle(EditorStyles.boldLabel);
+            redStyle.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.38f, 0.38f, 1f)
+                : new Color(0.72f, 0.08f, 0.08f, 1f);
+
+            DrawColorKeyLine(sizeUpStyle, "Orange", "Needs a look. Poor / Very Poor, mixed Write Defaults, empty states, streaming mip maps off, leftover Unity constraints, GrabPass, and similar flags.");
+            DrawColorKeyLine(redStyle, "Red", "Blocks upload. Mesh Read/Write is off on at least one mesh.");
+            DrawColorKeyLine(EditorStyles.label, "Normal", "No issue on that row.");
+            DrawWhy("Fix uses the same orange. Ignore leaves that row alone. Write Defaults still asks Confirm after On or Off.");
+            GUILayout.Space(4);
+        }
+
+        private static void DrawColorKeyLine(GUIStyle swatch, string name, string meaning)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(name, swatch, GUILayout.Width(70));
+            EditorGUILayout.LabelField(meaning, MiniWrap());
+            EditorGUILayout.EndHorizontal();
         }
 
         private static void DrawStatRow(string label, string value, bool warn)
