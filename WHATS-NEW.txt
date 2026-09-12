@@ -1,5 +1,8 @@
 What's new
 
+1.0.42
+Splash and loading bar only appear on a VRChat upload. Create optimized copy in the scene no longer shows them, and no longer logs a layout error.
+
 1.0.41
 On Upload writes generated meshes and FX controllers as assets in Assets/KaleidoVR/Generated so VRChat can pack them. A missing mesh aborts the upload instead of sending an invisible avatar.
 A splash and a loading bar show while On Upload runs.
