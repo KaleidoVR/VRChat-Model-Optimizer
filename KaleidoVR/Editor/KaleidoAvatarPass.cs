@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Text;
 
@@ -44,6 +45,8 @@ namespace KaleidoVR.EditorTools
         public int physBonesDisabled;
         public int fxLayersRemoved;
         public int curvesRemoved;
+        public bool ok = true;
+        public string failReason;
 
         public string SummaryLine()
         {
@@ -156,49 +159,193 @@ namespace KaleidoVR.EditorTools
 
         public static int UploadCallbackOrder()
         {
+            // Lower runs first. Late so the upload clone is already assembled.
             return -1;
         }
+
+        const string GeneratedRoot = "Assets/KaleidoVR";
+        const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
+        static bool persistGenerated;
 
         public static void Preview(GameObject root, KaleidoAvatarPassSettings settings, List<string> lines, HashSet<Transform> extraExclusions)
         {
             if (root == null || settings == null) return;
-            KaleidoAvatarPassResult result = Run(root, settings, true, extraExclusions);
+            KaleidoAvatarPassResult result = Run(root, settings, true, extraExclusions, false);
             if (result == null) return;
             for (int i = 0; i < result.lines.Count; i++) lines.Add(result.lines[i]);
         }
 
         public static KaleidoAvatarPassResult Run(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, HashSet<Transform> extraExclusions)
         {
+            return Run(root, settings, dryRun, extraExclusions, !dryRun);
+        }
+
+        public static KaleidoAvatarPassResult Run(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, HashSet<Transform> extraExclusions, bool persist)
+        {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
 
-            HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
-            AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
+            persistGenerated = persist && !dryRun;
+            try
+            {
+                HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
+                AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
 
-            if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
-                SweepUnused(root, settings, anim, excluded, dryRun, result);
+                ReportProgress("Cleaning unused objects…", 0.08f);
+                if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
+                    SweepUnused(root, settings, anim, excluded, dryRun, result);
 
-            if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
-                ProcessBlendShapes(root, settings, anim, excluded, dryRun, result);
+                ReportProgress("Processing blend shapes…", 0.22f);
+                if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
+                    ProcessBlendShapes(root, settings, anim, excluded, dryRun, result);
 
-            if (settings.stripUnusedBones)
-                StripUnusedBones(root, anim, excluded, dryRun, result);
+                ReportProgress("Trimming unused bones…", 0.38f);
+                if (settings.stripUnusedBones)
+                    StripUnusedBones(root, anim, excluded, dryRun, result);
 
-            if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
-                MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result);
+                ReportProgress("Merging material slots…", 0.52f);
+                if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
+                    MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result);
 
-            if (settings.mergeSkinnedMeshes)
-                MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result);
+                ReportProgress("Merging meshes…", 0.68f);
+                if (settings.mergeSkinnedMeshes)
+                    MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result);
 
-            if (settings.optimizePhysBones)
-                SweepPhysBones(root, anim, excluded, dryRun, result);
+                ReportProgress("Cleaning PhysBones…", 0.82f);
+                if (settings.optimizePhysBones)
+                    SweepPhysBones(root, anim, excluded, dryRun, result);
 
-            if (settings.optimizeFxLayer)
-                OptimizeFx(root, settings, anim, excluded, dryRun, result);
+                ReportProgress("Optimizing FX…", 0.92f);
+                if (settings.optimizeFxLayer)
+                    OptimizeFx(root, settings, excluded, dryRun, result);
 
-            if (result.lines.Count == 0)
-                result.lines.Add("Avatar pass: nothing to change with the current toggles.");
+                ReportProgress("Saving generated meshes…", 0.98f);
+                if (persistGenerated)
+                {
+                    AssertMeshesSaved(root);
+                    AssetDatabase.SaveAssets();
+                }
+                if (result.lines.Count == 0)
+                    result.lines.Add("Avatar pass: nothing to change with the current toggles.");
+            }
+            catch (Exception ex)
+            {
+                result.ok = false;
+                result.failReason = ex.Message;
+                result.lines.Add("On Upload stopped: " + ex.Message);
+                if (persistGenerated) throw;
+            }
+            finally
+            {
+                persistGenerated = false;
+            }
             return result;
+        }
+
+        static void ReportProgress(string status, float t)
+        {
+            if (!persistGenerated) return;
+            KaleidoOnUploadSplash.SetProgress(status, t);
+        }
+
+        static string EnsureGeneratedFolder()
+        {
+            if (!AssetDatabase.IsValidFolder(GeneratedRoot))
+                AssetDatabase.CreateFolder("Assets", "KaleidoVR");
+            if (!AssetDatabase.IsValidFolder(GeneratedFolderPath))
+            {
+                AssetDatabase.CreateFolder(GeneratedRoot, "Generated");
+                File.WriteAllText(GeneratedFolderPath + "/.gitignore", "*\n!.gitignore\n");
+            }
+            return GeneratedFolderPath;
+        }
+
+        static string SafeAssetName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) name = "KaleidoMesh";
+            char[] invalid = Path.GetInvalidFileNameChars();
+            StringBuilder sb = new StringBuilder(name.Length);
+            for (int i = 0; i < name.Length; i++)
+                sb.Append(Array.IndexOf(invalid, name[i]) >= 0 ? '_' : name[i]);
+            string trimmed = sb.ToString().Trim();
+            return trimmed.Length == 0 ? "KaleidoMesh" : trimmed;
+        }
+
+        static Mesh PersistMesh(Mesh mesh)
+        {
+            if (mesh == null)
+            {
+                if (persistGenerated) throw new InvalidOperationException("Generated mesh was missing.");
+                return null;
+            }
+            if (mesh.vertexCount == 0)
+            {
+                if (persistGenerated) throw new InvalidOperationException("Generated mesh has no vertices: " + mesh.name);
+                return mesh;
+            }
+            mesh.hideFlags = persistGenerated ? HideFlags.None : HideFlags.HideAndDontSave;
+            if (!persistGenerated) return mesh;
+            if (!string.IsNullOrEmpty(AssetDatabase.GetAssetPath(mesh))) return mesh;
+            string path = AssetDatabase.GenerateUniqueAssetPath(EnsureGeneratedFolder() + "/" + SafeAssetName(mesh.name) + ".asset");
+            AssetDatabase.CreateAsset(mesh, path);
+            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(mesh)))
+                throw new InvalidOperationException("Could not save generated mesh: " + path);
+            return mesh;
+        }
+
+        static AnimatorController PersistController(AnimatorController src)
+        {
+            if (src == null) return null;
+            if (!persistGenerated)
+            {
+                AnimatorController tmp = UnityEngine.Object.Instantiate(src);
+                tmp.name = src.name + "_KaleidoFX";
+                tmp.hideFlags = HideFlags.HideAndDontSave;
+                return tmp;
+            }
+
+            string folder = EnsureGeneratedFolder();
+            string dest = AssetDatabase.GenerateUniqueAssetPath(folder + "/" + SafeAssetName(src.name) + "_KaleidoFX.controller");
+            string srcPath = AssetDatabase.GetAssetPath(src);
+            if (!string.IsNullOrEmpty(srcPath))
+            {
+                if (!AssetDatabase.CopyAsset(srcPath, dest))
+                    throw new InvalidOperationException("Could not copy FX controller: " + src.name);
+                AnimatorController copy = AssetDatabase.LoadAssetAtPath<AnimatorController>(dest);
+                if (copy == null)
+                    throw new InvalidOperationException("Copied FX controller did not load: " + dest);
+                return copy;
+            }
+
+            AnimatorController inst = UnityEngine.Object.Instantiate(src);
+            inst.name = src.name + "_KaleidoFX";
+            inst.hideFlags = HideFlags.None;
+            AssetDatabase.CreateAsset(inst, dest);
+            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(inst)))
+                throw new InvalidOperationException("Could not save FX controller: " + dest);
+            return inst;
+        }
+
+        static void AssertMeshesSaved(GameObject root)
+        {
+            SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int i = 0; i < skins.Length; i++)
+            {
+                SkinnedMeshRenderer smr = skins[i];
+                if (smr == null) continue;
+                Mesh mesh = smr.sharedMesh;
+                if (mesh == null)
+                {
+                    if (smr.enabled)
+                        throw new InvalidOperationException("Skinned mesh is empty after On Upload: " + smr.name);
+                    continue;
+                }
+                if (mesh.name.IndexOf("_Kaleido", StringComparison.Ordinal) < 0) continue;
+                if (mesh.vertexCount == 0)
+                    throw new InvalidOperationException("Skinned mesh has no vertices after On Upload: " + smr.name);
+                if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(mesh)))
+                    throw new InvalidOperationException("Generated mesh was not saved: " + mesh.name);
+            }
         }
 
         public static GameObject CreatePreviewCopy(GameObject source, KaleidoAvatarPassSettings settings, HashSet<Transform> extraExclusions)
@@ -209,7 +356,25 @@ namespace KaleidoVR.EditorTools
             copy.transform.SetParent(source.transform.parent, false);
             copy.transform.SetSiblingIndex(source.transform.GetSiblingIndex() + 1);
             source.SetActive(false);
-            Run(copy, settings, false, RemapExclusions(source, copy, extraExclusions));
+            try
+            {
+                KaleidoOnUploadSplash.Open(copy.name);
+                KaleidoAvatarPassResult result = Run(copy, settings, false, RemapExclusions(source, copy, extraExclusions), true);
+                if (result != null && !result.ok)
+                    throw new InvalidOperationException(string.IsNullOrEmpty(result.failReason) ? "On Upload copy failed." : result.failReason);
+            }
+            catch (Exception ex)
+            {
+                KaleidoOnUploadSplash.CloseIfOpen();
+                UnityEngine.Object.DestroyImmediate(copy);
+                source.SetActive(true);
+                EditorUtility.DisplayDialog("KaleidoVR", "Could not create the optimized copy.\n\n" + ex.Message, "OK");
+                return null;
+            }
+            finally
+            {
+                KaleidoOnUploadSplash.CloseIfOpen();
+            }
             Undo.RegisterCreatedObjectUndo(copy, "KaleidoVR Optimized Copy");
             Selection.activeGameObject = copy;
             return copy;
@@ -503,9 +668,8 @@ namespace KaleidoVR.EditorTools
                 Dictionary<string, float> weights = SnapshotShapeWeights(smr);
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_Kaleido";
-                copy.hideFlags = HideFlags.None;
                 StripShapes(copy, drop, ratioInto);
-                smr.sharedMesh = copy;
+                smr.sharedMesh = PersistMesh(copy);
                 RestoreShapeWeights(smr, weights);
             }
         }
@@ -657,7 +821,6 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoBones";
-                copy.hideFlags = HideFlags.None;
                 BoneWeight[] nw = new BoneWeight[weights.Length];
                 for (int i = 0; i < weights.Length; i++)
                 {
@@ -666,7 +829,7 @@ namespace KaleidoVR.EditorTools
                 }
                 copy.boneWeights = nw;
                 copy.bindposes = newBind;
-                smr.sharedMesh = copy;
+                smr.sharedMesh = PersistMesh(copy);
                 smr.bones = newBones;
             }
         }
@@ -733,10 +896,9 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoSlots";
-                copy.hideFlags = HideFlags.None;
                 copy.subMeshCount = newMats.Count;
                 for (int i = 0; i < newMats.Count; i++) copy.SetTriangles(tris[i], i);
-                smr.sharedMesh = copy;
+                smr.sharedMesh = PersistMesh(copy);
                 smr.sharedMaterials = newMats.ToArray();
             }
         }
@@ -862,18 +1024,10 @@ namespace KaleidoVR.EditorTools
                         subTris.Add(tri);
                     }
                 }
-
-                if (g > 0)
-                {
-                    smr.sharedMesh = null;
-                    smr.enabled = false;
-                    smr.gameObject.SetActive(false);
-                }
             }
 
             Mesh combined = new Mesh();
             combined.name = dest.name + "_KaleidoMerged";
-            combined.hideFlags = HideFlags.None;
             combined.indexFormat = verts.Count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
             combined.SetVertices(verts);
             combined.SetNormals(norms);
@@ -884,9 +1038,18 @@ namespace KaleidoVR.EditorTools
             combined.subMeshCount = subTris.Count;
             for (int i = 0; i < subTris.Count; i++) combined.SetTriangles(subTris[i], i);
             combined.RecalculateBounds();
-            dest.sharedMesh = combined;
+            dest.sharedMesh = PersistMesh(combined);
             dest.bones = bones.ToArray();
             dest.sharedMaterials = mats.ToArray();
+
+            for (int g = 1; g < group.Count; g++)
+            {
+                SkinnedMeshRenderer smr = group[g];
+                if (smr == null) continue;
+                smr.sharedMesh = null;
+                smr.enabled = false;
+                smr.gameObject.SetActive(false);
+            }
         }
 
         static BoneWeight RemapWeight(BoneWeight w, bool[] used, int[] map)
@@ -996,43 +1159,94 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
-        static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
         {
+            Dictionary<AnimatorController, AnimatorController> rewritten = new Dictionary<AnimatorController, AnimatorController>();
             Animator[] animators = root.GetComponentsInChildren<Animator>(true);
             for (int a = 0; a < animators.Length; a++)
             {
                 Animator animator = animators[a];
                 if (animator == null || IsExcluded(animator, excluded)) continue;
                 AnimatorController src = animator.runtimeAnimatorController as AnimatorController;
-                if (src == null || IsExternalRuntimeAsset(src)) continue;
-
-                int deadCurves = 0;
-                int deadLayers = 0;
-                AnimatorControllerLayer[] layers = src.layers;
-                for (int l = 0; l < layers.Length; l++)
-                {
-                    if (settings.mmdCompatibility && l < 3) continue;
-                    AnimatorControllerLayer layer = layers[l];
-                    if (layer.stateMachine == null || (layer.stateMachine.states.Length == 0 && layer.stateMachine.stateMachines.Length == 0))
-                    {
-                        deadLayers++;
-                        continue;
-                    }
-                    deadCurves += CountMissingCurves(layer, root);
-                }
-
-                if (deadLayers == 0 && deadCurves == 0) continue;
-                result.fxLayersRemoved += deadLayers;
-                result.curvesRemoved += deadCurves;
-                result.lines.Add(animator.name + " FX: drop " + deadLayers + " empty layer(s), " + deadCurves + " missing curve(s)");
-                if (dryRun) continue;
-
-                AnimatorController copy = UnityEngine.Object.Instantiate(src);
-                copy.name = src.name + "_KaleidoFX";
-                copy.hideFlags = HideFlags.None;
-                StripFx(copy, root, settings.mmdCompatibility);
-                animator.runtimeAnimatorController = copy;
+                AnimatorController copy = RewriteController(src, root, settings, dryRun, result, rewritten);
+                if (!dryRun && copy != null && copy != src)
+                    animator.runtimeAnimatorController = copy;
             }
+
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return;
+            RewriteDescriptorLayers(desc, "baseAnimationLayers", root, settings, excluded, dryRun, result, rewritten);
+            RewriteDescriptorLayers(desc, "specialAnimationLayers", root, settings, excluded, dryRun, result, rewritten);
+        }
+
+        static void RewriteDescriptorLayers(Component desc, string fieldName, GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, Dictionary<AnimatorController, AnimatorController> rewritten)
+        {
+            FieldInfo layers = desc.GetType().GetField(fieldName);
+            if (layers == null) return;
+            Array arr = layers.GetValue(desc) as Array;
+            if (arr == null) return;
+            bool changed = false;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                if (anim == null) continue;
+                AnimatorController src = anim.GetValue(layer) as AnimatorController;
+                AnimatorController copy = RewriteController(src, root, settings, dryRun, result, rewritten);
+                if (dryRun || copy == null || copy == src) continue;
+                anim.SetValue(layer, copy);
+                arr.SetValue(layer, i);
+                changed = true;
+            }
+            if (changed) layers.SetValue(desc, arr);
+        }
+
+        static AnimatorController RewriteController(AnimatorController src, GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result, Dictionary<AnimatorController, AnimatorController> rewritten)
+        {
+            if (src == null || IsExternalRuntimeAsset(src)) return src;
+            AnimatorController cached;
+            if (rewritten.TryGetValue(src, out cached)) return cached;
+
+            int deadCurves = 0;
+            int deadLayers = 0;
+            AnimatorControllerLayer[] layers = src.layers;
+            for (int l = 0; l < layers.Length; l++)
+            {
+                if (settings.mmdCompatibility && l < 3) continue;
+                AnimatorControllerLayer layer = layers[l];
+                if (layer.stateMachine == null || (layer.stateMachine.states.Length == 0 && layer.stateMachine.stateMachines.Length == 0))
+                {
+                    deadLayers++;
+                    continue;
+                }
+                deadCurves += CountMissingCurves(layer, root);
+            }
+
+            if (deadLayers == 0 && deadCurves == 0)
+            {
+                rewritten[src] = src;
+                return src;
+            }
+            result.fxLayersRemoved += deadLayers;
+            result.curvesRemoved += deadCurves;
+            result.lines.Add(src.name + " FX: drop " + deadLayers + " empty layer(s), " + deadCurves + " missing curve(s)");
+            if (dryRun)
+            {
+                rewritten[src] = src;
+                return src;
+            }
+
+            AnimatorController copy = PersistController(src);
+            if (copy == null)
+            {
+                rewritten[src] = src;
+                return src;
+            }
+            StripFx(copy, root, settings.mmdCompatibility);
+            rewritten[src] = copy;
+            rewritten[copy] = copy;
+            return copy;
         }
 
         static int CountMissingCurves(AnimatorControllerLayer layer, GameObject root)
@@ -1074,6 +1288,10 @@ namespace KaleidoVR.EditorTools
         static void StripMissing(AnimationClip clip, GameObject root)
         {
             if (clip == null) return;
+            string clipPath = AssetDatabase.GetAssetPath(clip);
+            if (!string.IsNullOrEmpty(clipPath)
+                && !clipPath.Replace('\\', '/').StartsWith(GeneratedFolderPath, StringComparison.Ordinal))
+                return;
             EditorCurveBinding[] bindings = AnimationUtility.GetCurveBindings(clip);
             for (int i = 0; i < bindings.Length; i++)
             {
