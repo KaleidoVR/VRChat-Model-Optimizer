@@ -646,35 +646,67 @@ namespace KaleidoVR.EditorTools
 
         static bool IsAttachedExtra(Renderer renderer, GameObject root)
         {
-            if (renderer == null) return false;
-            Transform stop = root != null ? root.transform : null;
-            Transform t = renderer.transform;
+            if (renderer == null || root == null) return false;
+            HashSet<Transform> human = CollectHumanoidBones(root);
+            SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
+            if (smr != null)
+            {
+                Transform[] bones = smr.bones;
+                if (bones == null || bones.Length == 0)
+                    return HasExternalWorkOnAncestors(smr.transform, root) && !IsUnderAvatarSkeleton(smr.transform, root, human);
+                return !IsSkinnedToAvatarSkeleton(smr, root, human);
+            }
+            return HasExternalWorkOnAncestors(renderer.transform, root) && !IsUnderAvatarSkeleton(renderer.transform, root, human);
+        }
+
+        static bool HasExternalWorkOnAncestors(Transform t, GameObject root)
+        {
+            Transform stop = root.transform;
             while (t != null && t != stop)
             {
                 if (HasExternalWork(t.gameObject, false)) return true;
                 t = t.parent;
             }
-            SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
-            return smr != null && !UsesAvatarHumanoidBones(smr, root);
+            return false;
         }
 
-        static bool UsesAvatarHumanoidBones(SkinnedMeshRenderer smr, GameObject root)
+        static bool IsSkinnedToAvatarSkeleton(SkinnedMeshRenderer smr, GameObject root, HashSet<Transform> human)
         {
-            if (smr == null || root == null) return true;
-            Animator animator = root.GetComponent<Animator>();
-            if (animator == null || !animator.isHuman) return true;
+            if (smr.rootBone != null && IsUnderAvatarSkeleton(smr.rootBone, root, human))
+                return true;
             Transform[] bones = smr.bones;
-            if (bones == null || bones.Length == 0) return true;
+            if (bones == null) return true;
             for (int i = 0; i < bones.Length; i++)
             {
-                if (bones[i] == null) continue;
-                for (int h = 0; h < (int)HumanBodyBones.LastBone; h++)
-                {
-                    if (animator.GetBoneTransform((HumanBodyBones)h) == bones[i])
-                        return true;
-                }
+                if (bones[i] != null && IsUnderAvatarSkeleton(bones[i], root, human))
+                    return true;
             }
             return false;
+        }
+
+        static bool IsUnderAvatarSkeleton(Transform t, GameObject root, HashSet<Transform> human)
+        {
+            if (human == null) return true;
+            Transform stop = root.transform;
+            while (t != null && t != stop)
+            {
+                if (human.Contains(t)) return true;
+                t = t.parent;
+            }
+            return false;
+        }
+
+        static HashSet<Transform> CollectHumanoidBones(GameObject root)
+        {
+            Animator animator = root != null ? root.GetComponent<Animator>() : null;
+            if (animator == null || !animator.isHuman) return null;
+            HashSet<Transform> human = new HashSet<Transform>();
+            for (int h = 0; h < (int)HumanBodyBones.LastBone; h++)
+            {
+                Transform bone = animator.GetBoneTransform((HumanBodyBones)h);
+                if (bone != null) human.Add(bone);
+            }
+            return human;
         }
 
         static bool IsSensitiveMesh(Renderer renderer)

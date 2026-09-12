@@ -1608,7 +1608,8 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle pingLinkStyle;
         private const float TextureThumb = 52f;
         private const float TextureListInnerPad = 8f;
-        private const float TextureListSideSpace = 40f;
+        private const float TextureSectionMaxWidth = 780f;
+        private const float TextureSectionSidePad = 16f;
         private const float TextureSizeCol = 88f;
         private const float TextureMidCol = 72f;
         private const float TextureIgnoreCol = 52f;
@@ -1714,6 +1715,22 @@ namespace KaleidoVR.EditorTools
         }
 
         private static float outlinedPanelSideSpace = 84f;
+
+        private static void BeginCenteredSection(EditorWindow window, float maxWidth)
+        {
+            float view = window != null ? window.position.width : EditorGUIUtility.currentViewWidth;
+            float width = Mathf.Clamp(view - TextureSectionSidePad * 2f, 360f, maxWidth);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.MaxWidth(maxWidth));
+        }
+
+        private static void EndCenteredSection()
+        {
+            EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
 
         private static void BeginOutlinedPanel(float sideSpace = 84f)
         {
@@ -2534,11 +2551,13 @@ namespace KaleidoVR.EditorTools
         private static void DrawTextureUsageList(KaleidoVRCOptimizer window, bool questPlatform)
         {
             GUILayout.Label("Textures On This Model", EditorStyles.boldLabel);
+            BeginCenteredSection(window, TextureSectionMaxWidth);
             DrawWhy("Max size for this workspace. Current is what Unity has now. New is what the selector will write. Ignore skips the type cap so you can set that texture by hand. Changing Set still writes it. Ignore and Set stay for later runs.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
                 EditorGUILayout.HelpBox("Drop an avatar on Setup. Its textures will list here.", MessageType.None);
+                EndCenteredSection();
                 return;
             }
 
@@ -2563,11 +2582,11 @@ namespace KaleidoVR.EditorTools
 
             List<KaleidoTextureUsage> rows = SortedTextureUsages(window);
             const float TextureListHeight = 400f;
-            BeginOutlinedPanel(TextureListSideSpace);
+            BeginOutlinedPanel(0f);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(TextureListInnerPad);
-            EditorGUILayout.BeginVertical();
-            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight));
+            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight), GUILayout.ExpandWidth(true));
             DrawTextureStatusColumnHeaders();
 
             for (int i = 0; i < rows.Count; i++)
@@ -2630,6 +2649,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(TextureListInnerPad);
             EditorGUILayout.EndHorizontal();
             EndOutlinedPanel();
+            EndCenteredSection();
         }
 
         private static void DrawTextureStatusColumnHeaders()
