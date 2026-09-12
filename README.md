@@ -39,6 +39,6 @@ Created and maintained by **KaleidoVR**.
 - [kalivr.com](https://kalivr.com)
 - [Discord](https://discord.com/invite/cRsufJssTA)
 
-## License
+## Copyright
 
-[MIT](LICENSE) — Copyright (c) 2026 KaleidoVR
+Copyright (c) 2026 KaleidoVR. All rights reserved.
