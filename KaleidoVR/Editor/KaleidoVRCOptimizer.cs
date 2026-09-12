@@ -93,21 +93,25 @@ namespace KaleidoVR.EditorTools
         public bool applyOtherSize = true;
         public int otherPc = 1024;
         public int otherQuest = 512;
-        public bool applyPcTexFormat = true;
+        public bool applyPcTexFormat = false;
         public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
-        public bool applyAndroidTexFormat = true;
+        public bool applyAndroidTexFormat = false;
         public KaleidoAndroidTexFormat androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
+        public bool textureEnableReadWrite = false;
         public bool textureDisableReadWrite = true;
         public bool textureApplyMipmaps = true;
         public bool textureEnableMipmaps = true;
         public bool textureEnableStreamingMipmaps = true;
+        public bool textureDisableStreamingMipmaps = false;
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
         public bool autoDetectNormalMaps = true;
         public bool autoLinearMaskMaps = true;
+        public bool autoSrgbMaskMaps = false;
         public bool higherQualityNormalMaps = true;
         public bool alphaIsTransparencyOnAlbedo = true;
+        public bool alphaIsTransparencyOffAlbedo = false;
 
         public bool optimizeMeshes = true;
         public bool meshEnableReadWrite = true;
@@ -133,6 +137,7 @@ namespace KaleidoVR.EditorTools
         public bool applyToPrefabAssets = true;
         public bool optimizeParticles = true;
         public bool disableLightsOnAvatar = false;
+        public bool enableLightsOnAvatar = false;
 
         public bool optimizeAudio = true;
         public bool audioLoadInBackground = true;
@@ -149,7 +154,10 @@ namespace KaleidoVR.EditorTools
         public bool optimizeMaterials = false;
         public bool materialEnableGpuInstancing = false;
         public bool disableCamerasOnAvatar = false;
+        public bool enableCamerasOnAvatar = false;
         public bool audioForceToMono = false;
+        public bool audioForceToStereo = false;
+        public bool meshRestoreBlendShapes = false;
         public bool textureEnableCrunch = false;
         public int textureCrunchQuality = 50;
     }
@@ -173,7 +181,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.35";
+        public static readonly string VERSION = "1.0.36";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -226,21 +234,25 @@ namespace KaleidoVR.EditorTools
         public int otherQuest = 512;
 
         public bool optimizeTextures = true;
-        public bool applyPcTexFormat = true;
+        public bool applyPcTexFormat = false;
         public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
-        public bool applyAndroidTexFormat = true;
+        public bool applyAndroidTexFormat = false;
         public KaleidoAndroidTexFormat androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
+        public bool textureEnableReadWrite = false;
         public bool textureDisableReadWrite = true;
         public bool textureApplyMipmaps = true;
         public bool textureEnableMipmaps = true;
         public bool textureEnableStreamingMipmaps = true;
+        public bool textureDisableStreamingMipmaps = false;
         public bool textureDisableCrunch = true;
         public bool textureApplyAniso = true;
         public int textureAniso = 1;
         public bool autoDetectNormalMaps = true;
         public bool autoLinearMaskMaps = true;
+        public bool autoSrgbMaskMaps = false;
         public bool higherQualityNormalMaps = true;
         public bool alphaIsTransparencyOnAlbedo = false;
+        public bool alphaIsTransparencyOffAlbedo = false;
 
         public bool optimizeMeshes = true;
         public bool meshEnableReadWrite = true;
@@ -265,6 +277,7 @@ namespace KaleidoVR.EditorTools
         public bool rendererRecalculateBounds = false;
         public bool optimizeParticles = false;
         public bool disableLightsOnAvatar = false;
+        public bool enableLightsOnAvatar = false;
 
         public bool optimizeAudio = true;
         public bool audioLoadInBackground = true;
@@ -281,7 +294,10 @@ namespace KaleidoVR.EditorTools
         public bool optimizeMaterials = false;
         public bool materialEnableGpuInstancing = false;
         public bool disableCamerasOnAvatar = false;
+        public bool enableCamerasOnAvatar = false;
         public bool audioForceToMono = false;
+        public bool audioForceToStereo = false;
+        public bool meshRestoreBlendShapes = false;
         public bool textureEnableCrunch = false;
         public int textureCrunchQuality = 50;
         public bool optimizeSceneExtras = false;
@@ -446,14 +462,16 @@ namespace KaleidoVR.EditorTools
 
             optimizeTextures = true;
             applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
-            applyPcTexFormat = true;
-            applyAndroidTexFormat = true;
+            applyPcTexFormat = false;
+            applyAndroidTexFormat = false;
             pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
             androidTexFormat = KaleidoAndroidTexFormat.ASTC_6x6;
+            textureEnableReadWrite = false;
             textureDisableReadWrite = true;
             textureApplyMipmaps = true;
             textureEnableMipmaps = true;
             textureEnableStreamingMipmaps = true;
+            textureDisableStreamingMipmaps = false;
             textureDisableCrunch = true;
             textureEnableCrunch = false;
             textureCrunchQuality = 50;
@@ -461,8 +479,10 @@ namespace KaleidoVR.EditorTools
             textureAniso = 1;
             autoDetectNormalMaps = true;
             autoLinearMaskMaps = true;
+            autoSrgbMaskMaps = false;
             higherQualityNormalMaps = true;
             alphaIsTransparencyOnAlbedo = false;
+            alphaIsTransparencyOffAlbedo = false;
 
             optimizeMeshes = true;
             meshEnableReadWrite = true;
@@ -479,6 +499,7 @@ namespace KaleidoVR.EditorTools
             meshCompression = KaleidoMeshCompressionChoice.Off;
             meshForceHumanoid = false;
             meshStripBlendShapes = false;
+            meshRestoreBlendShapes = false;
 
             optimizeRenderers = true;
             rendererDisableUpdateWhenOffscreen = true;
@@ -491,9 +512,11 @@ namespace KaleidoVR.EditorTools
             applyToPrefabAssets = true;
             optimizeParticles = false;
             disableLightsOnAvatar = false;
+            enableLightsOnAvatar = false;
 
             optimizeAudio = true;
             audioForceToMono = false;
+            audioForceToStereo = false;
             audioLoadInBackground = true;
             audioApplyVorbis = false;
             audioQuality = 0.7f;
@@ -503,6 +526,7 @@ namespace KaleidoVR.EditorTools
             optimizeMaterials = false;
             materialEnableGpuInstancing = false;
             disableCamerasOnAvatar = false;
+            enableCamerasOnAvatar = false;
             optimizeSceneExtras = false;
             dryRun = true;
             ClearReadyToApply();
@@ -576,14 +600,19 @@ namespace KaleidoVR.EditorTools
                 applyOtherSize = applyOtherSize, otherPc = otherPc, otherQuest = otherQuest,
                 applyPcTexFormat = applyPcTexFormat, pcTexFormat = pcTexFormat,
                 applyAndroidTexFormat = applyAndroidTexFormat, androidTexFormat = androidTexFormat,
+                textureEnableReadWrite = textureEnableReadWrite,
                 textureDisableReadWrite = textureDisableReadWrite,
                 textureApplyMipmaps = textureApplyMipmaps, textureEnableMipmaps = textureEnableMipmaps,
                 textureEnableStreamingMipmaps = textureEnableStreamingMipmaps,
+                textureDisableStreamingMipmaps = textureDisableStreamingMipmaps,
                 textureDisableCrunch = textureDisableCrunch, textureEnableCrunch = textureEnableCrunch,
                 textureCrunchQuality = textureCrunchQuality,
                 textureApplyAniso = textureApplyAniso, textureAniso = textureAniso,
                 autoDetectNormalMaps = autoDetectNormalMaps, autoLinearMaskMaps = autoLinearMaskMaps,
-                higherQualityNormalMaps = higherQualityNormalMaps, alphaIsTransparencyOnAlbedo = alphaIsTransparencyOnAlbedo,
+                autoSrgbMaskMaps = autoSrgbMaskMaps,
+                higherQualityNormalMaps = higherQualityNormalMaps,
+                alphaIsTransparencyOnAlbedo = alphaIsTransparencyOnAlbedo,
+                alphaIsTransparencyOffAlbedo = alphaIsTransparencyOffAlbedo,
                 optimizeMeshes = optimizeMeshes, meshEnableReadWrite = meshEnableReadWrite,
                 meshOptimizePolygons = meshOptimizePolygons, meshOptimizeVertices = meshOptimizeVertices,
                 meshWeldVertices = meshWeldVertices, meshKeepBlendShapes = meshKeepBlendShapes,
@@ -596,15 +625,16 @@ namespace KaleidoVR.EditorTools
                 rendererDisableProbes = rendererDisableProbes, rendererDisableMotionVectors = rendererDisableMotionVectors,
                 rendererForceBone4 = rendererForceBone4, rendererRecalculateBounds = rendererRecalculateBounds,
                 applyToPrefabAssets = applyToPrefabAssets, optimizeParticles = optimizeParticles,
-                disableLightsOnAvatar = disableLightsOnAvatar,
+                disableLightsOnAvatar = disableLightsOnAvatar, enableLightsOnAvatar = enableLightsOnAvatar,
                 optimizeMaterials = optimizeMaterials, materialEnableGpuInstancing = materialEnableGpuInstancing,
-                disableCamerasOnAvatar = disableCamerasOnAvatar,
+                disableCamerasOnAvatar = disableCamerasOnAvatar, enableCamerasOnAvatar = enableCamerasOnAvatar,
                 optimizeAudio = optimizeAudio, audioLoadInBackground = audioLoadInBackground,
                 audioApplyVorbis = audioApplyVorbis, audioQuality = audioQuality,
                 optimizeAnimators = optimizeAnimators, animatorCullWhenOffscreen = animatorCullWhenOffscreen,
                 applyMeshCompression = applyMeshCompression, meshCompression = meshCompression,
                 meshForceHumanoid = meshForceHumanoid, meshStripBlendShapes = meshStripBlendShapes,
-                audioForceToMono = audioForceToMono
+                meshRestoreBlendShapes = meshRestoreBlendShapes,
+                audioForceToMono = audioForceToMono, audioForceToStereo = audioForceToStereo
             };
         }
 
@@ -634,15 +664,23 @@ namespace KaleidoVR.EditorTools
                 applyEmissionSize = p.applyEmissionSize; emissionPc = p.emissionPc; emissionQuest = p.emissionQuest;
                 applyMatcapSize = p.applyMatcapSize; matcapPc = p.matcapPc; matcapQuest = p.matcapQuest;
                 applyOtherSize = p.applyOtherSize; otherPc = p.otherPc; otherQuest = p.otherQuest;
-                applyPcTexFormat = p.applyPcTexFormat; pcTexFormat = p.pcTexFormat;
-                applyAndroidTexFormat = p.applyAndroidTexFormat; androidTexFormat = p.androidTexFormat;
+                textureEnableReadWrite = p.textureEnableReadWrite;
                 textureDisableReadWrite = p.textureDisableReadWrite;
+                if (textureEnableReadWrite) textureDisableReadWrite = false;
                 textureApplyMipmaps = p.textureApplyMipmaps; textureEnableMipmaps = p.textureEnableMipmaps;
                 textureEnableStreamingMipmaps = p.textureEnableStreamingMipmaps;
+                textureDisableStreamingMipmaps = p.textureDisableStreamingMipmaps;
+                if (textureEnableStreamingMipmaps) textureDisableStreamingMipmaps = false;
                 textureDisableCrunch = p.textureDisableCrunch;
                 textureApplyAniso = p.textureApplyAniso; textureAniso = p.textureAniso;
-                autoDetectNormalMaps = p.autoDetectNormalMaps; autoLinearMaskMaps = p.autoLinearMaskMaps;
-                higherQualityNormalMaps = p.higherQualityNormalMaps; alphaIsTransparencyOnAlbedo = p.alphaIsTransparencyOnAlbedo;
+                autoDetectNormalMaps = p.autoDetectNormalMaps;
+                autoLinearMaskMaps = p.autoLinearMaskMaps;
+                autoSrgbMaskMaps = p.autoSrgbMaskMaps;
+                if (autoLinearMaskMaps) autoSrgbMaskMaps = false;
+                higherQualityNormalMaps = p.higherQualityNormalMaps;
+                alphaIsTransparencyOnAlbedo = p.alphaIsTransparencyOnAlbedo;
+                alphaIsTransparencyOffAlbedo = p.alphaIsTransparencyOffAlbedo;
+                if (alphaIsTransparencyOnAlbedo) alphaIsTransparencyOffAlbedo = false;
             }
             if (mesh)
             {
@@ -689,29 +727,46 @@ namespace KaleidoVR.EditorTools
                 meshCompression = p.meshCompression;
                 meshForceHumanoid = p.meshForceHumanoid;
                 meshStripBlendShapes = p.meshStripBlendShapes;
+                meshRestoreBlendShapes = p.meshRestoreBlendShapes;
+                if (meshRestoreBlendShapes) meshStripBlendShapes = false;
                 rendererRecalculateBounds = p.rendererRecalculateBounds;
                 optimizeMaterials = p.optimizeMaterials;
                 materialEnableGpuInstancing = p.materialEnableGpuInstancing;
                 disableLightsOnAvatar = p.disableLightsOnAvatar;
+                enableLightsOnAvatar = p.enableLightsOnAvatar;
+                if (enableLightsOnAvatar) disableLightsOnAvatar = false;
                 disableCamerasOnAvatar = p.disableCamerasOnAvatar;
+                enableCamerasOnAvatar = p.enableCamerasOnAvatar;
+                if (enableCamerasOnAvatar) disableCamerasOnAvatar = false;
                 audioForceToMono = p.audioForceToMono;
+                audioForceToStereo = p.audioForceToStereo;
+                if (audioForceToMono) audioForceToStereo = false;
                 textureEnableCrunch = p.textureEnableCrunch;
                 textureCrunchQuality = ClampCrunchQuality(p.textureCrunchQuality);
+                if (textureEnableCrunch) textureDisableCrunch = false;
+                applyPcTexFormat = p.applyPcTexFormat; pcTexFormat = p.pcTexFormat;
+                applyAndroidTexFormat = p.applyAndroidTexFormat; androidTexFormat = p.androidTexFormat;
             }
             else
             {
                 applyMeshCompression = false;
                 meshForceHumanoid = false;
                 meshStripBlendShapes = false;
+                meshRestoreBlendShapes = false;
                 rendererRecalculateBounds = false;
                 optimizeMaterials = false;
                 materialEnableGpuInstancing = false;
                 disableLightsOnAvatar = false;
+                enableLightsOnAvatar = false;
                 disableCamerasOnAvatar = false;
+                enableCamerasOnAvatar = false;
                 audioForceToMono = false;
+                audioForceToStereo = false;
                 textureEnableCrunch = false;
+                applyPcTexFormat = false;
+                applyAndroidTexFormat = false;
             }
-            optimizeSceneExtras = disableLightsOnAvatar || disableCamerasOnAvatar || optimizeParticles;
+            optimizeSceneExtras = disableLightsOnAvatar || enableLightsOnAvatar || disableCamerasOnAvatar || enableCamerasOnAvatar || optimizeParticles;
         }
 
         public static int ClampCrunchQuality(int quality)
@@ -783,23 +838,32 @@ namespace KaleidoVR.EditorTools
             matcapPc = GetInt("CPc", 512); matcapQuest = GetInt("CQ", 256);
             applyOtherSize = GetBool("OSize", true);
             otherPc = GetInt("OPc", 1024); otherQuest = GetInt("OQ", 512);
-            applyPcTexFormat = GetBool("PcFmtOn", true);
-            applyAndroidTexFormat = GetBool("AndFmtOn", true);
+            applyPcTexFormat = GetBool("PcFmtOn", false);
+            applyAndroidTexFormat = GetBool("AndFmtOn", false);
             pcTexFormat = (KaleidoPcTexFormat)GetInt("PcFmt", (int)KaleidoPcTexFormat.AutoBc7Dxt1);
             androidTexFormat = (KaleidoAndroidTexFormat)GetInt("AndFmt", (int)KaleidoAndroidTexFormat.ASTC_6x6);
+            textureEnableReadWrite = GetBool("TexRWOn", false);
             textureDisableReadWrite = GetBool("TexRW", true);
+            if (textureEnableReadWrite) textureDisableReadWrite = false;
             textureApplyMipmaps = GetBool("TexMipsOn", true);
             textureEnableMipmaps = GetBool("TexMips", true);
             textureEnableStreamingMipmaps = GetBool("TexStreamOn", true);
+            textureDisableStreamingMipmaps = GetBool("TexStreamOff", false);
+            if (textureEnableStreamingMipmaps) textureDisableStreamingMipmaps = false;
             textureDisableCrunch = GetBool("TexCrunch", true);
             textureEnableCrunch = GetBool("TexCrunchOn", false);
+            if (textureEnableCrunch) textureDisableCrunch = false;
             textureCrunchQuality = ClampCrunchQuality(GetInt("TexCrunchQ", 50));
             textureApplyAniso = GetBool("TexAnisoOn", true);
             textureAniso = GetInt("TexAniso", 1);
             autoDetectNormalMaps = GetBool("TexNorm", true);
             autoLinearMaskMaps = GetBool("TexLinear", true);
+            autoSrgbMaskMaps = GetBool("TexMaskSrgb", false);
+            if (autoLinearMaskMaps) autoSrgbMaskMaps = false;
             higherQualityNormalMaps = GetBool("TexNormHQ", true);
             alphaIsTransparencyOnAlbedo = GetBool("TexAlpha", false);
+            alphaIsTransparencyOffAlbedo = GetBool("TexAlphaOff", false);
+            if (alphaIsTransparencyOnAlbedo) alphaIsTransparencyOffAlbedo = false;
 
             optimizeMeshes = GetBool("OptMesh", true);
             applyMeshCompression = GetBool("MeshCompOn", false);
@@ -810,6 +874,8 @@ namespace KaleidoVR.EditorTools
             meshWeldVertices = GetBool("MeshWeld", false);
             meshKeepBlendShapes = GetBool("MeshBS", true);
             meshStripBlendShapes = GetBool("MeshBSOff", false);
+            meshRestoreBlendShapes = GetBool("MeshBSOn", false);
+            if (meshRestoreBlendShapes) meshStripBlendShapes = false;
             meshDisableQuads = GetBool("MeshQuads", true);
             meshDisableLightmapUVs = GetBool("MeshLM", true);
             meshDisableImportLightsCameras = GetBool("MeshLC", true);
@@ -829,6 +895,8 @@ namespace KaleidoVR.EditorTools
 
             optimizeAudio = GetBool("OptAud", true);
             audioForceToMono = GetBool("AudMono", false);
+            audioForceToStereo = GetBool("AudStereo", false);
+            if (audioForceToMono) audioForceToStereo = false;
             audioLoadInBackground = GetBool("AudBG", true);
             audioApplyVorbis = GetBool("AudVorb", false);
             audioQuality = EditorPrefs.HasKey(PrefsPrefix + "AudQ") ? EditorPrefs.GetFloat(PrefsPrefix + "AudQ") : 0.7f;
@@ -841,15 +909,20 @@ namespace KaleidoVR.EditorTools
 
             optimizeSceneExtras = GetBool("OptExtra", false);
             disableLightsOnAvatar = GetBool("ExtraLight", false);
+            enableLightsOnAvatar = GetBool("ExtraLightOn", false);
+            if (enableLightsOnAvatar) disableLightsOnAvatar = false;
             disableCamerasOnAvatar = GetBool("ExtraCam", false);
+            enableCamerasOnAvatar = GetBool("ExtraCamOn", false);
+            if (enableCamerasOnAvatar) disableCamerasOnAvatar = false;
             optimizeParticles = GetBool("ExtraPart", false);
+            optimizeSceneExtras = disableLightsOnAvatar || enableLightsOnAvatar || disableCamerasOnAvatar || enableCamerasOnAvatar || optimizeParticles;
 
             MigrateEditorPreferences();
         }
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 2;
+            const int currentSchema = 3;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -860,14 +933,22 @@ namespace KaleidoVR.EditorTools
                 autoDetectNormalMaps = true;
             }
 
+            if (schema < 3)
+            {
+                applyPcTexFormat = false;
+                applyAndroidTexFormat = false;
+            }
+
             SetInt("Schema", currentSchema);
             SetInt("PcFmt", (int)pcTexFormat);
             SetBool("TexNorm", autoDetectNormalMaps);
+            SetBool("PcFmtOn", applyPcTexFormat);
+            SetBool("AndFmtOn", applyAndroidTexFormat);
         }
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 2);
+            SetInt("Schema", 3);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -894,10 +975,12 @@ namespace KaleidoVR.EditorTools
             SetInt("PcFmt", (int)pcTexFormat);
             SetBool("AndFmtOn", applyAndroidTexFormat);
             SetInt("AndFmt", (int)androidTexFormat);
+            SetBool("TexRWOn", textureEnableReadWrite);
             SetBool("TexRW", textureDisableReadWrite);
             SetBool("TexMipsOn", textureApplyMipmaps);
             SetBool("TexMips", textureEnableMipmaps);
             SetBool("TexStreamOn", textureEnableStreamingMipmaps);
+            SetBool("TexStreamOff", textureDisableStreamingMipmaps);
             SetBool("TexCrunch", textureDisableCrunch);
             SetBool("TexCrunchOn", textureEnableCrunch);
             SetInt("TexCrunchQ", ClampCrunchQuality(textureCrunchQuality));
@@ -905,8 +988,10 @@ namespace KaleidoVR.EditorTools
             SetInt("TexAniso", textureAniso);
             SetBool("TexNorm", autoDetectNormalMaps);
             SetBool("TexLinear", autoLinearMaskMaps);
+            SetBool("TexMaskSrgb", autoSrgbMaskMaps);
             SetBool("TexNormHQ", higherQualityNormalMaps);
             SetBool("TexAlpha", alphaIsTransparencyOnAlbedo);
+            SetBool("TexAlphaOff", alphaIsTransparencyOffAlbedo);
 
             SetBool("OptMesh", optimizeMeshes);
             SetBool("MeshCompOn", applyMeshCompression);
@@ -917,6 +1002,7 @@ namespace KaleidoVR.EditorTools
             SetBool("MeshWeld", meshWeldVertices);
             SetBool("MeshBS", meshKeepBlendShapes);
             SetBool("MeshBSOff", meshStripBlendShapes);
+            SetBool("MeshBSOn", meshRestoreBlendShapes);
             SetBool("MeshQuads", meshDisableQuads);
             SetBool("MeshLM", meshDisableLightmapUVs);
             SetBool("MeshLC", meshDisableImportLightsCameras);
@@ -936,6 +1022,7 @@ namespace KaleidoVR.EditorTools
 
             SetBool("OptAud", optimizeAudio);
             SetBool("AudMono", audioForceToMono);
+            SetBool("AudStereo", audioForceToStereo);
             SetBool("AudBG", audioLoadInBackground);
             SetBool("AudVorb", audioApplyVorbis);
             EditorPrefs.SetFloat(PrefsPrefix + "AudQ", audioQuality);
@@ -948,7 +1035,9 @@ namespace KaleidoVR.EditorTools
 
             SetBool("OptExtra", optimizeSceneExtras);
             SetBool("ExtraLight", disableLightsOnAvatar);
+            SetBool("ExtraLightOn", enableLightsOnAvatar);
             SetBool("ExtraCam", disableCamerasOnAvatar);
+            SetBool("ExtraCamOn", enableCamerasOnAvatar);
             SetBool("ExtraPart", optimizeParticles);
             SaveUserProfiles();
         }
@@ -1166,10 +1255,10 @@ namespace KaleidoVR.EditorTools
         private static readonly string[] BuiltinNames = { "PC", "Quest", "Dual Platform", "Everything" };
         private static readonly string[] BuiltinSummaries =
         {
-            "Booth-safe PC start. Caps maps at 2K, Auto BC7/DXT1 (BC5 normals), keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
-            "Quest start. 1K body maps, ASTC 6x6, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
-            "Booth-safe dual start. 2K PC / 1K Quest body maps, Auto BC7/DXT1 on PC and ASTC 6x6 on Quest. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off.",
-            "Full pack. Dual 2K/1K caps, Auto BC7/DXT1, ASTC 6x6, BC5 normals, Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
+            "Booth-safe PC start. Caps maps at 2K, leaves each texture's compression format as-is, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
+            "Quest start. 1K body maps, leaves ASTC as-is, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
+            "Booth-safe dual start. 2K PC / 1K Quest body maps, does not rewrite compression formats. Does not rewrite skin weights, weld, or force 4-bone quality. Special stays off.",
+            "Full pack. Dual 2K/1K caps, leaves compression formats as-is (Set compression lives on Special), Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
         };
         private static readonly string[] PcFormatLabels =
         {
@@ -1558,13 +1647,13 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("3. When this profile loads, change these tabs", EditorStyles.boldLabel);
             DrawWhy("Unchecked tabs keep whatever you already set. Tick only what this recipe should overwrite. Special never runs unless you tick it.");
 
-            window.includeTextures = EditorGUILayout.ToggleLeft("Textures  —  max sizes and compression for the active workspace", window.includeTextures);
+            window.includeTextures = EditorGUILayout.ToggleLeft("Textures  —  max sizes and importer flags for the active workspace", window.includeTextures);
             window.includeMeshes = EditorGUILayout.ToggleLeft("Meshes tab  —  read/write, weld, blend shapes, skin weights", window.includeMeshes);
             window.includeRenderers = EditorGUILayout.ToggleLeft("Scene  —  offscreen, probes, particles, shadows, 4-bone quality", window.includeRenderers);
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
             DrawSpecialUseCaseHeader();
-            window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
+            window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
 
             GUILayout.Space(10);
@@ -1971,40 +2060,65 @@ namespace KaleidoVR.EditorTools
             DrawTexturePreview(window);
 
             GUILayout.Space(8);
+            GUILayout.Label("Importer Settings", EditorStyles.boldLabel);
+            DrawWhy("Enable writes that flag on. Disable writes it off. Neither leaves each listed texture as-is. Current is what those textures have now. New is what Apply will write.");
+            ImporterFlagSnapshot flags = CollectImporterFlagSnapshot(window);
+            DrawImporterFlagHeaders();
             if (quest)
             {
-                GUILayout.Label("Format", EditorStyles.boldLabel);
-                window.applyAndroidTexFormat = DrawToggle(window, KaleidoOptionUndo.AndroidFormat, window.applyAndroidTexFormat, "Set compression format", "ASTC 6x6 is the usual balance. 4x4 is sharper/heavier, 8x8 is cheaper/blurrier.");
-                if (window.applyAndroidTexFormat) window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Format", window.androidTexFormat);
-                window.higherQualityNormalMaps = DrawToggle(window, KaleidoOptionUndo.HigherQualityNormals, window.higherQualityNormalMaps, "Higher quality normals (ASTC)", "Uses a sharper ASTC block for detected normals. Does not change the other workspace's format.");
-                window.textureEnableStreamingMipmaps = DrawToggle(window, KaleidoOptionUndo.StreamingMipmaps, window.textureEnableStreamingMipmaps, "Enable streaming mip maps", "VRChat expects this on when mip maps are on. The client streams lower mips when VRAM is tight. Avatar streaming priority is ignored (always 0).");
+                DrawEnableDisableRow(window, "Streaming mip maps", "VRChat expects this on when mip maps are on. Disable only if you must turn streaming off.",
+                    KaleidoOptionUndo.StreamingMipmaps, KaleidoOptionUndo.StreamingMipmapsOff,
+                    ref window.textureEnableStreamingMipmaps, ref window.textureDisableStreamingMipmaps,
+                    flags.streaming, OnOffNew(window.textureEnableStreamingMipmaps, window.textureDisableStreamingMipmaps));
+                window.higherQualityNormalMaps = DrawToggle(window, KaleidoOptionUndo.HigherQualityNormals, window.higherQualityNormalMaps, "Higher quality normals (ASTC)", "Uses a sharper ASTC block for detected normals when Set compression format is on in Special. Does not change the other workspace's format.");
             }
             else
             {
-                GUILayout.Label("Importer Settings", EditorStyles.boldLabel);
-                window.applyPcTexFormat = DrawToggle(window, KaleidoOptionUndo.PcFormat, window.applyPcTexFormat, "Set compression", "Auto uses DXT1 on opaque maps (4 bpp) and BC7 when alpha is present (8 bpp). Same VRAM as DXT5 for alpha, better quality. Leave off to keep each texture's current format.");
-                if (window.applyPcTexFormat)
+                DrawEnableDisableRow(window, "Read / Write", "Disable saves RAM. Enable only if a script or editor tool reads pixels from the texture.",
+                    KaleidoOptionUndo.TextureReadWriteOn, KaleidoOptionUndo.TextureReadWrite,
+                    ref window.textureEnableReadWrite, ref window.textureDisableReadWrite,
+                    flags.readable, OnOffNew(window.textureEnableReadWrite, window.textureDisableReadWrite));
+
+                bool mipEnable = window.textureApplyMipmaps && window.textureEnableMipmaps;
+                bool mipDisable = window.textureApplyMipmaps && !window.textureEnableMipmaps;
+                DrawEnableDisableRow(window, "Mip maps", "Avatars in 3D should generate mip maps. Disable only if a 2D lookup must stay unfiltered.",
+                    KaleidoOptionUndo.TextureMipmaps, KaleidoOptionUndo.TextureMipmaps,
+                    ref mipEnable, ref mipDisable,
+                    flags.mipmaps, OnOffNew(mipEnable, mipDisable));
+                window.textureApplyMipmaps = mipEnable || mipDisable;
+                if (mipEnable) window.textureEnableMipmaps = true;
+                else if (mipDisable) window.textureEnableMipmaps = false;
+
+                DrawEnableDisableRow(window, "Streaming mip maps", "VRChat expects this on when mip maps are on. Disable only if you must turn streaming off.",
+                    KaleidoOptionUndo.StreamingMipmaps, KaleidoOptionUndo.StreamingMipmapsOff,
+                    ref window.textureEnableStreamingMipmaps, ref window.textureDisableStreamingMipmaps,
+                    flags.streaming, OnOffNew(window.textureEnableStreamingMipmaps, window.textureDisableStreamingMipmaps));
+
+                DrawEnableDisableRow(window, "Crunch compression", "Crunch does not lower VRChat texture memory. Enable is a Special write and only shrinks download size.",
+                    KaleidoOptionUndo.TextureCrunchOn, KaleidoOptionUndo.TextureCrunchOff,
+                    ref window.textureEnableCrunch, ref window.textureDisableCrunch,
+                    flags.crunch, OnOffNew(window.textureEnableCrunch, window.textureDisableCrunch));
+                if (window.textureEnableCrunch)
                 {
-                    window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.IntPopup(
-                        "Format",
-                        (int)window.pcTexFormat,
-                        PcFormatLabels,
-                        PcFormatValues);
-                    if (window.pcTexFormat == KaleidoPcTexFormat.AutoBc7Dxt1)
-                        DrawWhy("Dry Run / Apply only. Opaque → DXT1. Alpha or cutout → BC7. Detected normals stay BC5 while Higher quality normals is on.");
+                    EditorGUI.indentLevel++;
+                    window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
+                    EditorGUI.indentLevel--;
                 }
 
-                window.textureDisableReadWrite = DrawToggle(window, KaleidoOptionUndo.TextureReadWrite, window.textureDisableReadWrite, "Disable Read / Write", "Saves RAM. Turn off only if a script or editor tool reads pixels from the texture.");
-                window.textureApplyMipmaps = DrawToggle(window, KaleidoOptionUndo.TextureMipmaps, window.textureApplyMipmaps, "Set mip maps", "Avatars in 3D should generate mip maps. Uncheck to leave each texture as-is.");
-                if (window.textureApplyMipmaps) window.textureEnableMipmaps = EditorGUILayout.Toggle("Generate Mip Maps", window.textureEnableMipmaps);
-                window.textureEnableStreamingMipmaps = DrawToggle(window, KaleidoOptionUndo.StreamingMipmaps, window.textureEnableStreamingMipmaps, "Enable streaming mip maps", "VRChat expects this on when mip maps are on. The client streams lower mips when VRAM is tight. Avatar streaming priority is ignored (always 0).");
-                window.textureDisableCrunch = DrawToggle(window, KaleidoOptionUndo.TextureCrunchOff, window.textureDisableCrunch, "Disable crunch compression", "Crunch does not reduce VRChat texture memory. Enable crunch only on the Special tab.");
                 window.textureApplyAniso = DrawToggle(window, KaleidoOptionUndo.TextureAniso, window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
                 if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
                 window.autoDetectNormalMaps = DrawToggle(window, KaleidoOptionUndo.DetectNormals, window.autoDetectNormalMaps, "Detect normal maps by name", "Sets Texture Type to Normal Map when the file looks like _n / _norm / _normal. Prevents sRGB lighting errors.");
-                window.higherQualityNormalMaps = DrawToggle(window, KaleidoOptionUndo.HigherQualityNormals, window.higherQualityNormalMaps, "Higher quality normals (BC5)", "Uses BC5 for detected normals. ASTC sharpness is set in the other workspace.");
-                window.autoLinearMaskMaps = DrawToggle(window, KaleidoOptionUndo.LinearMasks, window.autoLinearMaskMaps, "Linear color for mask maps", "Turns sRGB off on metallic/rough/AO/ORM so packed masks do not get gamma-crushed.");
-                window.alphaIsTransparencyOnAlbedo = DrawToggle(window, KaleidoOptionUndo.AlphaIsTransparency, window.alphaIsTransparencyOnAlbedo, "Alpha Is Transparency on albedo", "Only if the albedo has an alpha channel (cutout/transparent clothing).");
+                window.higherQualityNormalMaps = DrawToggle(window, KaleidoOptionUndo.HigherQualityNormals, window.higherQualityNormalMaps, "Higher quality normals (BC5)", "Uses BC5 for detected normals when Set compression is on in Special. ASTC sharpness is set in the other workspace.");
+
+                DrawEnableDisableRow(window, "Linear color for mask maps", "Enable turns sRGB off on metallic/rough/AO/ORM. Disable writes sRGB back on.",
+                    KaleidoOptionUndo.LinearMasks, KaleidoOptionUndo.LinearMasksOff,
+                    ref window.autoLinearMaskMaps, ref window.autoSrgbMaskMaps,
+                    flags.maskColor, LinearNew(window.autoLinearMaskMaps, window.autoSrgbMaskMaps), "Linear", "sRGB");
+
+                DrawEnableDisableRow(window, "Alpha Is Transparency", "Only for albedo with an alpha channel (cutout/transparent clothing).",
+                    KaleidoOptionUndo.AlphaIsTransparency, KaleidoOptionUndo.AlphaIsTransparencyOff,
+                    ref window.alphaIsTransparencyOnAlbedo, ref window.alphaIsTransparencyOffAlbedo,
+                    flags.alpha, OnOffNew(window.alphaIsTransparencyOnAlbedo, window.alphaIsTransparencyOffAlbedo));
             }
             EditorGUI.EndDisabledGroup();
         }
@@ -2678,49 +2792,134 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Particles", EditorStyles.boldLabel);
             window.optimizeParticles = DrawToggle(window, KaleidoOptionUndo.Particles, window.optimizeParticles, "Strip particle shadows / motion vectors", "Particles on avatars rarely need shadows. Uncheck if a VFX specifically uses them.");
-            window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
+            window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.enableLightsOnAvatar || window.disableCamerasOnAvatar || window.enableCamerasOnAvatar;
         }
 
         private static void DrawSpecialTab(KaleidoVRCOptimizer window)
         {
             DrawSpecialUseCaseHeader();
+            EditorGUILayout.HelpBox("Enable writes that flag on. Disable writes it off. Neither leaves the avatar as-is. Apply only warns when a Special write is not at its default.", MessageType.Warning);
+            DrawWhy("Enable writes that flag on. Disable writes it off. Neither leaves each object as-is. Current is what the dropped avatar has now.");
+            SpecialFlagSnapshot flags = CollectSpecialFlagSnapshot(window);
+            DrawImporterFlagHeaders();
+
             if (window.IsQuestWorkspace)
             {
-                EditorGUILayout.HelpBox("These can break cameras, lighting, or material flags. Leave them off unless you know you need them.", MessageType.Warning);
-                window.optimizeMaterials = DrawToggle(window, KaleidoOptionUndo.GpuInstancing, window.optimizeMaterials, "Set GPU instancing on materials", "Writes enableInstancing on .mat files. Recommended on mobile. Little effect on skinned meshes.");
-                if (window.optimizeMaterials) window.materialEnableGpuInstancing = EditorGUILayout.Toggle("Enable GPU Instancing", window.materialEnableGpuInstancing);
-                window.disableLightsOnAvatar = DrawToggle(window, KaleidoOptionUndo.DisableLights, window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "Mobile strips avatar lights. Can change how the avatar looks.");
-                window.disableCamerasOnAvatar = DrawToggle(window, KaleidoOptionUndo.DisableCameras, window.disableCamerasOnAvatar, "Disable cameras on the avatar", "Mobile disables avatar cameras. Can kill preview cameras, mirrors, or VRC tools parented under the avatar.");
-                window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
+                bool formatOn = window.applyAndroidTexFormat;
+                bool formatOff = !window.applyAndroidTexFormat;
+                DrawEnableDisableRow(window, "Set compression format", "Enable rewrites listed textures to the ASTC block you pick. Disable leaves the author's format.",
+                    KaleidoOptionUndo.AndroidFormat, "",
+                    ref formatOn, ref formatOff,
+                    flags.format, formatOn ? window.androidTexFormat.ToString() : "—");
+                window.applyAndroidTexFormat = formatOn;
+                if (window.applyAndroidTexFormat)
+                {
+                    EditorGUI.indentLevel++;
+                    window.androidTexFormat = (KaleidoAndroidTexFormat)EditorGUILayout.EnumPopup("Format", window.androidTexFormat);
+                    EditorGUI.indentLevel--;
+                }
+
+                bool gpuOn = window.optimizeMaterials && window.materialEnableGpuInstancing;
+                bool gpuOff = window.optimizeMaterials && !window.materialEnableGpuInstancing;
+                DrawEnableDisableRow(window, "GPU instancing", "Writes enableInstancing on .mat files. Recommended on mobile. Little effect on skinned meshes.",
+                    KaleidoOptionUndo.GpuInstancing, KaleidoOptionUndo.GpuInstancing,
+                    ref gpuOn, ref gpuOff,
+                    flags.instancing, OnOffNew(gpuOn, gpuOff));
+                window.optimizeMaterials = gpuOn || gpuOff;
+                if (gpuOn) window.materialEnableGpuInstancing = true;
+                else if (gpuOff) window.materialEnableGpuInstancing = false;
+
+                DrawEnableDisableRow(window, "Realtime lights", "Mobile strips avatar lights. Enable turns them back on. Disable turns them off.",
+                    KaleidoOptionUndo.EnableLights, KaleidoOptionUndo.DisableLights,
+                    ref window.enableLightsOnAvatar, ref window.disableLightsOnAvatar,
+                    flags.lights, OnOffNew(window.enableLightsOnAvatar, window.disableLightsOnAvatar));
+                DrawEnableDisableRow(window, "Cameras", "Mobile disables avatar cameras. Enable turns them back on. Disable turns them off.",
+                    KaleidoOptionUndo.EnableCameras, KaleidoOptionUndo.DisableCameras,
+                    ref window.enableCamerasOnAvatar, ref window.disableCamerasOnAvatar,
+                    flags.cameras, OnOffNew(window.enableCamerasOnAvatar, window.disableCamerasOnAvatar));
+                window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.enableLightsOnAvatar || window.disableCamerasOnAvatar || window.enableCamerasOnAvatar;
                 return;
             }
 
-            EditorGUILayout.HelpBox("Uncheck an option to skip it. Apply does not write the old value back. Undo appears beside a checked option after the log shows that option was applied.", MessageType.Warning);
+            bool pcFormatOn = window.applyPcTexFormat;
+            bool pcFormatOff = !window.applyPcTexFormat;
+            DrawEnableDisableRow(window, "Set compression", "Enable rewrites listed textures. Auto DXT1 on opaque maps dirties smooth or white fabrics. Disable leaves the author's format.",
+                KaleidoOptionUndo.PcFormat, "",
+                ref pcFormatOn, ref pcFormatOff,
+                flags.format, pcFormatOn ? window.pcTexFormat.ToString() : "—");
+            window.applyPcTexFormat = pcFormatOn;
+            if (window.applyPcTexFormat)
+            {
+                EditorGUI.indentLevel++;
+                window.pcTexFormat = (KaleidoPcTexFormat)EditorGUILayout.IntPopup(
+                    "Format",
+                    (int)window.pcTexFormat,
+                    PcFormatLabels,
+                    PcFormatValues);
+                if (window.pcTexFormat == KaleidoPcTexFormat.AutoBc7Dxt1)
+                    DrawWhy("Dry Run / Apply only. Opaque → DXT1. Alpha or cutout → BC7. Detected normals stay BC5 while Higher quality normals is on.");
+                EditorGUI.indentLevel--;
+            }
 
-            bool meshCompressionWasOn = window.applyMeshCompression;
-            window.applyMeshCompression = DrawToggle(window, KaleidoOptionUndo.MeshCompression, window.applyMeshCompression, "Apply mesh compression", "Unity's mesh compressor distorts blend shapes. Only for static props with no visemes.");
+            bool meshCompOn = window.applyMeshCompression;
+            bool meshCompOff = !window.applyMeshCompression;
+            DrawEnableDisableRow(window, "Mesh compression", "Unity's mesh compressor distorts blend shapes. Enable writes the level below. Disable leaves each model as-is.",
+                KaleidoOptionUndo.MeshCompression, "",
+                ref meshCompOn, ref meshCompOff,
+                flags.meshComp, meshCompOn ? window.meshCompression.ToString() : "—");
+            bool meshCompWasOn = window.applyMeshCompression;
+            window.applyMeshCompression = meshCompOn;
             if (window.applyMeshCompression)
             {
-                if (!meshCompressionWasOn && window.meshCompression == KaleidoMeshCompressionChoice.Off)
+                if (!meshCompWasOn && window.meshCompression == KaleidoMeshCompressionChoice.Off)
                     window.meshCompression = KaleidoMeshCompressionChoice.Low;
                 EditorGUI.indentLevel++;
                 window.meshCompression = (KaleidoMeshCompressionChoice)EditorGUILayout.EnumPopup("Compression Level", window.meshCompression);
                 EditorGUI.indentLevel--;
             }
 
-            window.meshForceHumanoid = DrawToggle(window, KaleidoOptionUndo.ForceHumanoid, window.meshForceHumanoid, "Force Humanoid rig", "Rewrites the FBX avatar to Humanoid. Can destroy a working Generic/Humanoid mapping. Prefer the Rig tab in the importer.");
-            window.meshStripBlendShapes = DrawToggle(window, KaleidoOptionUndo.StripBlendShapes, window.meshStripBlendShapes, "Disable blend shape import", "Turns blend shapes off on the model. Breaks visemes and face tracking. Only for meshes that truly have none you need.");
-            window.rendererRecalculateBounds = DrawToggle(window, KaleidoOptionUndo.RecalculateBounds, window.rendererRecalculateBounds, "Recalculate skinned bounds", "Sets every skinned box to a 2 m cube (Extent 1,1,1) centered on the middle of the avatar. Same box on every mesh. Fixes tiny or misplaced boxes so parts stay visible. Skips DPS / TPS light meshes. Turns Update When Offscreen off on those skins.");
-            window.disableLightsOnAvatar = DrawToggle(window, KaleidoOptionUndo.DisableLights, window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat Excellent allows 0 lights. Can change how the avatar looks.");
-            window.audioForceToMono = DrawToggle(window, KaleidoOptionUndo.AudioMono, window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX.");
-            window.textureEnableCrunch = DrawToggle(window, KaleidoOptionUndo.TextureCrunchOn, window.textureEnableCrunch, "Enable crunch compression", "Does not lower VRChat texture memory rank. Only download size. VRChat says the package should fit limits without Crunch.");
+            bool humanOn = window.meshForceHumanoid;
+            bool humanOff = !window.meshForceHumanoid;
+            DrawEnableDisableRow(window, "Humanoid rig", "Enable rewrites the FBX avatar to Humanoid. Disable leaves the current rig. Prefer the Rig tab in the importer.",
+                KaleidoOptionUndo.ForceHumanoid, "",
+                ref humanOn, ref humanOff,
+                flags.humanoid, humanOn ? "Humanoid" : "—");
+            window.meshForceHumanoid = humanOn;
+
+            DrawEnableDisableRow(window, "Blend shape import", "Disable turns blend shapes off and breaks visemes. Enable turns import back on.",
+                KaleidoOptionUndo.RestoreBlendShapes, KaleidoOptionUndo.StripBlendShapes,
+                ref window.meshRestoreBlendShapes, ref window.meshStripBlendShapes,
+                flags.blendShapes, OnOffNew(window.meshRestoreBlendShapes, window.meshStripBlendShapes));
+
+            bool boundsOn = window.rendererRecalculateBounds;
+            bool boundsOff = !window.rendererRecalculateBounds;
+            DrawEnableDisableRow(window, "Recalculate skinned bounds", "Enable writes a 2 m cube (Extent 1,1,1) at mid-body. Disable leaves each box as-is. Skips DPS / TPS light meshes.",
+                KaleidoOptionUndo.RecalculateBounds, "",
+                ref boundsOn, ref boundsOff,
+                flags.bounds, boundsOn ? "2 m cube" : "—");
+            window.rendererRecalculateBounds = boundsOn;
+
+            DrawEnableDisableRow(window, "Realtime lights", "VRChat Excellent allows 0 lights. Enable turns them on. Disable turns them off.",
+                KaleidoOptionUndo.EnableLights, KaleidoOptionUndo.DisableLights,
+                ref window.enableLightsOnAvatar, ref window.disableLightsOnAvatar,
+                flags.lights, OnOffNew(window.enableLightsOnAvatar, window.disableLightsOnAvatar));
+
+            DrawEnableDisableRow(window, "Force audio to mono", "Enable halves clip size but collapses stereo. Disable writes stereo back.",
+                KaleidoOptionUndo.AudioMono, KaleidoOptionUndo.AudioStereo,
+                ref window.audioForceToMono, ref window.audioForceToStereo,
+                flags.mono, OnOffNew(window.audioForceToMono, window.audioForceToStereo));
+
+            DrawEnableDisableRow(window, "Crunch compression", "Does not lower VRChat texture memory. Enable only shrinks download size.",
+                KaleidoOptionUndo.TextureCrunchOn, KaleidoOptionUndo.TextureCrunchOff,
+                ref window.textureEnableCrunch, ref window.textureDisableCrunch,
+                flags.crunch, OnOffNew(window.textureEnableCrunch, window.textureDisableCrunch));
             if (window.textureEnableCrunch)
             {
                 EditorGUI.indentLevel++;
                 window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
                 EditorGUI.indentLevel--;
             }
-            window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
+            window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.enableLightsOnAvatar || window.disableCamerasOnAvatar || window.enableCamerasOnAvatar;
         }
 
         public static void DrawActions(KaleidoVRCOptimizer window)
@@ -2873,7 +3072,7 @@ namespace KaleidoVR.EditorTools
             {
                 return EditorUtility.DisplayDialog(
                     "Warning (Special Use Case)",
-                    "Special Use Case options are included. These can break visemes, custom bounds, lighting, or audio, and the writes stay on the assets.\n\n"
+                    "Special Use Case options are included. These can break visemes, custom bounds, lighting, audio, or texture quality, and the writes stay on the assets.\n\n"
                     + string.Join("\n", special.ToArray())
                     + "\n\nThis writes the dry-run changes for this workspace only. The other workspace is not touched. Continue?",
                     "Apply anyway",
@@ -2934,6 +3133,290 @@ namespace KaleidoVR.EditorTools
             DrawWhy(why);
             GUILayout.Space(3);
             return value;
+        }
+
+        private const float FlagEnableW = 58f;
+        private const float FlagDisableW = 62f;
+        private const float FlagStateW = 52f;
+
+        private struct ImporterFlagSnapshot
+        {
+            public string readable;
+            public string mipmaps;
+            public string streaming;
+            public string crunch;
+            public string maskColor;
+            public string alpha;
+        }
+
+        private struct SpecialFlagSnapshot
+        {
+            public string format;
+            public string meshComp;
+            public string humanoid;
+            public string blendShapes;
+            public string bounds;
+            public string lights;
+            public string cameras;
+            public string instancing;
+            public string mono;
+            public string crunch;
+        }
+
+        private static ImporterFlagSnapshot CollectImporterFlagSnapshot(KaleidoVRCOptimizer window)
+        {
+            ImporterFlagSnapshot snap = new ImporterFlagSnapshot
+            {
+                readable = "—",
+                mipmaps = "—",
+                streaming = "—",
+                crunch = "—",
+                maskColor = "—",
+                alpha = "—"
+            };
+            if (window == null || window.textureUsages == null) return snap;
+            int rwOn = 0, rwOff = 0, mipOn = 0, mipOff = 0, streamOn = 0, streamOff = 0, crunchOn = 0, crunchOff = 0, srgbOn = 0, srgbOff = 0, alphaOn = 0, alphaOff = 0;
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null || string.IsNullOrEmpty(usage.path)) continue;
+                TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                if (importer == null) continue;
+                if (importer.isReadable) rwOn++; else rwOff++;
+                if (importer.mipmapEnabled) mipOn++; else mipOff++;
+                if (importer.streamingMipmaps) streamOn++; else streamOff++;
+                if (importer.crunchedCompression) crunchOn++; else crunchOff++;
+                if (usage.kind == KaleidoTextureKind.Mask)
+                {
+                    if (importer.sRGBTexture) srgbOn++; else srgbOff++;
+                }
+                if (usage.kind == KaleidoTextureKind.Albedo && importer.DoesSourceTextureHaveAlpha())
+                {
+                    if (importer.alphaIsTransparency) alphaOn++; else alphaOff++;
+                }
+            }
+            snap.readable = CountLabel(rwOn, rwOff, "On", "Off");
+            snap.mipmaps = CountLabel(mipOn, mipOff, "On", "Off");
+            snap.streaming = CountLabel(streamOn, streamOff, "On", "Off");
+            snap.crunch = CountLabel(crunchOn, crunchOff, "On", "Off");
+            snap.maskColor = CountLabel(srgbOff, srgbOn, "Linear", "sRGB");
+            snap.alpha = CountLabel(alphaOn, alphaOff, "On", "Off");
+            return snap;
+        }
+
+        private static SpecialFlagSnapshot CollectSpecialFlagSnapshot(KaleidoVRCOptimizer window)
+        {
+            SpecialFlagSnapshot snap = new SpecialFlagSnapshot
+            {
+                format = "—",
+                meshComp = "—",
+                humanoid = "—",
+                blendShapes = "—",
+                bounds = "—",
+                lights = "—",
+                cameras = "—",
+                instancing = "—",
+                mono = "—",
+                crunch = "—"
+            };
+            if (window == null) return snap;
+
+            int lightOn = 0, lightOff = 0, camOn = 0, camOff = 0;
+            if (window.targets != null)
+            {
+                for (int i = 0; i < window.targets.Count; i++)
+                {
+                    GameObject root = window.targets[i] as GameObject;
+                    if (root == null) continue;
+                    Light[] lights = root.GetComponentsInChildren<Light>(true);
+                    for (int l = 0; l < lights.Length; l++)
+                    {
+                        if (lights[l].enabled) lightOn++; else lightOff++;
+                    }
+                    Camera[] cameras = root.GetComponentsInChildren<Camera>(true);
+                    for (int c = 0; c < cameras.Length; c++)
+                    {
+                        if (cameras[c].enabled) camOn++; else camOff++;
+                    }
+                }
+            }
+            snap.lights = CountLabel(lightOn, lightOff, "On", "Off");
+            snap.cameras = CountLabel(camOn, camOff, "On", "Off");
+
+            int instOn = 0, instOff = 0, monoOn = 0, monoOff = 0, blendOn = 0, blendOff = 0, humanOn = 0, humanOff = 0, meshOn = 0, meshOff = 0;
+            if (window.inventory != null)
+            {
+                HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < window.inventory.Count; i++)
+                {
+                    KaleidoModelInventoryItem item = window.inventory[i];
+                    if (item == null || string.IsNullOrEmpty(item.path) || !seen.Add(item.path)) continue;
+                    if (item.asset is Material)
+                    {
+                        Material material = item.asset as Material;
+                        if (material.enableInstancing) instOn++; else instOff++;
+                    }
+                    AssetImporter importer = AssetImporter.GetAtPath(item.path);
+                    ModelImporter model = importer as ModelImporter;
+                    if (model != null)
+                    {
+                        if (model.importBlendShapes) blendOn++; else blendOff++;
+                        if (model.animationType == ModelImporterAnimationType.Human) humanOn++; else humanOff++;
+                        if (model.meshCompression != ModelImporterMeshCompression.Off) meshOn++; else meshOff++;
+                    }
+                    AudioImporter audio = importer as AudioImporter;
+                    if (audio != null)
+                    {
+                        if (audio.forceToMono) monoOn++; else monoOff++;
+                    }
+                }
+            }
+            snap.instancing = CountLabel(instOn, instOff, "On", "Off");
+            snap.mono = CountLabel(monoOn, monoOff, "On", "Off");
+            snap.blendShapes = CountLabel(blendOn, blendOff, "On", "Off");
+            snap.humanoid = CountLabel(humanOn, humanOff, "Humanoid", "Other");
+            snap.meshComp = CountLabel(meshOn, meshOff, "On", "Off");
+            snap.crunch = CollectImporterFlagSnapshot(window).crunch;
+            return snap;
+        }
+
+        private static string CountLabel(int first, int second, string firstName, string secondName)
+        {
+            if (first == 0 && second == 0) return "—";
+            if (first > 0 && second > 0) return "Mixed";
+            return first > 0 ? firstName : secondName;
+        }
+
+        private static string OnOffNew(bool enable, bool disable)
+        {
+            if (enable) return "On";
+            if (disable) return "Off";
+            return "—";
+        }
+
+        private static string LinearNew(bool linear, bool srgb)
+        {
+            if (linear) return "Linear";
+            if (srgb) return "sRGB";
+            return "—";
+        }
+
+        private static void DrawImporterFlagHeaders()
+        {
+            GUIStyle header = new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                margin = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(" ", GUILayout.MinWidth(140), GUILayout.ExpandWidth(true));
+            GUILayout.Label("Enable", header, GUILayout.Width(FlagEnableW));
+            GUILayout.Label("Disable", header, GUILayout.Width(FlagDisableW));
+            GUILayout.Label("Current", header, GUILayout.Width(FlagStateW));
+            GUILayout.Label("New", header, GUILayout.Width(FlagStateW));
+            GUILayout.Space(60);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private static bool DrawCenteredToggle(bool value, float width)
+        {
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(width), GUILayout.MaxWidth(width));
+            GUILayout.FlexibleSpace();
+            value = GUILayout.Toggle(value, GUIContent.none, GUILayout.Width(16));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            return value;
+        }
+
+        private static void DrawEnableDisableRow(
+            KaleidoVRCOptimizer window,
+            string title,
+            string why,
+            string enableOptionId,
+            string disableOptionId,
+            ref bool enable,
+            ref bool disable,
+            string current,
+            string next)
+        {
+            DrawEnableDisableRow(window, title, why, enableOptionId, disableOptionId, ref enable, ref disable, current, next, "On", "Off");
+        }
+
+        private static void DrawEnableDisableRow(
+            KaleidoVRCOptimizer window,
+            string title,
+            string why,
+            string enableOptionId,
+            string disableOptionId,
+            ref bool enable,
+            ref bool disable,
+            string current,
+            string next,
+            string enableName,
+            string disableName)
+        {
+            GUIStyle center = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                margin = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(title, GUILayout.MinWidth(140), GUILayout.ExpandWidth(true));
+            bool nextEnable = DrawCenteredToggle(enable, FlagEnableW);
+            bool nextDisable = DrawCenteredToggle(disable, FlagDisableW);
+            if (nextEnable != enable)
+            {
+                enable = nextEnable;
+                if (enable) disable = false;
+            }
+            else if (nextDisable != disable)
+            {
+                disable = nextDisable;
+                if (disable) enable = false;
+            }
+            GUILayout.Label(current, center, GUILayout.Width(FlagStateW));
+            GUILayout.Label(next, center, GUILayout.Width(FlagStateW));
+            string undoId = enable ? enableOptionId : (disable ? disableOptionId : "");
+            if (!string.IsNullOrEmpty(undoId) && KaleidoOptionUndo.Has(undoId))
+            {
+                bool wasEnabled = GUI.enabled;
+                GUI.enabled = true;
+                if (GUILayout.Button("Undo", GUILayout.Width(56), GUILayout.Height(18)))
+                {
+                    if (EditorUtility.DisplayDialog(
+                        "Undo",
+                        "Restore the values from before \"" + title + "\" was applied?",
+                        "Undo",
+                        "Cancel"))
+                    {
+                        int missed;
+                        int restored = KaleidoOptionUndo.Restore(undoId, out missed);
+                        if (restored > 0 && window != null)
+                        {
+                            window.InvalidateInventory();
+                            KaleidoVRCOptimizerLogic.RefreshListedTextureCurrents(window);
+                            window.WorkspaceReadyToApply = false;
+                        }
+                        if (missed > 0)
+                        {
+                            EditorUtility.DisplayDialog(
+                                "Undo",
+                                restored == 0
+                                    ? "Could not find the saved objects. Nothing was restored."
+                                    : "Restored " + restored + ". " + missed + " saved object(s) were not found.",
+                                "OK");
+                        }
+                    }
+                }
+                GUI.enabled = wasEnabled;
+            }
+            else GUILayout.Space(60);
+            EditorGUILayout.EndHorizontal();
+            DrawWhy(why);
+            GUILayout.Space(3);
+        }
         }
 
         private static void DrawWhy(string why)
@@ -5039,9 +5522,15 @@ namespace KaleidoVR.EditorTools
             List<string> logEntries)
         {
             bool write = !window.dryRun;
+            window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.enableLightsOnAvatar || window.disableCamerasOnAvatar || window.enableCamerasOnAvatar;
             List<string> changedImporters = new List<string>();
             KaleidoOptionUndo.BeginApplyLog(logEntries, write);
-            LogSpecialSelection(window, logEntries, write);
+            logEntries.Add("");
+            logEntries.Add("Chosen writes");
+            LogTextureChoices(window, logEntries);
+            LogSpecialSelection(window, logEntries);
+            logEntries.Add("");
+            logEntries.Add(write ? "Changes" : "Would change");
 
             if (write) AssetDatabase.StartAssetEditing();
             try
@@ -5053,17 +5542,18 @@ namespace KaleidoVR.EditorTools
 
                     if (window.optimizeTextures && importer is TextureImporter textureImporter)
                     {
-                        if (ApplyTextureImporter(window, path, textureImporter, write))
+                        List<string> details = new List<string>();
+                        if (ApplyTextureImporter(window, path, textureImporter, write, details))
                         {
                             KaleidoTextureUsage logged = FindTextureUsage(window, path);
                             KaleidoTextureKind kind = logged != null
                                 ? logged.kind
                                 : KaleidoVRCOptimizerHelpers.ClassifyTexture(path, textureImporter);
-                            string formatHint = DescribePlannedTextureFormat(window, textureImporter, kind);
                             string line = "Texture (" + kind + "): " + path;
-                            if (!string.IsNullOrEmpty(formatHint)) line += " [" + formatHint + "]";
+                            if (details.Count > 0) line += " — " + JoinChangeSummary(details);
                             report.planned.Add(line);
-                            logEntries.Add(line);
+                            logEntries.Add("Texture (" + kind + "): " + path);
+                            for (int d = 0; d < details.Count; d++) logEntries.Add(details[d]);
                             changedImporters.Add(path);
                             if (write) EditorUtility.SetDirty(textureImporter);
                         }
@@ -5190,48 +5680,146 @@ namespace KaleidoVR.EditorTools
         {
             List<string> chosen = new List<string>();
             if (window == null) return chosen;
-            if (window.applyMeshCompression) chosen.Add("• Apply mesh compression (" + window.meshCompression + ")");
-            if (window.meshForceHumanoid) chosen.Add("• Force Humanoid rig");
-            if (window.meshStripBlendShapes) chosen.Add("• Disable blend shape import");
+            if (!window.IsQuestWorkspace && window.applyPcTexFormat) chosen.Add("• Set compression (" + window.pcTexFormat + ")");
+            if (window.IsQuestWorkspace && window.applyAndroidTexFormat) chosen.Add("• Set compression format (" + window.androidTexFormat + ")");
+            if (!window.IsQuestWorkspace && window.applyMeshCompression) chosen.Add("• Apply mesh compression (" + window.meshCompression + ")");
+            if (!window.IsQuestWorkspace && window.meshForceHumanoid) chosen.Add("• Force Humanoid rig");
+            if (!window.IsQuestWorkspace && window.meshRestoreBlendShapes) chosen.Add("• Blend shape import On");
+            if (!window.IsQuestWorkspace && window.meshStripBlendShapes) chosen.Add("• Blend shape import Off");
             if (!window.IsQuestWorkspace && window.rendererRecalculateBounds) chosen.Add("• Recalculate skinned bounds");
-            if (window.disableLightsOnAvatar) chosen.Add("• Disable realtime lights");
-            if (window.IsQuestWorkspace && window.disableCamerasOnAvatar) chosen.Add("• Disable cameras");
-            if (window.IsQuestWorkspace && window.optimizeMaterials) chosen.Add("• GPU instancing");
+            if (window.enableLightsOnAvatar) chosen.Add("• Realtime lights On");
+            if (window.disableLightsOnAvatar) chosen.Add("• Realtime lights Off");
+            if (window.IsQuestWorkspace && window.enableCamerasOnAvatar) chosen.Add("• Cameras On");
+            if (window.IsQuestWorkspace && window.disableCamerasOnAvatar) chosen.Add("• Cameras Off");
+            if (window.IsQuestWorkspace && window.optimizeMaterials)
+                chosen.Add(window.materialEnableGpuInstancing ? "• GPU instancing On" : "• GPU instancing Off");
             if (!window.IsQuestWorkspace && window.audioForceToMono) chosen.Add("• Force audio to mono");
+            if (!window.IsQuestWorkspace && window.audioForceToStereo) chosen.Add("• Force audio to stereo");
             if (!window.IsQuestWorkspace && window.textureEnableCrunch)
-                chosen.Add("• Enable crunch compression (" + KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality) + "%)");
+                chosen.Add("• Crunch compression On (" + KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality) + "%)");
             return chosen;
         }
 
-        private static void LogSpecialSelection(KaleidoVRCOptimizer window, List<string> logEntries, bool write)
+        private static void LogTextureChoices(KaleidoVRCOptimizer window, List<string> logEntries)
+        {
+            if (window == null || logEntries == null) return;
+            if (!window.optimizeTextures)
+            {
+                logEntries.Add("  Textures: skipped");
+                return;
+            }
+
+            int added = 0;
+            if (!window.IsQuestWorkspace)
+            {
+                added += LogChoice(logEntries, "Read / Write", window.textureEnableReadWrite, window.textureDisableReadWrite);
+                if (window.textureApplyMipmaps)
+                    added += LogChoice(logEntries, "Mip maps", window.textureEnableMipmaps, !window.textureEnableMipmaps);
+                added += LogChoice(logEntries, "Streaming mip maps", window.textureEnableStreamingMipmaps, window.textureDisableStreamingMipmaps);
+                added += LogChoice(logEntries, "Crunch compression", window.textureEnableCrunch, window.textureDisableCrunch);
+                if (window.textureApplyAniso)
+                {
+                    logEntries.Add("  Aniso: " + window.textureAniso);
+                    added++;
+                }
+                if (window.autoDetectNormalMaps)
+                {
+                    logEntries.Add("  Detect normal maps: Enable");
+                    added++;
+                }
+                added += LogChoice(logEntries, "Linear color for mask maps", window.autoLinearMaskMaps, window.autoSrgbMaskMaps, "Linear", "sRGB");
+                added += LogChoice(logEntries, "Alpha Is Transparency", window.alphaIsTransparencyOnAlbedo, window.alphaIsTransparencyOffAlbedo);
+            }
+            else
+            {
+                added += LogChoice(logEntries, "Streaming mip maps", window.textureEnableStreamingMipmaps, window.textureDisableStreamingMipmaps);
+            }
+
+            if (added == 0) logEntries.Add("  Textures: max sizes / row selectors only");
+        }
+
+        private static int LogChoice(List<string> logEntries, string title, bool enable, bool disable)
+        {
+            return LogChoice(logEntries, title, enable, disable, "Enable", "Disable");
+        }
+
+        private static int LogChoice(List<string> logEntries, string title, bool enable, bool disable, string enableName, string disableName)
+        {
+            if (enable) logEntries.Add("  " + title + ": " + enableName);
+            else if (disable) logEntries.Add("  " + title + ": " + disableName);
+            else return 0;
+            return 1;
+        }
+
+        private static void LogSpecialSelection(KaleidoVRCOptimizer window, List<string> logEntries)
         {
             if (window == null || logEntries == null) return;
             List<string> chosen = CollectSpecialWrites(window);
-            logEntries.Add(chosen.Count == 0
-                ? "Special chosen: none"
-                : "Special chosen: " + string.Join(", ", chosen.ToArray()).Replace("• ", ""));
-            logEntries.Add(write
-                ? "Special writes only the checked options above. Unchecked options are skipped."
-                : "Special dry run. Unchecked options are skipped.");
-            KaleidoOptionUndo.NoteHeader(chosen.Count == 0
-                ? "Special chosen: none"
-                : "Special chosen: " + string.Join(", ", chosen.ToArray()).Replace("• ", ""));
-        }
-
-        private static bool ApplyStreamingMipmaps(KaleidoVRCOptimizer window, TextureImporter importer, string path, bool write)
-        {
-            if (window == null || importer == null || !window.textureEnableStreamingMipmaps) return false;
-            bool mipsOn = window.textureApplyMipmaps ? window.textureEnableMipmaps : importer.mipmapEnabled;
-            if (!mipsOn || importer.streamingMipmaps) return false;
-            if (write)
+            if (chosen.Count == 0)
             {
-                KaleidoOptionUndo.Capture(KaleidoOptionUndo.StreamingMipmaps, "texture", path, "", "", "", KaleidoOptionUndo.Int("streaming", 0));
-                importer.streamingMipmaps = true;
+                logEntries.Add("  Special: none");
+                KaleidoOptionUndo.NoteHeader("Special chosen: none");
+                return;
             }
-            return true;
+            logEntries.Add("  Special:");
+            for (int i = 0; i < chosen.Count; i++)
+                logEntries.Add("    " + chosen[i].Replace("• ", ""));
+            KaleidoOptionUndo.NoteHeader("Special chosen: " + string.Join(", ", chosen.ToArray()).Replace("• ", ""));
         }
 
-        private static bool ApplyTextureImporter(KaleidoVRCOptimizer window, string path, TextureImporter importer, bool write)
+        private static string JoinChangeSummary(List<string> details)
+        {
+            if (details == null || details.Count == 0) return "";
+            List<string> parts = new List<string>();
+            for (int i = 0; i < details.Count; i++)
+            {
+                string line = details[i] != null ? details[i].Trim() : "";
+                if (line.Length > 0) parts.Add(line);
+            }
+            return string.Join("; ", parts.ToArray());
+        }
+
+        private static void AddChange(List<string> details, string name, string from, string to)
+        {
+            if (details == null) return;
+            if (string.Equals(from, to, StringComparison.Ordinal)) return;
+            details.Add("  " + name + "  " + from + " → " + to);
+        }
+
+        private static string FlagWord(bool on)
+        {
+            return on ? "On" : "Off";
+        }
+
+        private static bool ApplyStreamingMipmaps(KaleidoVRCOptimizer window, TextureImporter importer, string path, bool write, List<string> details)
+        {
+            if (window == null || importer == null) return false;
+            if (window.textureEnableStreamingMipmaps)
+            {
+                bool mipsOn = window.textureApplyMipmaps ? window.textureEnableMipmaps : importer.mipmapEnabled;
+                if (!mipsOn || importer.streamingMipmaps) return false;
+                AddChange(details, "Streaming mip maps", "Off", "On");
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.StreamingMipmaps, "texture", path, "", "", "", KaleidoOptionUndo.Int("streaming", 0));
+                    importer.streamingMipmaps = true;
+                }
+                return true;
+            }
+            if (window.textureDisableStreamingMipmaps && importer.streamingMipmaps)
+            {
+                AddChange(details, "Streaming mip maps", "On", "Off");
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.StreamingMipmapsOff, "texture", path, "", "", "", KaleidoOptionUndo.Int("streaming", 1));
+                    importer.streamingMipmaps = false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private static bool ApplyTextureImporter(KaleidoVRCOptimizer window, string path, TextureImporter importer, bool write, List<string> details)
         {
             KaleidoTextureUsage row = FindTextureUsage(window, path);
             KaleidoTextureKind kind = row != null
@@ -5269,14 +5857,15 @@ namespace KaleidoVR.EditorTools
                 string sizeId = applySize ? KaleidoOptionUndo.SizeOptionId(kind) : null;
                 string formatId = window.applyAndroidTexFormat ? KaleidoOptionUndo.AndroidFormat : null;
                 string hqId = normalHq && window.applyAndroidTexFormat ? KaleidoOptionUndo.HigherQualityNormals : null;
-                if (ApplyPlatform(importer, "Android", path, writeQuestSize, questSize, sizeId, window.applyAndroidTexFormat, androidFormat, TextureImporterCompression.Compressed, formatId, hqId, false, null, write))
+                if (ApplyPlatform(importer, "Android", path, writeQuestSize, questSize, sizeId, window.applyAndroidTexFormat, androidFormat, TextureImporterCompression.Compressed, formatId, hqId, false, null, write, details))
                     dirty = true;
-                if (ApplyStreamingMipmaps(window, importer, path, write)) dirty = true;
+                if (ApplyStreamingMipmaps(window, importer, path, write, details)) dirty = true;
                 return dirty;
             }
 
             if (window.autoDetectNormalMaps && normal && importer.textureType != TextureImporterType.NormalMap)
             {
+                AddChange(details, "Texture type", importer.textureType.ToString(), TextureImporterType.NormalMap.ToString());
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.DetectNormals, "texture", path, "", "", "", KaleidoOptionUndo.Int("texType", (int)importer.textureType));
@@ -5285,8 +5874,19 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            if (window.textureDisableReadWrite && importer.isReadable)
+            if (window.textureEnableReadWrite && !importer.isReadable)
             {
+                AddChange(details, "Read / Write", "Off", "On");
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureReadWriteOn, "texture", path, "", "", "", KaleidoOptionUndo.Int("readable", 0));
+                    importer.isReadable = true;
+                }
+                dirty = true;
+            }
+            else if (window.textureDisableReadWrite && importer.isReadable)
+            {
+                AddChange(details, "Read / Write", "On", "Off");
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureReadWrite, "texture", path, "", "", "", KaleidoOptionUndo.Int("readable", 1));
@@ -5297,6 +5897,7 @@ namespace KaleidoVR.EditorTools
 
             if (window.textureApplyMipmaps && importer.mipmapEnabled != window.textureEnableMipmaps)
             {
+                AddChange(details, "Mip maps", FlagWord(importer.mipmapEnabled), FlagWord(window.textureEnableMipmaps));
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureMipmaps, "texture", path, "", "", "", KaleidoOptionUndo.Int("mipmaps", importer.mipmapEnabled ? 1 : 0));
@@ -5305,10 +5906,11 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            if (ApplyStreamingMipmaps(window, importer, path, write)) dirty = true;
+            if (ApplyStreamingMipmaps(window, importer, path, write, details)) dirty = true;
 
             if (window.textureApplyAniso && importer.anisoLevel != window.textureAniso)
             {
+                AddChange(details, "Aniso", importer.anisoLevel.ToString(), window.textureAniso.ToString());
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureAniso, "texture", path, "", "", "", KaleidoOptionUndo.Int("aniso", importer.anisoLevel));
@@ -5320,6 +5922,8 @@ namespace KaleidoVR.EditorTools
             int crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality);
             if (window.textureEnableCrunch && (!importer.crunchedCompression || importer.compressionQuality != crunchQuality))
             {
+                string from = importer.crunchedCompression ? "On (" + importer.compressionQuality + "%)" : "Off";
+                AddChange(details, "Crunch", from, "On (" + crunchQuality + "%)");
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureCrunchOn, "texture", path, "", "", "importer", KaleidoOptionUndo.Join(
@@ -5332,6 +5936,7 @@ namespace KaleidoVR.EditorTools
             }
             else if (window.textureDisableCrunch && !window.textureEnableCrunch && importer.crunchedCompression)
             {
+                AddChange(details, "Crunch", "On", "Off");
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureCrunchOff, "texture", path, "", "", "importer", KaleidoOptionUndo.Int("crunch", 1));
@@ -5345,6 +5950,7 @@ namespace KaleidoVR.EditorTools
                 : TextureImporterCompression.Compressed;
             if (window.applyPcTexFormat && importer.textureCompression != wantedCompression)
             {
+                AddChange(details, "Compression", importer.textureCompression.ToString(), wantedCompression.ToString());
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.PcFormat, "texture", path, "", "", "importer", KaleidoOptionUndo.Int("compression", (int)importer.textureCompression));
@@ -5355,6 +5961,7 @@ namespace KaleidoVR.EditorTools
 
             if (window.autoLinearMaskMaps && mask && importer.sRGBTexture)
             {
+                AddChange(details, "Mask color", "sRGB", "Linear");
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.LinearMasks, "texture", path, "", "", "", KaleidoOptionUndo.Int("srgb", 1));
@@ -5362,9 +5969,20 @@ namespace KaleidoVR.EditorTools
                 }
                 dirty = true;
             }
+            else if (window.autoSrgbMaskMaps && mask && !importer.sRGBTexture)
+            {
+                AddChange(details, "Mask color", "Linear", "sRGB");
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.LinearMasksOff, "texture", path, "", "", "", KaleidoOptionUndo.Int("srgb", 0));
+                    importer.sRGBTexture = true;
+                }
+                dirty = true;
+            }
 
             if (window.alphaIsTransparencyOnAlbedo && albedo && importer.DoesSourceTextureHaveAlpha() && !importer.alphaIsTransparency)
             {
+                AddChange(details, "Alpha Is Transparency", "Off", "On");
                 if (write)
                 {
                     KaleidoOptionUndo.Capture(KaleidoOptionUndo.AlphaIsTransparency, "texture", path, "", "", "", KaleidoOptionUndo.Int("alpha", 0));
@@ -5372,9 +5990,20 @@ namespace KaleidoVR.EditorTools
                 }
                 dirty = true;
             }
+            else if (window.alphaIsTransparencyOffAlbedo && albedo && importer.alphaIsTransparency)
+            {
+                AddChange(details, "Alpha Is Transparency", "On", "Off");
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.AlphaIsTransparencyOff, "texture", path, "", "", "", KaleidoOptionUndo.Int("alpha", 1));
+                    importer.alphaIsTransparency = false;
+                }
+                dirty = true;
+            }
 
             if (writePcSize && importer.maxTextureSize != pcSize)
             {
+                AddChange(details, "Max size", importer.maxTextureSize.ToString(), pcSize.ToString());
                 if (write)
                 {
                     if (applySize)
@@ -5389,7 +6018,7 @@ namespace KaleidoVR.EditorTools
             string pcFormatId = window.applyPcTexFormat ? KaleidoOptionUndo.PcFormat : null;
             string pcHqId = normalHq && window.applyPcTexFormat ? KaleidoOptionUndo.HigherQualityNormals : null;
             string crunchId = window.textureDisableCrunch && !window.textureEnableCrunch ? KaleidoOptionUndo.TextureCrunchOff : null;
-            if (ApplyPlatform(importer, "Standalone", path, writePcSize, pcSize, pcSizeId, window.applyPcTexFormat, pcFormat, wantedCompression, pcFormatId, pcHqId, window.textureDisableCrunch && !window.textureEnableCrunch, crunchId, write))
+            if (ApplyPlatform(importer, "Standalone", path, writePcSize, pcSize, pcSizeId, window.applyPcTexFormat, pcFormat, wantedCompression, pcFormatId, pcHqId, window.textureDisableCrunch && !window.textureEnableCrunch, crunchId, write, details))
                 dirty = true;
 
             return dirty;
@@ -5444,7 +6073,8 @@ namespace KaleidoVR.EditorTools
             string hqOptionId,
             bool disableCrunch,
             string crunchOptionId,
-            bool write)
+            bool write,
+            List<string> details)
         {
             if (!applySize && !applyFormat && !disableCrunch) return false;
 
@@ -5453,6 +6083,11 @@ namespace KaleidoVR.EditorTools
             bool formatChanges = applyFormat && (!settings.overridden || settings.format != format || settings.textureCompression != compression);
             bool crunchChanges = disableCrunch && settings.crunchedCompression;
             if (!sizeChanges && !formatChanges && !crunchChanges) return false;
+
+            string label = platform == "Android" ? "Quest" : "PC";
+            if (sizeChanges) AddChange(details, "Max size (" + label + ")", settings.overridden ? settings.maxTextureSize.ToString() : importer.maxTextureSize.ToString(), maxSize.ToString());
+            if (formatChanges) AddChange(details, "Format (" + label + ")", settings.overridden ? settings.format.ToString() : "Default", format.ToString());
+            if (crunchChanges) AddChange(details, "Crunch (" + label + ")", "On", "Off");
             if (!write) return true;
 
             string slot = platform == "Android" ? "android" : "pc";
@@ -5641,11 +6276,11 @@ namespace KaleidoVR.EditorTools
                 }
                 dirty = true;
             }
-            else if (window.meshKeepBlendShapes && !importer.importBlendShapes)
+            else if ((window.meshRestoreBlendShapes || window.meshKeepBlendShapes) && !importer.importBlendShapes)
             {
                 if (write)
                 {
-                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.KeepBlendShapes, "model", path, "", "", "", KaleidoOptionUndo.Int("blend", 0));
+                    KaleidoOptionUndo.Capture(window.meshRestoreBlendShapes ? KaleidoOptionUndo.RestoreBlendShapes : KaleidoOptionUndo.KeepBlendShapes, "model", path, "", "", "", KaleidoOptionUndo.Int("blend", 0));
                     importer.importBlendShapes = true;
                 }
                 dirty = true;
@@ -5760,6 +6395,15 @@ namespace KaleidoVR.EditorTools
                 }
                 dirty = true;
             }
+            else if (window.audioForceToStereo && importer.forceToMono)
+            {
+                if (write)
+                {
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.AudioStereo, "audio", path, "", "", "", KaleidoOptionUndo.Int("mono", 1));
+                    importer.forceToMono = false;
+                }
+                dirty = true;
+            }
             if (window.audioLoadInBackground && !importer.loadInBackground)
             {
                 if (write)
@@ -5839,35 +6483,37 @@ namespace KaleidoVR.EditorTools
 
             if (window.optimizeSceneExtras)
             {
-                if (window.disableLightsOnAvatar)
+                if (window.enableLightsOnAvatar || window.disableLightsOnAvatar)
                 {
                     foreach (Light light in root.GetComponentsInChildren<Light>(true))
                     {
-                        if (!light.enabled) continue;
-                        string line = "Disable light: " + GetPath(light.transform);
+                        bool next = window.enableLightsOnAvatar;
+                        if (light.enabled == next) continue;
+                        string line = (next ? "Enable light: " : "Disable light: ") + GetPath(light.transform);
                         report.planned.Add(line);
                         logEntries.Add(line);
                         if (write)
                         {
-                            RememberComponent(KaleidoOptionUndo.DisableLights, "light", undoAssetPath, root, light.transform, KaleidoOptionUndo.Int("enabled", 1));
-                            light.enabled = false;
+                            RememberComponent(next ? KaleidoOptionUndo.EnableLights : KaleidoOptionUndo.DisableLights, "light", undoAssetPath, root, light.transform, KaleidoOptionUndo.Int("enabled", light.enabled ? 1 : 0));
+                            light.enabled = next;
                             EditorUtility.SetDirty(light);
                         }
                     }
                 }
 
-                if (window.IsQuestWorkspace && window.disableCamerasOnAvatar)
+                if (window.IsQuestWorkspace && (window.enableCamerasOnAvatar || window.disableCamerasOnAvatar))
                 {
                     foreach (Camera camera in root.GetComponentsInChildren<Camera>(true))
                     {
-                        if (!camera.enabled) continue;
-                        string line = "Disable camera: " + GetPath(camera.transform);
+                        bool next = window.enableCamerasOnAvatar;
+                        if (camera.enabled == next) continue;
+                        string line = (next ? "Enable camera: " : "Disable camera: ") + GetPath(camera.transform);
                         report.planned.Add(line);
                         logEntries.Add(line);
                         if (write)
                         {
-                            RememberComponent(KaleidoOptionUndo.DisableCameras, "camera", undoAssetPath, root, camera.transform, KaleidoOptionUndo.Int("enabled", 1));
-                            camera.enabled = false;
+                            RememberComponent(next ? KaleidoOptionUndo.EnableCameras : KaleidoOptionUndo.DisableCameras, "camera", undoAssetPath, root, camera.transform, KaleidoOptionUndo.Int("enabled", camera.enabled ? 1 : 0));
+                            camera.enabled = next;
                             EditorUtility.SetDirty(camera);
                         }
                     }

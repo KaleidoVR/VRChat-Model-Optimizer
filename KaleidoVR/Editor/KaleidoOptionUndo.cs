@@ -27,14 +27,18 @@ namespace KaleidoVR.EditorTools
         public const string PcFormat = "applyPcTexFormat";
         public const string HigherQualityNormals = "higherQualityNormalMaps";
         public const string StreamingMipmaps = "textureEnableStreamingMipmaps";
+        public const string StreamingMipmapsOff = "textureDisableStreamingMipmaps";
         public const string TextureReadWrite = "textureDisableReadWrite";
+        public const string TextureReadWriteOn = "textureEnableReadWrite";
         public const string TextureMipmaps = "textureApplyMipmaps";
         public const string TextureCrunchOff = "textureDisableCrunch";
         public const string TextureCrunchOn = "textureEnableCrunch";
         public const string TextureAniso = "textureApplyAniso";
         public const string DetectNormals = "autoDetectNormalMaps";
         public const string LinearMasks = "autoLinearMaskMaps";
+        public const string LinearMasksOff = "autoSrgbMaskMaps";
         public const string AlphaIsTransparency = "alphaIsTransparencyOnAlbedo";
+        public const string AlphaIsTransparencyOff = "alphaIsTransparencyOffAlbedo";
         public const string MeshReadWrite = "meshEnableReadWrite";
         public const string SkinWeights = "applySkinWeights";
         public const string OptimizePolygons = "meshOptimizePolygons";
@@ -59,9 +63,13 @@ namespace KaleidoVR.EditorTools
         public const string AudioLoadBackground = "audioLoadInBackground";
         public const string AudioVorbis = "audioApplyVorbis";
         public const string AudioMono = "audioForceToMono";
+        public const string AudioStereo = "audioForceToStereo";
         public const string Particles = "optimizeParticles";
         public const string DisableLights = "disableLightsOnAvatar";
+        public const string EnableLights = "enableLightsOnAvatar";
         public const string DisableCameras = "disableCamerasOnAvatar";
+        public const string EnableCameras = "enableCamerasOnAvatar";
+        public const string RestoreBlendShapes = "meshRestoreBlendShapes";
         public const string GpuInstancing = "optimizeMaterials";
 
         public static string SizeOptionId(KaleidoTextureKind kind)
@@ -641,7 +649,13 @@ namespace KaleidoVR.EditorTools
                 || optionId == DisableCameras
                 || optionId == GpuInstancing
                 || optionId == AudioMono
-                || optionId == TextureCrunchOn;
+                || optionId == TextureCrunchOn
+                || optionId == PcFormat
+                || optionId == AndroidFormat
+                || optionId == EnableLights
+                || optionId == EnableCameras
+                || optionId == AudioStereo
+                || optionId == RestoreBlendShapes;
         }
 
         static string SpecialTitle(string optionId)
@@ -655,6 +669,12 @@ namespace KaleidoVR.EditorTools
             if (optionId == GpuInstancing) return "GPU instancing";
             if (optionId == AudioMono) return "Force audio to mono";
             if (optionId == TextureCrunchOn) return "Enable crunch compression";
+            if (optionId == PcFormat) return "Set compression";
+            if (optionId == AndroidFormat) return "Set compression format";
+            if (optionId == EnableLights) return "Realtime lights";
+            if (optionId == EnableCameras) return "Cameras";
+            if (optionId == AudioStereo) return "Force audio to stereo";
+            if (optionId == RestoreBlendShapes) return "Blend shape import";
             return optionId;
         }
 
