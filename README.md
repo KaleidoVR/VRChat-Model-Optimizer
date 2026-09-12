@@ -4,7 +4,7 @@
   <img src="KaleidoVR/Editor/Icons/Kali_Logo.png" alt="KaleidoVR" width="300">
 </p>
 
-A Unity editor tool that scans a VRChat avatar and applies optional texture, mesh, renderer, audio, and animator optimizations. Every option can be left off. Built-in PC, Quest, Dual, and Everything profiles are included, plus user-saved profiles.
+A Unity editor tool that scans a VRChat avatar and applies optional texture, mesh, renderer, audio, and animator optimizations. Every option can be left off. Built-in PC, Quest, Standard, and Everything profiles are included, plus user-saved profiles.
 
 Drop a `VRCAvatarDescriptor` avatar (or a skinned character FBX/VRM/GLB) into the window. The tool lists only assets inside that model, then dry-runs or applies the settings you enable.
 
@@ -32,7 +32,7 @@ It appears in the same **KaleidoVR** menu as Asset Organizer.
 
 1. Drag the avatar into the Setup tab. Worlds, scenes, folders, and loose textures/materials are rejected.
 2. Review **Contents Of Selected Model**. Scan and Apply only use that set.
-3. Pick a profile (PC, Quest, Dual, Everything, or a saved profile) and enable only the categories you want.
+3. Pick a profile (PC, Quest, Standard, Everything, or a saved profile) and enable only the categories you want.
 4. **Scan** or **Dry Run** fills Rank (VRChat limits, VRAM, GrabPass, animator, texture flags). Dry Run previews writes; Apply writes only after that dry run.
 5. Optional logs go to `Logs/KaleidoVR/Optimizer/`.
 
