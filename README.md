@@ -12,7 +12,7 @@ Drop a `VRCAvatarDescriptor` avatar (or a skinned character FBX/VRM/GLB) into th
 - VRChat SDK3 Avatars is optional (needed for descriptor-based targeting and PhysBone / contact counts)
 
 <p align="center">
-<img width="699" height="1283" alt="image" src="https://github.com/user-attachments/assets/327e37f9-fe12-44ec-bb28-ff4c397013f0" />
+<img width="600" height="1184" alt="image" src="https://github.com/user-attachments/assets/327e37f9-fe12-44ec-bb28-ff4c397013f0" />
 </p>
 
 KaleidoVR Unity editor tools live in `KaleidoVR/Editor/` in source and install to `Assets/KaleidoVR/Editor/`.
