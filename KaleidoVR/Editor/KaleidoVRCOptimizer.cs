@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.41";
+        public static readonly string VERSION = "1.0.42";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -3128,7 +3128,10 @@ namespace KaleidoVR.EditorTools
                 }
                 else
                 {
-                    KaleidoAvatarPass.CreatePreviewCopy(source, KaleidoAvatarPass.FromWindow(window), KaleidoAvatarPass.ExclusionsFrom(window, source));
+                    EditorApplication.delayCall += () =>
+                    {
+                        KaleidoAvatarPass.CreatePreviewCopy(source, KaleidoAvatarPass.FromWindow(window), KaleidoAvatarPass.ExclusionsFrom(window, source));
+                    };
                 }
             }
             DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy.");

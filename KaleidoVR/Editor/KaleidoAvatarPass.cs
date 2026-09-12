@@ -244,7 +244,7 @@ namespace KaleidoVR.EditorTools
 
         static void ReportProgress(string status, float t)
         {
-            if (!persistGenerated) return;
+            if (!KaleidoOnUploadSplash.IsOpen) return;
             KaleidoOnUploadSplash.SetProgress(status, t);
         }
 
@@ -358,22 +358,16 @@ namespace KaleidoVR.EditorTools
             source.SetActive(false);
             try
             {
-                KaleidoOnUploadSplash.Open(copy.name);
                 KaleidoAvatarPassResult result = Run(copy, settings, false, RemapExclusions(source, copy, extraExclusions), true);
                 if (result != null && !result.ok)
                     throw new InvalidOperationException(string.IsNullOrEmpty(result.failReason) ? "On Upload copy failed." : result.failReason);
             }
             catch (Exception ex)
             {
-                KaleidoOnUploadSplash.CloseIfOpen();
                 UnityEngine.Object.DestroyImmediate(copy);
                 source.SetActive(true);
                 EditorUtility.DisplayDialog("KaleidoVR", "Could not create the optimized copy.\n\n" + ex.Message, "OK");
                 return null;
-            }
-            finally
-            {
-                KaleidoOnUploadSplash.CloseIfOpen();
             }
             Undo.RegisterCreatedObjectUndo(copy, "KaleidoVR Optimized Copy");
             Selection.activeGameObject = copy;
