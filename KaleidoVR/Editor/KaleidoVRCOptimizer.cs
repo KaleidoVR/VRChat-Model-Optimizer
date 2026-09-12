@@ -151,6 +151,7 @@ namespace KaleidoVR.EditorTools
         public bool disableCamerasOnAvatar = false;
         public bool audioForceToMono = false;
         public bool textureEnableCrunch = false;
+        public int textureCrunchQuality = 50;
     }
 
     [Serializable]
@@ -172,7 +173,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.33";
+        public static readonly string VERSION = "1.0.34";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -280,6 +281,7 @@ namespace KaleidoVR.EditorTools
         public bool disableCamerasOnAvatar = false;
         public bool audioForceToMono = false;
         public bool textureEnableCrunch = false;
+        public int textureCrunchQuality = 50;
         public bool optimizeSceneExtras = false;
 
         public KaleidoOptimizerReport lastReport;
@@ -440,6 +442,7 @@ namespace KaleidoVR.EditorTools
             textureEnableStreamingMipmaps = true;
             textureDisableCrunch = true;
             textureEnableCrunch = false;
+            textureCrunchQuality = 50;
             textureApplyAniso = true;
             textureAniso = 1;
             autoDetectNormalMaps = true;
@@ -563,6 +566,7 @@ namespace KaleidoVR.EditorTools
                 textureApplyMipmaps = textureApplyMipmaps, textureEnableMipmaps = textureEnableMipmaps,
                 textureEnableStreamingMipmaps = textureEnableStreamingMipmaps,
                 textureDisableCrunch = textureDisableCrunch, textureEnableCrunch = textureEnableCrunch,
+                textureCrunchQuality = textureCrunchQuality,
                 textureApplyAniso = textureApplyAniso, textureAniso = textureAniso,
                 autoDetectNormalMaps = autoDetectNormalMaps, autoLinearMaskMaps = autoLinearMaskMaps,
                 higherQualityNormalMaps = higherQualityNormalMaps, alphaIsTransparencyOnAlbedo = alphaIsTransparencyOnAlbedo,
@@ -621,7 +625,7 @@ namespace KaleidoVR.EditorTools
                 textureDisableReadWrite = p.textureDisableReadWrite;
                 textureApplyMipmaps = p.textureApplyMipmaps; textureEnableMipmaps = p.textureEnableMipmaps;
                 textureEnableStreamingMipmaps = p.textureEnableStreamingMipmaps;
-                textureDisableCrunch = p.textureDisableCrunch; textureEnableCrunch = p.textureEnableCrunch;
+                textureDisableCrunch = p.textureDisableCrunch;
                 textureApplyAniso = p.textureApplyAniso; textureAniso = p.textureAniso;
                 autoDetectNormalMaps = p.autoDetectNormalMaps; autoLinearMaskMaps = p.autoLinearMaskMaps;
                 higherQualityNormalMaps = p.higherQualityNormalMaps; alphaIsTransparencyOnAlbedo = p.alphaIsTransparencyOnAlbedo;
@@ -678,6 +682,7 @@ namespace KaleidoVR.EditorTools
                 disableCamerasOnAvatar = p.disableCamerasOnAvatar;
                 audioForceToMono = p.audioForceToMono;
                 textureEnableCrunch = p.textureEnableCrunch;
+                textureCrunchQuality = ClampCrunchQuality(p.textureCrunchQuality);
             }
             else
             {
@@ -693,6 +698,11 @@ namespace KaleidoVR.EditorTools
                 textureEnableCrunch = false;
             }
             optimizeSceneExtras = disableLightsOnAvatar || disableCamerasOnAvatar || optimizeParticles;
+        }
+
+        public static int ClampCrunchQuality(int quality)
+        {
+            return quality < 1 ? 50 : Mathf.Clamp(quality, 1, 100);
         }
 
         public bool includeTextures = true;
@@ -769,6 +779,7 @@ namespace KaleidoVR.EditorTools
             textureEnableStreamingMipmaps = GetBool("TexStreamOn", true);
             textureDisableCrunch = GetBool("TexCrunch", true);
             textureEnableCrunch = GetBool("TexCrunchOn", false);
+            textureCrunchQuality = ClampCrunchQuality(GetInt("TexCrunchQ", 50));
             textureApplyAniso = GetBool("TexAnisoOn", true);
             textureAniso = GetInt("TexAniso", 1);
             autoDetectNormalMaps = GetBool("TexNorm", true);
@@ -875,6 +886,7 @@ namespace KaleidoVR.EditorTools
             SetBool("TexStreamOn", textureEnableStreamingMipmaps);
             SetBool("TexCrunch", textureDisableCrunch);
             SetBool("TexCrunchOn", textureEnableCrunch);
+            SetInt("TexCrunchQ", ClampCrunchQuality(textureCrunchQuality));
             SetBool("TexAnisoOn", textureApplyAniso);
             SetInt("TexAniso", textureAniso);
             SetBool("TexNorm", autoDetectNormalMaps);
@@ -2655,15 +2667,29 @@ namespace KaleidoVR.EditorTools
 
             EditorGUILayout.HelpBox("Uncheck an option to skip it. Apply does not write the old value back. Undo appears beside a checked option after the log shows that option was applied.", MessageType.Warning);
 
+            bool meshCompressionWasOn = window.applyMeshCompression;
             window.applyMeshCompression = DrawToggle(window, KaleidoOptionUndo.MeshCompression, window.applyMeshCompression, "Apply mesh compression", "Unity's mesh compressor distorts blend shapes. Only for static props with no visemes.");
-            if (window.applyMeshCompression) window.meshCompression = (KaleidoMeshCompressionChoice)EditorGUILayout.EnumPopup("Compression Level", window.meshCompression);
+            if (window.applyMeshCompression)
+            {
+                if (!meshCompressionWasOn && window.meshCompression == KaleidoMeshCompressionChoice.Off)
+                    window.meshCompression = KaleidoMeshCompressionChoice.Low;
+                EditorGUI.indentLevel++;
+                window.meshCompression = (KaleidoMeshCompressionChoice)EditorGUILayout.EnumPopup("Compression Level", window.meshCompression);
+                EditorGUI.indentLevel--;
+            }
 
             window.meshForceHumanoid = DrawToggle(window, KaleidoOptionUndo.ForceHumanoid, window.meshForceHumanoid, "Force Humanoid rig", "Rewrites the FBX avatar to Humanoid. Can destroy a working Generic/Humanoid mapping. Prefer the Rig tab in the importer.");
             window.meshStripBlendShapes = DrawToggle(window, KaleidoOptionUndo.StripBlendShapes, window.meshStripBlendShapes, "Disable blend shape import", "Turns blend shapes off on the model. Breaks visemes and face tracking. Only for meshes that truly have none you need.");
-            window.rendererRecalculateBounds = DrawToggle(window, KaleidoOptionUndo.RecalculateBounds, window.rendererRecalculateBounds, "Recalculate skinned bounds", "Sets every skinned box to extents 1,1,1 centered on the middle of the avatar. Fixes tiny or misplaced boxes so parts stay visible. Skips DPS / TPS light meshes. Turns Update When Offscreen off on those skins.");
+            window.rendererRecalculateBounds = DrawToggle(window, KaleidoOptionUndo.RecalculateBounds, window.rendererRecalculateBounds, "Recalculate skinned bounds", "Sets every skinned box to a 2 m cube (Extent 1,1,1) centered on the middle of the avatar. Same box on every mesh. Fixes tiny or misplaced boxes so parts stay visible. Skips DPS / TPS light meshes. Turns Update When Offscreen off on those skins.");
             window.disableLightsOnAvatar = DrawToggle(window, KaleidoOptionUndo.DisableLights, window.disableLightsOnAvatar, "Disable realtime lights on the avatar", "VRChat Excellent allows 0 lights. Can change how the avatar looks.");
             window.audioForceToMono = DrawToggle(window, KaleidoOptionUndo.AudioMono, window.audioForceToMono, "Force audio to mono", "Halves clip size but collapses stereo / spatial beds. Only for true mono SFX.");
             window.textureEnableCrunch = DrawToggle(window, KaleidoOptionUndo.TextureCrunchOn, window.textureEnableCrunch, "Enable crunch compression", "Does not lower VRChat texture memory rank. Only download size. VRChat says the package should fit limits without Crunch.");
+            if (window.textureEnableCrunch)
+            {
+                EditorGUI.indentLevel++;
+                window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
+                EditorGUI.indentLevel--;
+            }
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.disableCamerasOnAvatar;
         }
 
@@ -2698,11 +2724,7 @@ namespace KaleidoVR.EditorTools
             EditorGUI.BeginDisabledGroup(!window.WorkspaceReadyToApply);
             if (DrawTintedButton("Apply", ActionApplyTint(), GUILayout.Height(32)))
             {
-                if (!EditorUtility.DisplayDialog(
-                    "KaleidoVR VRChat Model Optimizer",
-                    "This writes the dry-run changes for this workspace only. The other workspace is not touched. Continue?",
-                    "Apply",
-                    "Cancel"))
+                if (!ConfirmApply(window))
                 {
                     EditorGUI.EndDisabledGroup();
                     return;
@@ -2795,15 +2817,44 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label(meaning, meaningStyle, GUILayout.Height(ColorKeyRowHeight), GUILayout.ExpandWidth(false));
         }
 
+        private static GUIStyle specialUseCaseStyle;
+
         private static void DrawSpecialUseCaseHeader()
         {
-            GUILayout.Space(4);
-            Color previous = GUI.contentColor;
-            GUI.contentColor = EditorGUIUtility.isProSkin
-                ? new Color(1f, 0.78f, 0.28f)
-                : new Color(0.55f, 0.32f, 0f);
-            GUILayout.Label("Warning (Special Use Case)", EditorStyles.miniBoldLabel);
-            GUI.contentColor = previous;
+            if (specialUseCaseStyle == null)
+            {
+                specialUseCaseStyle = new GUIStyle(EditorStyles.boldLabel);
+                specialUseCaseStyle.fontSize = 18;
+                specialUseCaseStyle.wordWrap = true;
+                specialUseCaseStyle.fontStyle = FontStyle.Bold;
+            }
+            specialUseCaseStyle.alignment = TextAnchor.MiddleCenter;
+            specialUseCaseStyle.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.18f, 0.18f)
+                : new Color(0.82f, 0.04f, 0.04f);
+            GUILayout.Space(6);
+            GUILayout.Label("Warning (Special Use Case)", specialUseCaseStyle, GUILayout.ExpandWidth(true));
+        }
+
+        private static bool ConfirmApply(KaleidoVRCOptimizer window)
+        {
+            List<string> special = KaleidoVRCOptimizerLogic.CollectSpecialWrites(window);
+            if (special.Count > 0)
+            {
+                return EditorUtility.DisplayDialog(
+                    "Warning (Special Use Case)",
+                    "Special Use Case options are included. These can break visemes, custom bounds, lighting, or audio, and the writes stay on the assets.\n\n"
+                    + string.Join("\n", special.ToArray())
+                    + "\n\nThis writes the dry-run changes for this workspace only. The other workspace is not touched. Continue?",
+                    "Apply anyway",
+                    "Cancel");
+            }
+
+            return EditorUtility.DisplayDialog(
+                "KaleidoVR VRChat Model Optimizer",
+                "This writes the dry-run changes for this workspace only. The other workspace is not touched. Continue?",
+                "Apply",
+                "Cancel");
         }
 
         private static bool DrawToggle(bool value, string title, string why)
@@ -5105,28 +5156,36 @@ namespace KaleidoVR.EditorTools
             if (write) KaleidoOptionUndo.Save();
         }
 
+        public static List<string> CollectSpecialWrites(KaleidoVRCOptimizer window)
+        {
+            List<string> chosen = new List<string>();
+            if (window == null) return chosen;
+            if (window.applyMeshCompression) chosen.Add("• Apply mesh compression (" + window.meshCompression + ")");
+            if (window.meshForceHumanoid) chosen.Add("• Force Humanoid rig");
+            if (window.meshStripBlendShapes) chosen.Add("• Disable blend shape import");
+            if (!window.IsQuestWorkspace && window.rendererRecalculateBounds) chosen.Add("• Recalculate skinned bounds");
+            if (window.disableLightsOnAvatar) chosen.Add("• Disable realtime lights");
+            if (window.IsQuestWorkspace && window.disableCamerasOnAvatar) chosen.Add("• Disable cameras");
+            if (window.IsQuestWorkspace && window.optimizeMaterials) chosen.Add("• GPU instancing");
+            if (!window.IsQuestWorkspace && window.audioForceToMono) chosen.Add("• Force audio to mono");
+            if (!window.IsQuestWorkspace && window.textureEnableCrunch)
+                chosen.Add("• Enable crunch compression (" + KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality) + "%)");
+            return chosen;
+        }
+
         private static void LogSpecialSelection(KaleidoVRCOptimizer window, List<string> logEntries, bool write)
         {
             if (window == null || logEntries == null) return;
-            List<string> chosen = new List<string>();
-            if (window.applyMeshCompression) chosen.Add("Apply mesh compression");
-            if (window.meshForceHumanoid) chosen.Add("Force Humanoid rig");
-            if (window.meshStripBlendShapes) chosen.Add("Disable blend shape import");
-            if (!window.IsQuestWorkspace && window.rendererRecalculateBounds) chosen.Add("Recalculate skinned bounds");
-            if (window.disableLightsOnAvatar) chosen.Add("Disable realtime lights");
-            if (window.IsQuestWorkspace && window.disableCamerasOnAvatar) chosen.Add("Disable cameras");
-            if (window.IsQuestWorkspace && window.optimizeMaterials) chosen.Add("GPU instancing");
-            if (!window.IsQuestWorkspace && window.audioForceToMono) chosen.Add("Force audio to mono");
-            if (!window.IsQuestWorkspace && window.textureEnableCrunch) chosen.Add("Enable crunch compression");
+            List<string> chosen = CollectSpecialWrites(window);
             logEntries.Add(chosen.Count == 0
                 ? "Special chosen: none"
-                : "Special chosen: " + string.Join(", ", chosen.ToArray()));
+                : "Special chosen: " + string.Join(", ", chosen.ToArray()).Replace("• ", ""));
             logEntries.Add(write
                 ? "Special writes only the checked options above. Unchecked options are skipped."
                 : "Special dry run. Unchecked options are skipped.");
             KaleidoOptionUndo.NoteHeader(chosen.Count == 0
                 ? "Special chosen: none"
-                : "Special chosen: " + string.Join(", ", chosen.ToArray()));
+                : "Special chosen: " + string.Join(", ", chosen.ToArray()).Replace("• ", ""));
         }
 
         private static bool ApplyStreamingMipmaps(KaleidoVRCOptimizer window, TextureImporter importer, string path, bool write)
@@ -5228,12 +5287,16 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            if (window.textureEnableCrunch && !importer.crunchedCompression)
+            int crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality);
+            if (window.textureEnableCrunch && (!importer.crunchedCompression || importer.compressionQuality != crunchQuality))
             {
                 if (write)
                 {
-                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureCrunchOn, "texture", path, "", "", "importer", KaleidoOptionUndo.Int("crunch", 0));
+                    KaleidoOptionUndo.Capture(KaleidoOptionUndo.TextureCrunchOn, "texture", path, "", "", "importer", KaleidoOptionUndo.Join(
+                        KaleidoOptionUndo.Int("crunch", importer.crunchedCompression ? 1 : 0),
+                        KaleidoOptionUndo.Int("crunchQ", importer.compressionQuality)));
                     importer.crunchedCompression = true;
+                    importer.compressionQuality = crunchQuality;
                 }
                 dirty = true;
             }
@@ -5888,7 +5951,7 @@ namespace KaleidoVR.EditorTools
             KaleidoOptionUndo.Capture(optionId, kind, undoAssetPath ?? "", hierarchy, scene, "", data);
         }
 
-        private static readonly Vector3 SkinnedBoundsSize = new Vector3(2f, 2f, 2f);
+        private static readonly Vector3 SkinnedBoundsCube = new Vector3(2f, 2f, 2f);
 
         private static void ApplySkinnedBoundsFix(
             KaleidoVRCOptimizer window,
@@ -5934,13 +5997,44 @@ namespace KaleidoVR.EditorTools
         private static Bounds PlannedSkinnedBounds(SkinnedMeshRenderer skinned, Vector3 modelCenter)
         {
             Transform rootBone = skinned.rootBone != null ? skinned.rootBone : skinned.transform;
-            return new Bounds(rootBone.InverseTransformPoint(modelCenter), SkinnedBoundsSize);
+            return new Bounds(rootBone.InverseTransformPoint(modelCenter), SkinnedBoundsCube);
+        }
+
+        private static float GetModelHeight(GameObject root)
+        {
+            Animator animator = FindAvatarAnimator(root);
+            if (animator != null && animator.isHuman)
+            {
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                if (head != null)
+                    return Mathf.Max(0f, head.position.y - root.transform.position.y);
+            }
+
+            float minY = root.transform.position.y;
+            float maxY = minY;
+            bool any = false;
+            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!(renderer is MeshRenderer) && !(renderer is SkinnedMeshRenderer)) continue;
+                Bounds world = renderer.bounds;
+                if (!any)
+                {
+                    minY = world.min.y;
+                    maxY = world.max.y;
+                    any = true;
+                }
+                else
+                {
+                    if (world.min.y < minY) minY = world.min.y;
+                    if (world.max.y > maxY) maxY = world.max.y;
+                }
+            }
+            return any ? Mathf.Max(0f, maxY - minY) : 2f;
         }
 
         private static Vector3 GetModelCenter(GameObject root)
         {
-            Animator animator = root.GetComponent<Animator>();
-            if (animator == null) animator = root.GetComponentInChildren<Animator>();
+            Animator animator = FindAvatarAnimator(root);
             if (animator != null && animator.isHuman)
             {
                 Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
@@ -5948,7 +6042,14 @@ namespace KaleidoVR.EditorTools
                 Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
                 if (hips != null) return hips.position;
             }
-            return root.transform.position + Vector3.up;
+            return root.transform.position + Vector3.up * (GetModelHeight(root) * 0.5f);
+        }
+
+        private static Animator FindAvatarAnimator(GameObject root)
+        {
+            Animator animator = root.GetComponent<Animator>();
+            if (animator == null) animator = root.GetComponentInChildren<Animator>();
+            return animator;
         }
 
         private static bool UsesLightedHapticMaterial(Renderer renderer)
