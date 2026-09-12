@@ -141,12 +141,7 @@ namespace KaleidoVR.EditorTools
         static void EvaluateAnimators(GameObject root, KaleidoOptimizerReport report)
         {
             HashSet<AnimatorController> controllers = new HashSet<AnimatorController>();
-            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
-            for (int i = 0; i < animators.Length; i++)
-            {
-                AddController(controllers, animators[i] != null ? animators[i].runtimeAnimatorController : null);
-            }
-            CollectDescriptorControllers(root, controllers);
+            CollectControllers(root, controllers);
 
             List<string> wdOnStates = new List<string>();
             List<string> wdOffStates = new List<string>();
@@ -162,8 +157,8 @@ namespace KaleidoVR.EditorTools
                 }
             }
 
-            report.writeDefaultsMostlyOn = wdOnStates.Count >= wdOffStates.Count;
-            report.writeDefaultsMixed = wdOnStates.Count > 0 && wdOffStates.Count > 0;
+            report.writeDefaultsMostlyOn = report.writeDefaultsOnCount >= report.writeDefaultsOffCount;
+            report.writeDefaultsMixed = report.writeDefaultsOnCount > 0 && report.writeDefaultsOffCount > 0;
             List<string> outliers = report.writeDefaultsMostlyOn ? wdOffStates : wdOnStates;
             int cap = Math.Min(outliers.Count, 40);
             for (int i = 0; i < cap; i++) report.writeDefaultOutliers.Add(outliers[i]);
@@ -185,12 +180,21 @@ namespace KaleidoVR.EditorTools
                     AnimatorState state = machine.states[i].state;
                     if (state == null) continue;
                     string name = path + "/" + state.name;
-                    if (state.motion == null && report.emptyStates.Count < 40) report.emptyStates.Add(name);
+                    if (state.motion == null)
+                    {
+                        report.emptyStateCount++;
+                        if (report.emptyStates.Count < 40) report.emptyStates.Add(name);
+                    }
                     if (state.writeDefaultValues)
                     {
+                        report.writeDefaultsOnCount++;
                         if (wdOnStates.Count < 80) wdOnStates.Add(name);
                     }
-                    else if (wdOffStates.Count < 80) wdOffStates.Add(name);
+                    else
+                    {
+                        report.writeDefaultsOffCount++;
+                        if (wdOffStates.Count < 80) wdOffStates.Add(name);
+                    }
                 }
             }
             if (machine.stateMachines == null) return;
@@ -246,6 +250,160 @@ namespace KaleidoVR.EditorTools
                 }
                 report.textureVramPlanned += ScaleVram(now, current, planned, curBpp, newBpp);
             }
+        }
+
+        const string EmptyMotionName = "KaleidoEmptyMotion";
+
+        public static int SetEmptyMotions(List<GameObject> roots)
+        {
+            if (roots == null) return 0;
+            AnimationClip clip = GetOrCreateEmptyMotion();
+            if (clip == null) return 0;
+
+            HashSet<AnimatorController> controllers = new HashSet<AnimatorController>();
+            for (int i = 0; i < roots.Count; i++)
+            {
+                if (roots[i] == null) continue;
+                CollectControllers(roots[i], controllers);
+            }
+
+            int changed = 0;
+            foreach (AnimatorController controller in controllers)
+                changed += ApplyEmptyMotions(controller, clip);
+            if (changed > 0) AssetDatabase.SaveAssets();
+            return changed;
+        }
+
+        static AnimationClip GetOrCreateEmptyMotion()
+        {
+            string[] guids = AssetDatabase.FindAssets(EmptyMotionName + " t:AnimationClip");
+            if (guids != null)
+            {
+                for (int i = 0; i < guids.Length; i++)
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                    AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+                    if (existing != null && existing.name == EmptyMotionName) return existing;
+                }
+            }
+
+            string folder = KaleidoVRCOptimizer.GetToolEditorFolder();
+            if (string.IsNullOrEmpty(folder)) folder = "Assets/KaleidoVR/Editor";
+            folder = folder.Replace("\\", "/");
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/KaleidoVR")) AssetDatabase.CreateFolder("Assets", "KaleidoVR");
+                if (!AssetDatabase.IsValidFolder("Assets/KaleidoVR/Editor")) AssetDatabase.CreateFolder("Assets/KaleidoVR", "Editor");
+                folder = "Assets/KaleidoVR/Editor";
+            }
+
+            string assetPath = folder + "/" + EmptyMotionName + ".anim";
+            AnimationClip atPath = AssetDatabase.LoadAssetAtPath<AnimationClip>(assetPath);
+            if (atPath != null) return atPath;
+
+            AnimationClip clip = new AnimationClip();
+            clip.name = EmptyMotionName;
+            clip.frameRate = 60f;
+            AssetDatabase.CreateAsset(clip, assetPath);
+            return AssetDatabase.LoadAssetAtPath<AnimationClip>(assetPath);
+        }
+
+        static int ApplyEmptyMotions(AnimatorController controller, AnimationClip clip)
+        {
+            if (controller == null || controller.layers == null || clip == null) return 0;
+            int changed = 0;
+            for (int i = 0; i < controller.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = controller.layers[i];
+                if (layer == null || layer.stateMachine == null) continue;
+                changed += ApplyEmptyMotions(layer.stateMachine, clip);
+            }
+            if (changed > 0) EditorUtility.SetDirty(controller);
+            return changed;
+        }
+
+        static int ApplyEmptyMotions(AnimatorStateMachine machine, AnimationClip clip)
+        {
+            if (machine == null) return 0;
+            int changed = 0;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state == null || state.motion != null) continue;
+                    Undo.RecordObject(state, "Fill Empty Motion");
+                    state.motion = clip;
+                    EditorUtility.SetDirty(state);
+                    changed++;
+                }
+            }
+            if (machine.stateMachines == null) return changed;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                changed += ApplyEmptyMotions(machine.stateMachines[i].stateMachine, clip);
+            return changed;
+        }
+
+        public static int SetWriteDefaults(List<GameObject> roots, bool on)
+        {
+            if (roots == null) return 0;
+            HashSet<AnimatorController> controllers = new HashSet<AnimatorController>();
+            for (int i = 0; i < roots.Count; i++)
+            {
+                if (roots[i] == null) continue;
+                CollectControllers(roots[i], controllers);
+            }
+
+            int changed = 0;
+            foreach (AnimatorController controller in controllers)
+                changed += ApplyWriteDefaults(controller, on);
+            if (changed > 0) AssetDatabase.SaveAssets();
+            return changed;
+        }
+
+        static void CollectControllers(GameObject root, HashSet<AnimatorController> controllers)
+        {
+            if (root == null || controllers == null) return;
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+                AddController(controllers, animators[i] != null ? animators[i].runtimeAnimatorController : null);
+            CollectDescriptorControllers(root, controllers);
+        }
+
+        static int ApplyWriteDefaults(AnimatorController controller, bool on)
+        {
+            if (controller == null || controller.layers == null) return 0;
+            int changed = 0;
+            for (int i = 0; i < controller.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = controller.layers[i];
+                if (layer == null || layer.stateMachine == null) continue;
+                changed += ApplyWriteDefaults(layer.stateMachine, on);
+            }
+            if (changed > 0) EditorUtility.SetDirty(controller);
+            return changed;
+        }
+
+        static int ApplyWriteDefaults(AnimatorStateMachine machine, bool on)
+        {
+            if (machine == null) return 0;
+            int changed = 0;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state == null || state.writeDefaultValues == on) continue;
+                    Undo.RecordObject(state, "Set Write Defaults");
+                    state.writeDefaultValues = on;
+                    EditorUtility.SetDirty(state);
+                    changed++;
+                }
+            }
+            if (machine.stateMachines == null) return changed;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                changed += ApplyWriteDefaults(machine.stateMachines[i].stateMachine, on);
+            return changed;
         }
 
         static void AddController(HashSet<AnimatorController> controllers, RuntimeAnimatorController runtime)
