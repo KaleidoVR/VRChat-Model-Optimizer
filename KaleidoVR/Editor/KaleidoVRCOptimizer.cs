@@ -3417,7 +3417,6 @@ namespace KaleidoVR.EditorTools
             DrawWhy(why);
             GUILayout.Space(3);
         }
-        }
 
         private static void DrawWhy(string why)
         {
