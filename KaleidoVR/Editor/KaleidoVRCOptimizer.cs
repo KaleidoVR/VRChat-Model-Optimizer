@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.22";
+        public static readonly string VERSION = "1.0.23";
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -1294,7 +1294,14 @@ namespace KaleidoVR.EditorTools
             else { GUILayout.Label($"...Place your logo at {KaleidoVRCOptimizer.ICON_PATH}...", EditorStyles.miniLabel); }
             GUILayout.FlexibleSpace(); GUILayout.EndHorizontal(); GUILayout.Space(2);
             GUILayout.Label("KALEIDO VR MODEL OPTIMIZER", centeredTitleStyle); GUILayout.Label($"v{version}", centeredVersionStyle);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("KaleidoVR (Credits)", GUILayout.Width(160), GUILayout.Height(22)))
+                KaleidoVRCreditsWindow.Open();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
             EditorGUILayout.HelpBox("Avatar models only. Drop a VRChat avatar (VRCAvatarDescriptor) or a skinned character FBX. Worlds, folders, clothing dumps, and loose textures are rejected.", MessageType.Info);
+            EditorGUILayout.HelpBox("Confirm, Fix, and Apply write into this Unity project. Those changes stay on the assets. Scan only reports — it does not write. Run again only if the avatar or your settings change.", MessageType.Info);
         }
 
         public static void DrawTabs(KaleidoVRCOptimizer window)
@@ -1373,7 +1380,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Run Safety", EditorStyles.boldLabel);
-            DrawWhy("Each workspace has its own Scan / Dry Run / Apply. A run in one workspace does not write the other.");
+            DrawWhy("Each workspace has its own Scan / Dry Run / Apply. A run in one workspace does not write the other. Apply, Confirm, and Fix write into Unity and stay on the assets. Scan only reports.");
             window.writeLog = DrawToggle(window.writeLog, "Write Log File", "Saves a timestamped report under Logs/KaleidoVR/Optimizer.");
             window.applyToPrefabAssets = DrawToggle(window.applyToPrefabAssets, "Apply renderer changes to prefab assets", "Writes Scene-tab renderer edits onto the .prefab, not only the scene instance. Turn off to test on the instance first.");
         }
@@ -1794,6 +1801,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
             DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run.");
+            EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
             DrawRankColorKey();
             DrawStats(window);
         }
@@ -2439,8 +2447,8 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(6);
             EditorGUILayout.HelpBox(
                 window.WorkspaceReadyToApply
-                    ? "Dry run finished. Review the Rank tab, then Apply to write those changes for this workspace."
-                    : "Step 1: Dry Run (no files change). Step 2: Apply appears after that dry run.",
+                    ? "Dry run finished. Review the Rank tab, then Apply to write those importer and scene changes for this workspace. Apply writes into Unity and stays on the assets."
+                    : "Scan reports only. Dry Run previews importer and scene writes. Apply, Confirm, and Fix write into this Unity project and stay there. Run again only if the avatar or settings change.",
                 window.WorkspaceReadyToApply ? MessageType.Info : MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
@@ -2691,7 +2699,7 @@ namespace KaleidoVR.EditorTools
             DrawColorKeyLine(sizeUpStyle, "Orange", "Needs a look. Poor / Very Poor, mixed Write Defaults, empty states, streaming mip maps off, leftover Unity constraints, GrabPass, and similar flags.");
             DrawColorKeyLine(redStyle, "Red", "Blocks upload. Mesh Read/Write is off on at least one mesh.");
             DrawColorKeyLine(EditorStyles.label, "Normal", "No issue on that row.");
-            DrawWhy("Fix uses the same orange. Ignore leaves that row alone. Write Defaults still asks Confirm after On or Off.");
+            DrawWhy("Fix uses the same orange and writes now. Ignore leaves that row alone. Write Defaults still asks Confirm after On or Off. Those writes stay in Unity.");
             GUILayout.Space(4);
         }
 
