@@ -1,7 +1,7 @@
 # KaleidoVR VRChat Model Optimizer
 
 <p align="center">
-  <img src="KaleidoVR/Editor/Icons/Kali_Logo.png" alt="KaleidoVR" width="300">
+  <img src="https://assets.kalivr.com/Kali-Logo/Kali_Logo.png" alt="KaleidoVR" width="300">
 </p>
 
 A Unity editor tool that scans a VRChat avatar and applies optional texture, mesh, renderer, audio, and animator optimizations. Every option can be left off. Built-in PC, Quest, Dual, and Everything profiles are included, plus user-saved profiles.
