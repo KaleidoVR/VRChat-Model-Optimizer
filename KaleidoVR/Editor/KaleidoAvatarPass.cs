@@ -5,6 +5,7 @@
 // Runs on a clone at upload. Source assets and the scene stay as they are.
 
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.Animations;
 using System;
@@ -28,7 +29,7 @@ namespace KaleidoVR.EditorTools
         public bool removeUnusedGameObjects = false;
         public bool stripUnusedBones = true;
         public bool optimizePhysBones = true;
-        public bool optimizeFxLayer = true;
+        public bool optimizeFxLayer = false;
     }
 
     public sealed class KaleidoAvatarPassResult
@@ -121,7 +122,7 @@ namespace KaleidoVR.EditorTools
                 removeUnusedGameObjects = EditorPrefs.GetBool(p + "AvGo", false),
                 stripUnusedBones = EditorPrefs.GetBool(p + "AvBone", true),
                 optimizePhysBones = EditorPrefs.GetBool(p + "AvPb", true),
-                optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", true)
+                optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false)
             };
             if (EditorPrefs.GetBool(p + "MeshBSOff", false))
             {
@@ -164,6 +165,7 @@ namespace KaleidoVR.EditorTools
         }
 
         public const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
+        public const string OptimizedCopySuffix = " (Optimized Copy)";
         const string GeneratedRoot = "Assets/KaleidoVR";
         static bool persistGenerated;
 
@@ -274,13 +276,152 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
+        public static bool HasGeneratedCleanup()
+        {
+            return GeneratedCacheHasFiles() || FindOptimizedPreviewCopies().Count > 0;
+        }
+
         public static void ClearGeneratedCache()
         {
+            RemoveOptimizedPreviewCopies();
             if (AssetDatabase.IsValidFolder(GeneratedFolderPath))
                 AssetDatabase.DeleteAsset(GeneratedFolderPath);
             if (Directory.Exists(GeneratedFolderPath))
                 FileUtil.DeleteFileOrDirectory(GeneratedFolderPath);
             AssetDatabase.Refresh();
+        }
+
+        static List<GameObject> FindOptimizedPreviewCopies()
+        {
+            List<GameObject> found = new List<GameObject>();
+            GameObject[] all = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                GameObject go = all[i];
+                if (!IsSceneOptimizedPreviewCopy(go)) continue;
+                found.Add(go);
+            }
+            return found;
+        }
+
+        static bool IsSceneOptimizedPreviewCopy(GameObject go)
+        {
+            if (go == null) return false;
+            if (!go.scene.IsValid() || !go.scene.isLoaded) return false;
+            if (EditorUtility.IsPersistent(go)) return false;
+            if ((go.hideFlags & HideFlags.HideInHierarchy) != 0) return false;
+            if (!go.name.EndsWith(OptimizedCopySuffix, StringComparison.Ordinal)) return false;
+            return UsesGeneratedAssets(go);
+        }
+
+        static bool UsesGeneratedAssets(GameObject root)
+        {
+            if (root == null) return false;
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null) continue;
+                SkinnedMeshRenderer skin = renderer as SkinnedMeshRenderer;
+                if (skin != null && AssetPathIsGenerated(skin.sharedMesh)) return true;
+                MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                if (filter != null && AssetPathIsGenerated(filter.sharedMesh)) return true;
+                Material[] mats = renderer.sharedMaterials;
+                if (mats == null) continue;
+                for (int m = 0; m < mats.Length; m++)
+                {
+                    if (AssetPathIsGenerated(mats[m])) return true;
+                }
+            }
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                if (animators[i] != null && AssetPathIsGenerated(animators[i].runtimeAnimatorController))
+                    return true;
+            }
+            return DescriptorUsesGenerated(root);
+        }
+
+        static bool DescriptorUsesGenerated(GameObject root)
+        {
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return false;
+            return FieldUsesGenerated(desc, "baseAnimationLayers") || FieldUsesGenerated(desc, "specialAnimationLayers");
+        }
+
+        static bool FieldUsesGenerated(Component desc, string fieldName)
+        {
+            FieldInfo layers = desc.GetType().GetField(fieldName);
+            if (layers == null) return false;
+            Array arr = layers.GetValue(desc) as Array;
+            if (arr == null) return false;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                if (anim == null) continue;
+                if (AssetPathIsGenerated(anim.GetValue(layer) as UnityEngine.Object)) return true;
+            }
+            return false;
+        }
+
+        static bool AssetPathIsGenerated(UnityEngine.Object asset)
+        {
+            if (asset == null) return false;
+            string path = AssetDatabase.GetAssetPath(asset);
+            if (string.IsNullOrEmpty(path)) return false;
+            return path.Replace('\\', '/').StartsWith(GeneratedFolderPath, StringComparison.Ordinal);
+        }
+
+        static void RemoveOptimizedPreviewCopies()
+        {
+            List<GameObject> copies = FindOptimizedPreviewCopies();
+            GameObject selected = Selection.activeGameObject;
+            for (int i = 0; i < copies.Count; i++)
+            {
+                GameObject copy = copies[i];
+                if (copy == null) continue;
+                GameObject original = FindOriginalForPreviewCopy(copy);
+                bool selectOriginal = selected == copy;
+                UnityEngine.Object.DestroyImmediate(copy);
+                if (original != null)
+                {
+                    original.SetActive(true);
+                    if (selectOriginal) Selection.activeGameObject = original;
+                }
+            }
+        }
+
+        static GameObject FindOriginalForPreviewCopy(GameObject copy)
+        {
+            if (copy == null) return null;
+            string name = copy.name;
+            if (!name.EndsWith(OptimizedCopySuffix, StringComparison.Ordinal)) return null;
+            string originalName = name.Substring(0, name.Length - OptimizedCopySuffix.Length);
+            if (string.IsNullOrEmpty(originalName)) return null;
+
+            Transform parent = copy.transform.parent;
+            if (parent != null)
+            {
+                for (int i = 0; i < parent.childCount; i++)
+                {
+                    Transform child = parent.GetChild(i);
+                    if (child != null && child.gameObject != copy && child.name == originalName)
+                        return child.gameObject;
+                }
+            }
+
+            Scene scene = copy.scene;
+            if (!scene.IsValid() || !scene.isLoaded) return null;
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                GameObject root = roots[i];
+                if (root != null && root != copy && root.name == originalName)
+                    return root;
+            }
+            return null;
         }
 
         static string SafeAssetName(string name)
@@ -375,7 +516,7 @@ namespace KaleidoVR.EditorTools
         {
             if (source == null) return null;
             GameObject copy = UnityEngine.Object.Instantiate(source);
-            copy.name = source.name + " (Optimized Copy)";
+            copy.name = source.name + OptimizedCopySuffix;
             copy.transform.SetParent(source.transform.parent, false);
             copy.transform.SetSiblingIndex(source.transform.GetSiblingIndex() + 1);
             source.SetActive(false);
@@ -1356,6 +1497,7 @@ namespace KaleidoVR.EditorTools
             {
                 if (settings.mmdCompatibility && l < 3) continue;
                 AnimatorControllerLayer layer = layers[l];
+                if (IsHandGestureLayer(layer)) continue;
                 if (layer.stateMachine == null || (layer.stateMachine.states.Length == 0 && layer.stateMachine.stateMachines.Length == 0))
                 {
                     deadLayers++;
@@ -1412,7 +1554,7 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < layers.Length; i++)
             {
                 AnimatorControllerLayer layer = layers[i];
-                if (keepMmdLayers && i < 3)
+                if ((keepMmdLayers && i < 3) || IsHandGestureLayer(layer))
                 {
                     keep.Add(layer);
                     continue;
@@ -1447,6 +1589,99 @@ namespace KaleidoVR.EditorTools
             if (t == null) return false;
             if (binding.type == typeof(GameObject) || binding.type == typeof(Transform)) return true;
             return t.GetComponent(binding.type) != null;
+        }
+
+        static readonly string[] HandGestureStateNames =
+        {
+            "idle", "fist", "open", "point", "peace", "rocknroll", "gun", "thumbsup"
+        };
+
+        static bool IsHandGestureLayer(AnimatorControllerLayer layer)
+        {
+            if (layer == null || layer.stateMachine == null) return false;
+            if (!LayerUsesHandGestureParameter(layer.stateMachine)) return false;
+            return CountStandardGestureStates(layer.stateMachine) >= 4;
+        }
+
+        static bool LayerUsesHandGestureParameter(AnimatorStateMachine machine)
+        {
+            if (machine == null) return false;
+            if (TransitionsUseHandGestureParameter(machine.anyStateTransitions)) return true;
+            if (TransitionsUseHandGestureParameter(machine.entryTransitions)) return true;
+            ChildAnimatorState[] states = machine.states;
+            for (int i = 0; i < states.Length; i++)
+            {
+                if (states[i].state != null && TransitionsUseHandGestureParameter(states[i].state.transitions))
+                    return true;
+            }
+            ChildAnimatorStateMachine[] subs = machine.stateMachines;
+            for (int i = 0; i < subs.Length; i++)
+            {
+                if (LayerUsesHandGestureParameter(subs[i].stateMachine)) return true;
+            }
+            return false;
+        }
+
+        static bool TransitionsUseHandGestureParameter(AnimatorTransitionBase[] transitions)
+        {
+            if (transitions == null) return false;
+            for (int i = 0; i < transitions.Length; i++)
+            {
+                if (transitions[i] == null) continue;
+                AnimatorCondition[] conditions = transitions[i].conditions;
+                if (conditions == null) continue;
+                for (int c = 0; c < conditions.Length; c++)
+                {
+                    if (IsHandGestureParameter(conditions[c].parameter)) return true;
+                }
+            }
+            return false;
+        }
+
+        static bool IsHandGestureParameter(string parameter)
+        {
+            if (string.IsNullOrEmpty(parameter)) return false;
+            return parameter.Equals("GestureLeft", StringComparison.OrdinalIgnoreCase)
+                || parameter.Equals("GestureRight", StringComparison.OrdinalIgnoreCase)
+                || parameter.Equals("GestureLeftWeight", StringComparison.OrdinalIgnoreCase)
+                || parameter.Equals("GestureRightWeight", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static int CountStandardGestureStates(AnimatorStateMachine machine)
+        {
+            if (machine == null) return 0;
+            HashSet<string> found = new HashSet<string>(StringComparer.Ordinal);
+            CollectStandardGestureStates(machine, found);
+            return found.Count;
+        }
+
+        static void CollectStandardGestureStates(AnimatorStateMachine machine, HashSet<string> found)
+        {
+            if (machine == null) return;
+            ChildAnimatorState[] states = machine.states;
+            for (int i = 0; i < states.Length; i++)
+            {
+                AnimatorState state = states[i].state;
+                if (state == null || string.IsNullOrEmpty(state.name)) continue;
+                string n = NormalizeGestureStateName(state.name);
+                for (int g = 0; g < HandGestureStateNames.Length; g++)
+                {
+                    if (n != HandGestureStateNames[g]) continue;
+                    found.Add(HandGestureStateNames[g]);
+                    break;
+                }
+            }
+            ChildAnimatorStateMachine[] subs = machine.stateMachines;
+            for (int i = 0; i < subs.Length; i++)
+                CollectStandardGestureStates(subs[i].stateMachine, found);
+        }
+
+        static string NormalizeGestureStateName(string name)
+        {
+            string n = name.Trim().ToLowerInvariant().Replace("_", " ").Replace("-", " ");
+            while (n.IndexOf("  ", StringComparison.Ordinal) >= 0)
+                n = n.Replace("  ", " ");
+            return n.Replace(" ", "");
         }
 
         static IEnumerable<AnimationClip> CollectClips(AnimatorStateMachine machine)
