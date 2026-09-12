@@ -390,6 +390,7 @@ namespace KaleidoVR.EditorTools
             if (TryInt(map, "streaming", out value)) importer.streamingMipmaps = value != 0;
             if (TryInt(map, "aniso", out value)) importer.anisoLevel = value;
             if (TryInt(map, "crunch", out value)) importer.crunchedCompression = value != 0;
+            if (TryInt(map, "crunchQ", out value)) importer.compressionQuality = value;
             if (TryInt(map, "compression", out value)) importer.textureCompression = (TextureImporterCompression)value;
             if (TryInt(map, "srgb", out value)) importer.sRGBTexture = value != 0;
             if (TryInt(map, "alpha", out value)) importer.alphaIsTransparency = value != 0;
