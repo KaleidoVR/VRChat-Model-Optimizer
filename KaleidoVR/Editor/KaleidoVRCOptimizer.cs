@@ -173,7 +173,9 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.34";
+        public static readonly string VERSION = "1.0.35";
+        public const float WindowMinWidth = 660f;
+        public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
@@ -350,7 +352,7 @@ namespace KaleidoVR.EditorTools
             window.InitializeLocalLogo();
             window.LoadEditorPreferences();
             window.tab = 0;
-            window.minSize = new Vector2(500, 720);
+            window.ApplyWindowMinSize();
             window.ApplyWindowIcon();
         }
 
@@ -359,8 +361,20 @@ namespace KaleidoVR.EditorTools
             InitializeLocalLogo();
             LoadEditorPreferences();
             tab = 0;
+            ApplyWindowMinSize();
             ApplyWindowIcon();
             KaleidoVRCOptimizerUI.ClearNormalPreviews();
+        }
+
+        private void ApplyWindowMinSize()
+        {
+            minSize = new Vector2(WindowMinWidth, WindowMinHeight);
+            Rect pos = position;
+            if (pos.width < WindowMinWidth)
+            {
+                pos.width = WindowMinWidth;
+                position = pos;
+            }
         }
 
         private void InitializeLocalLogo()
@@ -1189,9 +1203,12 @@ namespace KaleidoVR.EditorTools
         private static GUIStyle dropTitleStyle;
         private static GUIStyle dropHintStyle;
         private static GUIStyle pingLinkStyle;
+        private const float TextureThumb = 52f;
+        private const float TextureListInnerPad = 8f;
+        private const float TextureListSideSpace = 40f;
         private const float TextureSizeCol = 88f;
         private const float TextureMidCol = 72f;
-        private const float TextureIgnoreCol = 48f;
+        private const float TextureIgnoreCol = 52f;
         private const float TextureStatusGap = 4f;
         private const float TextureStatusWidth = TextureSizeCol + TextureStatusGap + TextureMidCol + TextureStatusGap + TextureSizeCol + TextureStatusGap + TextureIgnoreCol;
         private static GUIStyle sizeCaptionStyle;
@@ -1291,10 +1308,13 @@ namespace KaleidoVR.EditorTools
             EditorGUI.DrawRect(new Rect(rect.xMax - 2f, rect.y, 2f, rect.height), color);
         }
 
-        private static void BeginOutlinedPanel()
+        private static float outlinedPanelSideSpace = 84f;
+
+        private static void BeginOutlinedPanel(float sideSpace = 84f)
         {
+            outlinedPanelSideSpace = sideSpace;
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(84);
+            GUILayout.Space(sideSpace);
             EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.ExpandWidth(true));
             GUILayout.Space(6);
         }
@@ -1306,8 +1326,9 @@ namespace KaleidoVR.EditorTools
             if (Event.current.type == EventType.Repaint)
                 pendingOutlineRect = GUILayoutUtility.GetLastRect();
             DrawBoxOutline(pendingOutlineRect, new Color(0.38f, 0.78f, 1f, 0.95f));
-            GUILayout.Space(84);
+            GUILayout.Space(outlinedPanelSideSpace);
             EditorGUILayout.EndHorizontal();
+            outlinedPanelSideSpace = 84f;
         }
 
         public static void DrawHeader(Texture2D logo, string version)
@@ -2079,33 +2100,12 @@ namespace KaleidoVR.EditorTools
 
             List<KaleidoTextureUsage> rows = SortedTextureUsages(window);
             const float TextureListHeight = 400f;
-            BeginOutlinedPanel();
+            BeginOutlinedPanel(TextureListSideSpace);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(18);
+            GUILayout.Space(TextureListInnerPad);
             EditorGUILayout.BeginVertical();
             window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight));
-
-            GUIStyle headerCenter = new GUIStyle(EditorStyles.miniBoldLabel)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                margin = new RectOffset(0, 0, 0, 0),
-                padding = new RectOffset(0, 0, 0, 0)
-            };
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(60);
-            GUILayout.Label("Texture", EditorStyles.miniBoldLabel, GUILayout.MinWidth(120), GUILayout.ExpandWidth(false));
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
-            GUILayout.Label("Current", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
-            GUILayout.Space(TextureStatusGap);
-            GUILayout.Label("", headerCenter, GUILayout.Width(TextureMidCol), GUILayout.Height(16));
-            GUILayout.Space(TextureStatusGap);
-            GUILayout.Label("New", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
-            GUILayout.Space(TextureStatusGap);
-            GUILayout.Label("Ignore", headerCenter, GUILayout.Width(TextureIgnoreCol), GUILayout.Height(16));
-            EditorGUILayout.EndHorizontal();
-            GUILayout.Space(GUI.skin.box.padding.right);
-            EditorGUILayout.EndHorizontal();
+            DrawTextureStatusColumnHeaders();
 
             for (int i = 0; i < rows.Count; i++)
             {
@@ -2118,7 +2118,7 @@ namespace KaleidoVR.EditorTools
                 EditorGUILayout.BeginVertical(selected ? SelectedTextureRowStyle() : GUI.skin.box);
                 EditorGUILayout.BeginHorizontal();
 
-                Rect thumb = GUILayoutUtility.GetRect(52, 52, GUILayout.Width(52), GUILayout.Height(52));
+                Rect thumb = GUILayoutUtility.GetRect(TextureThumb, TextureThumb, GUILayout.Width(TextureThumb), GUILayout.Height(TextureThumb));
                 if (usage.texture != null)
                 {
                     if (GUI.Button(thumb, DisplayTexture(usage)))
@@ -2166,9 +2166,39 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
-            GUILayout.Space(18);
+            GUILayout.Space(TextureListInnerPad);
             EditorGUILayout.EndHorizontal();
             EndOutlinedPanel();
+        }
+
+        private static void DrawTextureStatusColumnHeaders()
+        {
+            GUIStyle headerPad = new GUIStyle
+            {
+                margin = GUI.skin.box.margin,
+                padding = GUI.skin.box.padding
+            };
+            GUIStyle headerCenter = new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                margin = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+            EditorGUILayout.BeginHorizontal(headerPad);
+            GUILayout.Space(TextureThumb);
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(120), GUILayout.ExpandWidth(true));
+            GUILayout.Label("Texture", EditorStyles.miniBoldLabel);
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Current", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
+            GUILayout.Space(TextureStatusGap);
+            GUILayout.Label("", headerCenter, GUILayout.Width(TextureMidCol), GUILayout.Height(16));
+            GUILayout.Space(TextureStatusGap);
+            GUILayout.Label("New", headerCenter, GUILayout.Width(TextureSizeCol), GUILayout.Height(16));
+            GUILayout.Space(TextureStatusGap);
+            GUILayout.Label("Ignore", headerCenter, GUILayout.Width(TextureIgnoreCol), GUILayout.Height(16));
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndHorizontal();
         }
 
         private static List<KaleidoTextureUsage> SortedTextureUsages(KaleidoVRCOptimizer window)
@@ -5997,7 +6027,9 @@ namespace KaleidoVR.EditorTools
         private static Bounds PlannedSkinnedBounds(SkinnedMeshRenderer skinned, Vector3 modelCenter)
         {
             Transform rootBone = skinned.rootBone != null ? skinned.rootBone : skinned.transform;
-            return new Bounds(rootBone.InverseTransformPoint(modelCenter), SkinnedBoundsCube);
+            Vector3 localCenter = rootBone.InverseTransformPoint(modelCenter);
+            localCenter.y = 0f;
+            return new Bounds(localCenter, SkinnedBoundsCube);
         }
 
         private static float GetModelHeight(GameObject root)
