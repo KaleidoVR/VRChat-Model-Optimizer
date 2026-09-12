@@ -1,5 +1,8 @@
 What's new
 
+1.0.44
+Create optimized copy asks first. The clone is for checking what a VRChat upload will do. Do not edit it or use it as the master. The original is turned off, not deleted.
+
 1.0.43
 Remove unused blend shapes keeps Eye Look blink / look-up / look-down and rewrites those descriptor indices, so idle no longer drives leftover smiles.
 Apply on upload is off by default. Reopen the tool once so existing projects pick that up.

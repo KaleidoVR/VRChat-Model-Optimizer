@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.43";
+        public static readonly string VERSION = "1.0.44";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -3131,7 +3131,11 @@ namespace KaleidoVR.EditorTools
                 {
                     EditorUtility.DisplayDialog("No avatar", "Drop a VRChat avatar on Setup first.", "OK");
                 }
-                else
+                else if (EditorUtility.DisplayDialog(
+                    "Create optimized copy",
+                    "This makes a scene clone and runs On Upload on that clone only. Use it to check what a VRChat upload will do — pose it, look at the face, and compare rank.\n\nDo not edit the copy or upload it as your master. The original is turned off, not deleted. Turn the original back on when you are done, and delete the copy if you do not need it.",
+                    "Create",
+                    "Cancel"))
                 {
                     EditorApplication.delayCall += () =>
                     {
