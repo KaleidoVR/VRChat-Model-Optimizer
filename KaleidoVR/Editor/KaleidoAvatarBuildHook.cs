@@ -8,10 +8,37 @@
 using UnityEditor;
 using UnityEngine;
 using System;
+using VRC.SDK3A.Editor;
+using VRC.SDKBase.Editor;
 using VRC.SDKBase.Editor.BuildPipeline;
 
 namespace KaleidoVR.EditorTools
 {
+    [InitializeOnLoad]
+    static class KaleidoUploadCleanup
+    {
+        static KaleidoUploadCleanup()
+        {
+            VRCSdkControlPanel.OnSdkPanelEnable += OnSdkPanelEnable;
+        }
+
+        static void OnSdkPanelEnable(object sender, EventArgs e)
+        {
+            IVRCSdkAvatarBuilderApi builder;
+            if (!VRCSdkControlPanel.TryGetBuilder<IVRCSdkAvatarBuilderApi>(out builder) || builder == null) return;
+            builder.OnSdkUploadSuccess -= OnUploadSuccess;
+            builder.OnSdkUploadSuccess += OnUploadSuccess;
+        }
+
+        static void OnUploadSuccess(object sender, string message)
+        {
+            EditorApplication.delayCall += () =>
+            {
+                EditorApplication.delayCall += KaleidoAvatarPass.ClearGeneratedCache;
+            };
+        }
+    }
+
     public sealed class KaleidoAvatarBuildHook : IVRCSDKPreprocessAvatarCallback
     {
         public int callbackOrder { get { return KaleidoAvatarPass.UploadCallbackOrder(); } }

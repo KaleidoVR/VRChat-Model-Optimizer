@@ -172,7 +172,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarRemoveUnusedGameObjects = false;
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
-        public bool avatarOptimizeFxLayer = true;
+        public bool avatarOptimizeFxLayer = false;
     }
 
     [Serializable]
@@ -326,7 +326,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarRemoveUnusedGameObjects = false;
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
-        public bool avatarOptimizeFxLayer = true;
+        public bool avatarOptimizeFxLayer = false;
         public readonly List<string> onUploadPreviewLines = new List<string>();
 
         public KaleidoOptimizerReport lastReport;
@@ -903,7 +903,7 @@ namespace KaleidoVR.EditorTools
             avatarRemoveUnusedGameObjects = GetBool("AvGo", false);
             avatarStripUnusedBones = GetBool("AvBone", true);
             avatarOptimizePhysBones = GetBool("AvPb", true);
-            avatarOptimizeFxLayer = GetBool("AvFx", true);
+            avatarOptimizeFxLayer = GetBool("AvFx", false);
 
             optimizeTextures = GetBool("OptTex", true);
             applyAlbedoSize = GetBool("ASize", false);
@@ -1002,7 +1002,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 8;
+            const int currentSchema = 9;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -1053,6 +1053,11 @@ namespace KaleidoVR.EditorTools
             if (schema < 8)
             {
                 avatarApplyOnUpload = false;
+            }
+
+            if (schema < 9)
+            {
+                avatarOptimizeFxLayer = false;
             }
 
             SetInt("Schema", currentSchema);
@@ -1136,7 +1141,7 @@ namespace KaleidoVR.EditorTools
             avatarRemoveUnusedGameObjects = presetIndex == 3;
             avatarStripUnusedBones = true;
             avatarOptimizePhysBones = true;
-            avatarOptimizeFxLayer = true;
+            avatarOptimizeFxLayer = false;
         }
 
         private void PersistSharedSafeDefaults()
@@ -1205,7 +1210,7 @@ namespace KaleidoVR.EditorTools
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 8);
+            SetInt("Schema", 9);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -3096,7 +3101,8 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
-            window.avatarOptimizeFxLayer = DrawToggle(window.avatarOptimizeFxLayer, "Optimize FX layer", "On the upload copy only: drops empty layers and animation curves whose bindings are gone. MMD keeps layers 0–2.");
+            DrawSmallRedWarning("Warning — can drop FX layers and unused curves. Can change how gestures and face play.");
+            window.avatarOptimizeFxLayer = DrawToggle(window.avatarOptimizeFxLayer, "Optimize FX layer", "Off by default. On the upload copy only: drops empty layers and animation curves whose bindings are gone. Hand gesture clips stay as-is (detected by GestureLeft / GestureRight). MMD keeps layers 0–2.");
             EditorGUI.EndDisabledGroup();
 
             GUILayout.Space(10);
@@ -3143,16 +3149,16 @@ namespace KaleidoVR.EditorTools
                     };
                 }
             }
-            DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy.");
+            DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy. A successful VRChat upload removes the copy and turns the original back on.");
 
             GUILayout.Space(10);
-            bool hasCache = KaleidoAvatarPass.GeneratedCacheHasFiles();
+            bool hasCache = KaleidoAvatarPass.HasGeneratedCleanup();
             EditorGUI.BeginDisabledGroup(!hasCache);
             if (GUILayout.Button("Clear cache", GUILayout.Height(26)))
             {
                 if (EditorUtility.DisplayDialog(
                     "Clear cache",
-                    "Delete generated meshes and FX controllers in " + KaleidoAvatarPass.GeneratedFolderPath + "?\n\nScene Optimized Copies that still use those files will go empty.",
+                    "Delete generated meshes and FX controllers in " + KaleidoAvatarPass.GeneratedFolderPath + "?\n\nOptimized Copies that use those files are removed and the original avatar is turned back on.",
                     "Delete",
                     "Cancel"))
                 {
@@ -3160,7 +3166,7 @@ namespace KaleidoVR.EditorTools
                 }
             }
             EditorGUI.EndDisabledGroup();
-            DrawWhy("Deletes " + KaleidoAvatarPass.GeneratedFolderPath + ". Only available when that folder has generated files.");
+            DrawWhy("Deletes " + KaleidoAvatarPass.GeneratedFolderPath + ". After a successful VRChat upload this happens on its own. Optimized Copies that use the cache are removed and the original is turned back on.");
         }
 
         private static void DrawMeshesTab(KaleidoVRCOptimizer window)
@@ -3875,6 +3881,21 @@ namespace KaleidoVR.EditorTools
         private static void DrawWhy(string why)
         {
             EditorGUILayout.LabelField(why, MiniWrap());
+        }
+
+        private static GUIStyle smallRedWarningStyle;
+
+        private static void DrawSmallRedWarning(string text)
+        {
+            if (smallRedWarningStyle == null)
+            {
+                smallRedWarningStyle = new GUIStyle(EditorStyles.miniBoldLabel);
+                smallRedWarningStyle.wordWrap = true;
+            }
+            smallRedWarningStyle.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.32f, 0.32f)
+                : new Color(0.82f, 0.04f, 0.04f);
+            GUILayout.Label(text, smallRedWarningStyle);
         }
 
         private static int SizePopup(int current)
