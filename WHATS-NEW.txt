@@ -1,5 +1,8 @@
 What's new
 
+1.0.52
+UI — Textures On This Model: with Crunch Enable on, each PC row shows a Crunch % slider under Current / New. A moved slider is remembered. Matching the global % follows that slider again.
+
 1.0.51
 UI — Textures: Crunch compression moved here and up in the list.
 

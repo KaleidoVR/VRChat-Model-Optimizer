@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.51";
+        public static readonly string VERSION = "1.0.52";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -1429,6 +1429,8 @@ namespace KaleidoVR.EditorTools
         public int questSize;
         public bool usedCustomPc;
         public bool usedCustomQuest;
+        public bool usedCustomCrunch;
+        public int crunchQuality;
         public bool ignorePc;
         public bool ignoreQuest;
         public int pcRevertSize;
@@ -1459,8 +1461,10 @@ namespace KaleidoVR.EditorTools
         public bool ignoreQuest;
         public bool customPc;
         public bool customQuest;
+        public bool customCrunch;
         public int pcSize;
         public int questSize;
+        public int crunchQuality;
     }
 
     [Serializable]
@@ -2554,7 +2558,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label("Textures On This Model", EditorStyles.boldLabel);
             BeginCenteredSection(window, TextureSectionMaxWidth);
-            DrawWhy("Max size for this workspace. Current is what Unity has now. New is what the selector will write. Ignore skips the type cap so you can set that texture by hand. Changing Set still writes it. Ignore and Set stay for later runs.");
+            DrawWhy("Max size for this workspace. Current is what Unity has now. New is what the selector will write. Ignore skips the type cap so you can set that texture by hand. Changing Set still writes it. Ignore and Set stay for later runs. With Crunch Enable on, a Crunch % slider under Current / New remembers a moved value the same way.");
 
             if (window.textureUsages == null || window.textureUsages.Count == 0)
             {
@@ -2770,6 +2774,7 @@ namespace KaleidoVR.EditorTools
             };
 
             const float LineH = 16f;
+            EditorGUILayout.BeginVertical(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
             EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth), GUILayout.ExpandWidth(false));
             EditorGUILayout.BeginVertical(GUILayout.Width(TextureSizeCol), GUILayout.MaxWidth(TextureSizeCol), GUILayout.ExpandWidth(false));
             GUILayout.Label("Current", currentCaption, GUILayout.Width(TextureSizeCol), GUILayout.Height(LineH));
@@ -2824,6 +2829,32 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
+
+            if (!questPlatform && window.textureEnableCrunch)
+            {
+                GUILayout.Space(2);
+                EditorGUILayout.BeginHorizontal(GUILayout.Width(TextureStatusWidth), GUILayout.MaxWidth(TextureStatusWidth));
+                GUILayout.Label("Crunch %", EditorStyles.miniLabel, GUILayout.Width(56));
+                int shown = KaleidoVRCOptimizerLogic.GetPlannedCrunchQuality(window, usage);
+                int next = EditorGUILayout.IntSlider(shown, 1, 100);
+                if (next != shown)
+                {
+                    int globalQ = KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality);
+                    if (next == globalQ)
+                    {
+                        usage.usedCustomCrunch = false;
+                        usage.crunchQuality = next;
+                    }
+                    else
+                    {
+                        usage.usedCustomCrunch = true;
+                        usage.crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(next);
+                    }
+                    KaleidoVRCOptimizerLogic.RememberTextureRow(usage);
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            EditorGUILayout.EndVertical();
         }
 
         private static void CancelPendingTextureIncrease(KaleidoTextureUsage usage, bool questPlatform)
@@ -5300,7 +5331,7 @@ namespace KaleidoVR.EditorTools
         {
             if (usage == null || string.IsNullOrEmpty(usage.path)) return;
             EnsureTextureRowPrefs();
-            bool keep = usage.ignorePc || usage.ignoreQuest || usage.usedCustomPc || usage.usedCustomQuest;
+            bool keep = usage.ignorePc || usage.ignoreQuest || usage.usedCustomPc || usage.usedCustomQuest || usage.usedCustomCrunch;
             if (!keep)
             {
                 if (textureRowPrefs.Remove(usage.path)) WriteTextureRowPrefs();
@@ -5313,8 +5344,10 @@ namespace KaleidoVR.EditorTools
                 ignoreQuest = usage.ignoreQuest,
                 customPc = usage.usedCustomPc,
                 customQuest = usage.usedCustomQuest,
+                customCrunch = usage.usedCustomCrunch,
                 pcSize = usage.pcSize,
-                questSize = usage.questSize
+                questSize = usage.questSize,
+                crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(usage.crunchQuality)
             };
             WriteTextureRowPrefs();
         }
@@ -5328,7 +5361,7 @@ namespace KaleidoVR.EditorTools
             {
                 KaleidoTextureUsage usage = window.textureUsages[i];
                 if (usage == null || string.IsNullOrEmpty(usage.path)) continue;
-                bool keep = usage.ignorePc || usage.ignoreQuest || usage.usedCustomPc || usage.usedCustomQuest;
+                bool keep = usage.ignorePc || usage.ignoreQuest || usage.usedCustomPc || usage.usedCustomQuest || usage.usedCustomCrunch;
                 if (!keep)
                 {
                     if (textureRowPrefs.Remove(usage.path)) changed = true;
@@ -5341,8 +5374,10 @@ namespace KaleidoVR.EditorTools
                     ignoreQuest = usage.ignoreQuest,
                     customPc = usage.usedCustomPc,
                     customQuest = usage.usedCustomQuest,
+                    customCrunch = usage.usedCustomCrunch,
                     pcSize = usage.pcSize,
-                    questSize = usage.questSize
+                    questSize = usage.questSize,
+                    crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(usage.crunchQuality)
                 };
                 KaleidoTextureRowPref existing;
                 if (textureRowPrefs.TryGetValue(usage.path, out existing)
@@ -5350,8 +5385,10 @@ namespace KaleidoVR.EditorTools
                     && existing.ignoreQuest == next.ignoreQuest
                     && existing.customPc == next.customPc
                     && existing.customQuest == next.customQuest
+                    && existing.customCrunch == next.customCrunch
                     && existing.pcSize == next.pcSize
-                    && existing.questSize == next.questSize)
+                    && existing.questSize == next.questSize
+                    && existing.crunchQuality == next.crunchQuality)
                     continue;
                 textureRowPrefs[usage.path] = next;
                 changed = true;
@@ -5376,6 +5413,11 @@ namespace KaleidoVR.EditorTools
             {
                 usage.usedCustomQuest = true;
                 usage.questSize = pref.questSize;
+            }
+            if (pref.customCrunch)
+            {
+                usage.usedCustomCrunch = true;
+                usage.crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(pref.crunchQuality);
             }
         }
 
@@ -5489,6 +5531,14 @@ namespace KaleidoVR.EditorTools
             if (!typeApply || typeSize <= 0) return current;
             if (current > 0 && typeSize > current) return current;
             return typeSize;
+        }
+
+        public static int GetPlannedCrunchQuality(KaleidoVRCOptimizer window, KaleidoTextureUsage usage)
+        {
+            if (usage != null && usage.usedCustomCrunch)
+                return KaleidoVRCOptimizer.ClampCrunchQuality(usage.crunchQuality);
+            int global = window != null ? window.textureCrunchQuality : 50;
+            return KaleidoVRCOptimizer.ClampCrunchQuality(global);
         }
 
         public static int GetPlannedRowSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
@@ -5867,6 +5917,11 @@ namespace KaleidoVR.EditorTools
                         usage.usedCustomQuest = true;
                         usage.questRevertSize = old.questRevertSize;
                     }
+                }
+                if (old.usedCustomCrunch)
+                {
+                    usage.usedCustomCrunch = true;
+                    usage.crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(old.crunchQuality);
                 }
             }
             else ApplyTextureRowPref(usage);
@@ -6676,7 +6731,7 @@ namespace KaleidoVR.EditorTools
                 dirty = true;
             }
 
-            int crunchQuality = KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality);
+            int crunchQuality = GetPlannedCrunchQuality(window, row);
             if (window.textureEnableCrunch && (!importer.crunchedCompression || importer.compressionQuality != crunchQuality))
             {
                 string from = importer.crunchedCompression ? "On (" + importer.compressionQuality + "%)" : "Off";
