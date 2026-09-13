@@ -4559,9 +4559,9 @@ namespace KaleidoVR.EditorTools
             GUI.Label(titleRect, dropLabel, DropTitleStyle());
             string hint = ready == 0
                 ? "Prefab, scene instance, or character FBX  ·  not folders, worlds, or loose textures"
-                : (ready == 1 ? "1 avatar ready  ·  drop another, or use the slots below" : ready + " avatars ready  ·  drop another, or use the slots below");
+                : (ready == 1 ? "1 avatar ready  ·  drop another to replace it" : ready + " avatars ready  ·  drop another to replace it");
             GUI.Label(hintRect, hint, DropHintStyle());
-            KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, true);
+            KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, true, true);
         }
 
         private static void DrawObjectList(List<UnityEngine.Object> list, string dropLabel, bool striped, bool avatarModelsOnly, bool prominentDrop = false)
@@ -4649,7 +4649,7 @@ namespace KaleidoVR.EditorTools
 
     public static class KaleidoVRCOptimizerHelpers
     {
-        public static void HandleDragAndDrop(Rect dropArea, List<UnityEngine.Object> targetList, bool avatarModelsOnly)
+        public static void HandleDragAndDrop(Rect dropArea, List<UnityEngine.Object> targetList, bool avatarModelsOnly, bool replaceExisting = false)
         {
             Event evt = Event.current;
             if ((evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform) && dropArea.Contains(evt.mousePosition))
@@ -4658,6 +4658,8 @@ namespace KaleidoVR.EditorTools
                 if (evt.type == EventType.DragPerform)
                 {
                     DragAndDrop.AcceptDrag();
+                    UnityEngine.Object replacement = null;
+                    bool haveReplacement = false;
                     foreach (UnityEngine.Object dragged in DragAndDrop.objectReferences)
                     {
                         if (dragged == null) continue;
@@ -4673,7 +4675,18 @@ namespace KaleidoVR.EditorTools
                             }
                             if (resolved != null) toAdd = resolved;
                         }
+                        if (replaceExisting)
+                        {
+                            replacement = toAdd;
+                            haveReplacement = true;
+                            break;
+                        }
                         if (!targetList.Contains(toAdd)) targetList.Add(toAdd);
+                    }
+                    if (replaceExisting && haveReplacement)
+                    {
+                        targetList.Clear();
+                        targetList.Add(replacement);
                     }
                     GUI.changed = true;
                 }
