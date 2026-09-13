@@ -194,7 +194,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.53";
+        public static readonly string VERSION = "1.0.54";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -1619,8 +1619,9 @@ namespace KaleidoVR.EditorTools
         private const float TextureMidCol = 72f;
         private const float TextureIgnoreCol = 52f;
         private const float TextureStatusGap = 4f;
+        private const float TextureListScrollPad = 24f;
         private const float TextureStatusWidth = TextureSizeCol + TextureStatusGap + TextureMidCol + TextureStatusGap + TextureSizeCol + TextureStatusGap + TextureIgnoreCol;
-        private const float TextureSectionMaxWidth = TextureThumb + 6f + TextureNameCol + TextureStatusWidth + TextureListAfterIgnore + TextureListInnerPad * 2f + 16f;
+        private const float TextureSectionMaxWidth = TextureThumb + 6f + TextureNameCol + TextureStatusWidth + TextureListAfterIgnore + TextureListInnerPad * 2f + 16f + TextureListScrollPad;
         private static GUIStyle sizeCaptionStyle;
         private static GUIStyle sizeValueStyle;
         private static GUIStyle sizeNewStyle;
@@ -2613,7 +2614,12 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(TextureListInnerPad);
             EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            window.textureUsageScroll = EditorGUILayout.BeginScrollView(window.textureUsageScroll, GUILayout.Height(TextureListHeight), GUILayout.ExpandWidth(true));
+            window.textureUsageScroll = EditorGUILayout.BeginScrollView(
+                window.textureUsageScroll,
+                false,
+                false,
+                GUILayout.Height(TextureListHeight),
+                GUILayout.ExpandWidth(true));
             DrawTextureStatusColumnHeaders();
 
             for (int i = 0; i < rows.Count; i++)
