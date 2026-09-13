@@ -1933,7 +1933,28 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Run Safety", EditorStyles.boldLabel);
             DrawWhy("Each workspace has its own Scan / Dry Run / Apply. A run in one workspace does not write the other. Apply, Confirm, and Fix write into Unity and stay on the assets. Scan only reports.");
-            window.writeLog = DrawToggle(window.writeLog, "Write Log File", "Saves a timestamped report under Logs/KaleidoVR/Optimizer.");
+            EditorGUILayout.BeginHorizontal();
+            window.writeLog = EditorGUILayout.ToggleLeft("Write Log File", window.writeLog);
+            if (GUILayout.Button("Clear Log Cache", GUILayout.Width(110), GUILayout.Height(18)))
+            {
+                if (EditorUtility.DisplayDialog(
+                    "Clear Log Cache",
+                    "Delete the log files under Logs/KaleidoVR/Optimizer?\n\nThe folder stays.",
+                    "Clear",
+                    "Cancel"))
+                {
+                    int removed = KaleidoVRCOptimizerHelpers.ClearOptimizerLogFiles();
+                    EditorUtility.DisplayDialog(
+                        "Clear Log Cache",
+                        removed == 0
+                            ? "There were no log files to clear."
+                            : "Removed " + removed + " log file(s). The folder is still there.",
+                        "OK");
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+            DrawWhy("Saves a timestamped report under Logs/KaleidoVR/Optimizer. Clear Log Cache deletes those files and leaves the folder.");
+            GUILayout.Space(3);
             window.applyToPrefabAssets = DrawToggle(window.applyToPrefabAssets, "Apply renderer changes to prefab assets", "Writes Scene-tab renderer edits onto the .prefab, not only the scene instance. Turn off to test on the instance first.");
         }
 
@@ -4805,6 +4826,47 @@ namespace KaleidoVR.EditorTools
             return Directory.GetParent(Application.dataPath).FullName;
         }
 
+        public static string OptimizerLogDirectory()
+        {
+            return Path.Combine(GetProjectRootPath(), "Logs", "KaleidoVR", "Optimizer");
+        }
+
+        public static int ClearOptimizerLogFiles()
+        {
+            string dir = OptimizerLogDirectory();
+            if (!Directory.Exists(dir)) return 0;
+
+            int removed = 0;
+            string[] files = Directory.GetFiles(dir, "*", SearchOption.AllDirectories);
+            for (int i = 0; i < files.Length; i++)
+            {
+                try
+                {
+                    File.Delete(files[i]);
+                    removed++;
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            string[] folders = Directory.GetDirectories(dir, "*", SearchOption.AllDirectories);
+            Array.Sort(folders, (a, b) => b.Length.CompareTo(a.Length));
+            for (int i = 0; i < folders.Length; i++)
+            {
+                try
+                {
+                    if (Directory.Exists(folders[i]) && Directory.GetFileSystemEntries(folders[i]).Length == 0)
+                        Directory.Delete(folders[i]);
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            return removed;
+        }
+
         public static string FormatBytes(long bytes)
         {
             if (bytes < 1024) return bytes + " B";
@@ -5031,7 +5093,7 @@ namespace KaleidoVR.EditorTools
                     {
                         try
                         {
-                            string logDir = Path.Combine(KaleidoVRCOptimizerHelpers.GetProjectRootPath(), "Logs", "KaleidoVR", "Optimizer");
+                            string logDir = KaleidoVRCOptimizerHelpers.OptimizerLogDirectory();
                             Directory.CreateDirectory(logDir);
                             string logFile = Path.Combine(logDir, DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_optimizer_log.txt");
                             File.WriteAllLines(logFile, logEntries.ToArray());
@@ -5090,7 +5152,7 @@ namespace KaleidoVR.EditorTools
             {
                 try
                 {
-                    string logDir = Path.Combine(KaleidoVRCOptimizerHelpers.GetProjectRootPath(), "Logs", "KaleidoVR", "Optimizer");
+                    string logDir = KaleidoVRCOptimizerHelpers.OptimizerLogDirectory();
                     Directory.CreateDirectory(logDir);
                     string logFile = Path.Combine(logDir, DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_optimizer_log.txt");
                     File.WriteAllLines(logFile, logEntries.ToArray());
