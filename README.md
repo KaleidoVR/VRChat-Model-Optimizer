@@ -4,6 +4,10 @@
   <img src="KaleidoVR/Editor/Icons/Kali_Logo.png" alt="KaleidoVR" width="300">
 </p>
 
+<p align="center">
+  For the good of the instance — optimize your avatar.
+</p>
+
 A Unity editor tool for one VRChat avatar at a time. Drop the model on Setup. Scan and Rank show PC and Quest performance. Dry Run previews writes. Apply writes only the options you turned on.
 
 PC and Quest are separate workspaces. Texture, mesh, and scene writes stay on the workspace you are in. Profiles store tab recipes — built-in PC, Quest, Standard, and Everything, plus your own. Special stays off unless you tick it.
