@@ -1919,9 +1919,9 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawSetupTab(KaleidoVRCOptimizer window)
         {
-            GUILayout.Label("VRChat Avatar Models", EditorStyles.boldLabel);
+            GUILayout.Label("VRChat Avatar Model", EditorStyles.boldLabel);
             DrawWhy("Start here. Drop one VRChat avatar. Everything this window lists or changes comes from that model only.");
-            DrawObjectList(window.targets, "Drop your VRChat avatar here", true, true, true);
+            DrawAvatarTarget(window.targets, "Drop your VRChat avatar here");
 
             window.RefreshInventoryIfNeeded();
             DrawModelContents(window);
@@ -1929,7 +1929,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Ignore List", EditorStyles.boldLabel);
             DrawWhy("Anything here is left untouched, including its dependent textures and meshes.");
-            DrawObjectList(window.ignoreList, "Drag & Drop Assets To Leave Untouched", false, false);
+            DrawObjectList(window.ignoreList, "Drag & Drop Assets To Leave Untouched");
 
             GUILayout.Space(8);
             GUILayout.Label("Run Safety", EditorStyles.boldLabel);
@@ -4545,54 +4545,103 @@ namespace KaleidoVR.EditorTools
                 DrawBoxOutline(dropArea, border);
             }
 
-            int ready = 0;
-            if (list != null)
-            {
-                for (int i = 0; i < list.Count; i++)
-                {
-                    if (list[i] != null) ready++;
-                }
-            }
-
+            UnityEngine.Object current = list != null && list.Count > 0 ? list[0] : null;
             Rect titleRect = new Rect(dropArea.x + 10, dropArea.y + 10, dropArea.width - 20, 24);
             Rect hintRect = new Rect(dropArea.x + 12, dropArea.y + 34, dropArea.width - 24, 36);
             GUI.Label(titleRect, dropLabel, DropTitleStyle());
-            string hint = ready == 0
+            string hint = current == null
                 ? "Prefab, scene instance, or character FBX  ·  not folders, worlds, or loose textures"
-                : (ready == 1 ? "1 avatar ready  ·  drop another to replace it" : ready + " avatars ready  ·  drop another to replace it");
+                : "This avatar is ready  ·  drop another to replace it";
             GUI.Label(hintRect, hint, DropHintStyle());
             KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, true, true);
         }
 
-        private static void DrawObjectList(List<UnityEngine.Object> list, string dropLabel, bool striped, bool avatarModelsOnly, bool prominentDrop = false)
+        private static void DrawAvatarTarget(List<UnityEngine.Object> list, string dropLabel)
         {
-            if (prominentDrop) DrawProminentAvatarDrop(list, dropLabel);
-            else
+            if (list == null) return;
+            DrawProminentAvatarDrop(list, dropLabel);
+
+            UnityEngine.Object current = list.Count > 0 ? list[0] : null;
+            if (current != null)
             {
-                Rect dropArea = GUILayoutUtility.GetRect(0, 30, GUILayout.ExpandWidth(true));
-                GUI.Box(dropArea, dropLabel, EditorStyles.helpBox);
-                KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, avatarModelsOnly);
+                GameObject resolved;
+                string reason;
+                if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(current, out resolved, out reason))
+                {
+                    EditorGUILayout.HelpBox(reason, MessageType.Warning);
+                }
             }
+
+            Rect rowRect = EditorGUILayout.BeginHorizontal();
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(rowRect, new Color(0.18f, 0.18f, 0.18f, 1f));
+            }
+            GUILayout.Space(5);
+            UnityEngine.Object next = EditorGUILayout.ObjectField(current, typeof(GameObject), true, GUILayout.ExpandWidth(true));
+            bool applyField = true;
+
+            Event evt = Event.current;
+            if ((evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform) && rowRect.Contains(evt.mousePosition))
+            {
+                DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+                if (evt.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+                    UnityEngine.Object[] dropped = DragAndDrop.objectReferences;
+                    if (dropped == null) dropped = new UnityEngine.Object[0];
+                    for (int d = 0; d < dropped.Length; d++)
+                    {
+                        GameObject resolved;
+                        string reason;
+                        if (KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(dropped[d], out resolved, out reason) && resolved != null)
+                        {
+                            SetSingleAvatar(list, resolved);
+                            GUI.changed = true;
+                            applyField = false;
+                            break;
+                        }
+                        if (dropped[d] != null)
+                            Debug.LogWarning("[KaleidoVR] VRChat Model Optimizer: " + reason);
+                    }
+                }
+                evt.Use();
+            }
+
+            if (current != null && GUILayout.Button("X", GUILayout.Width(25)))
+            {
+                list.Clear();
+                GUI.changed = true;
+                applyField = false;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (applyField && next != current) SetSingleAvatar(list, next);
+        }
+
+        private static void SetSingleAvatar(List<UnityEngine.Object> list, UnityEngine.Object obj)
+        {
+            list.Clear();
+            if (obj == null) return;
+            GameObject resolved;
+            string reason;
+            if (KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(obj, out resolved, out reason) && resolved != null)
+                list.Add(resolved);
+            else
+                list.Add(obj);
+        }
+
+        private static void DrawObjectList(List<UnityEngine.Object> list, string dropLabel)
+        {
+            Rect dropArea = GUILayoutUtility.GetRect(0, 30, GUILayout.ExpandWidth(true));
+            GUI.Box(dropArea, dropLabel, EditorStyles.helpBox);
+            KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, false);
 
             for (int i = 0; i < list.Count; i++)
             {
-                if (avatarModelsOnly && list[i] != null)
-                {
-                    GameObject resolved;
-                    string reason;
-                    if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(list[i], out resolved, out reason))
-                    {
-                        EditorGUILayout.HelpBox(reason, MessageType.Warning);
-                    }
-                }
-
                 Rect rowRect = EditorGUILayout.BeginHorizontal();
-                if (striped && Event.current.type == EventType.Repaint)
-                {
-                    EditorGUI.DrawRect(rowRect, i % 2 == 0 ? new Color(0.18f, 0.18f, 0.18f, 1f) : new Color(0.23f, 0.23f, 0.23f, 1f));
-                }
                 GUILayout.Space(5);
-                list[i] = EditorGUILayout.ObjectField(list[i], avatarModelsOnly ? typeof(GameObject) : typeof(UnityEngine.Object), true, GUILayout.ExpandWidth(true));
+                list[i] = EditorGUILayout.ObjectField(list[i], typeof(UnityEngine.Object), true, GUILayout.ExpandWidth(true));
 
                 Event evt = Event.current;
                 if ((evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform) && rowRect.Contains(evt.mousePosition))
