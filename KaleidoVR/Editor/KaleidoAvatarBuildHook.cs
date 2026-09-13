@@ -56,6 +56,8 @@ namespace KaleidoVR.EditorTools
             if (settings == null || !settings.applyOnUpload) return true;
 
             bool ok = true;
+            string fail = null;
+            Exception thrown = null;
             try
             {
                 KaleidoOnUploadSplash.Open(avatarGameObject.name);
@@ -65,17 +67,32 @@ namespace KaleidoVR.EditorTools
                     false,
                     KaleidoAvatarPass.ExclusionsFrom(window, avatarGameObject),
                     true);
-                ok = result == null || result.ok;
+                if (result != null && !result.ok)
+                {
+                    ok = false;
+                    fail = result.failReason;
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 ok = false;
+                thrown = ex;
+                fail = ex.Message;
             }
             finally
             {
                 KaleidoOnUploadSplash.CloseIfOpen();
             }
+            if (!ok) LogUploadAbort(avatarGameObject, fail, thrown);
             return ok;
+        }
+
+        static void LogUploadAbort(GameObject avatar, string reason, Exception ex)
+        {
+            string name = avatar != null ? avatar.name : "avatar";
+            if (string.IsNullOrEmpty(reason)) reason = "On Upload failed.";
+            Debug.LogError("[KaleidoVR] On Upload stopped for \"" + name + "\". The VRChat upload was cancelled. " + reason);
+            if (ex != null) Debug.LogException(ex);
         }
     }
 }

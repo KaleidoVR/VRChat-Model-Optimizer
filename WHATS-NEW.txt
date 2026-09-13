@@ -1,5 +1,8 @@
 What's new
 
+1.0.55
+On Upload: if the pass stops, the Console shows why Kaleido cancelled the VRChat upload.
+
 1.0.54
 UI — Textures On This Model: the list box is a little wider so the bottom scrollbar is gone.
 
