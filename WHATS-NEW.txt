@@ -1,5 +1,8 @@
 What's new
 
+1.0.54
+UI — Textures On This Model: the list box is a little wider so the bottom scrollbar is gone.
+
 1.0.53
 UI — Setup: Clear Log Cache sits next to Write Log File. It deletes files under Logs/KaleidoVR/Optimizer and leaves the folder.
 
