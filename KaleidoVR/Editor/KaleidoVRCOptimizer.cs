@@ -403,10 +403,32 @@ namespace KaleidoVR.EditorTools
         {
             InitializeLocalLogo();
             LoadEditorPreferences();
+            KeepSingleAvatarTarget();
             tab = 0;
             ApplyWindowMinSize();
             ApplyWindowIcon();
             KaleidoVRCOptimizerUI.ClearNormalPreviews();
+        }
+
+        public void KeepSingleAvatarTarget()
+        {
+            if (targets == null)
+            {
+                targets = new List<UnityEngine.Object>();
+                return;
+            }
+            if (targets.Count <= 1) return;
+            UnityEngine.Object keep = null;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (targets[i] != null)
+                {
+                    keep = targets[i];
+                    break;
+                }
+            }
+            targets.Clear();
+            if (keep != null) targets.Add(keep);
         }
 
         private void ApplyWindowMinSize()
@@ -1921,6 +1943,7 @@ namespace KaleidoVR.EditorTools
         {
             GUILayout.Label("VRChat Avatar Model", EditorStyles.boldLabel);
             DrawWhy("Start here. Drop one VRChat avatar. Everything this window lists or changes comes from that model only.");
+            window.KeepSingleAvatarTarget();
             DrawAvatarTarget(window.targets, "Drop your VRChat avatar here");
 
             window.RefreshInventoryIfNeeded();
@@ -5134,6 +5157,7 @@ namespace KaleidoVR.EditorTools
         public static KaleidoOptimizerReport Scan(KaleidoVRCOptimizer window, bool apply)
         {
             if (!apply) window.writeDefaultsAction = 0;
+            window.KeepSingleAvatarTarget();
             KaleidoOptimizerReport report = new KaleidoOptimizerReport();
             List<string> logEntries = new List<string>
             {
@@ -5306,6 +5330,7 @@ namespace KaleidoVR.EditorTools
 
         public static void FillInventory(KaleidoVRCOptimizer window)
         {
+            window.KeepSingleAvatarTarget();
             if (window.inventory == null) window.inventory = new List<KaleidoModelInventoryItem>();
             window.inventory.Clear();
             HashSet<string> ignorePaths = BuildIgnorePaths(window.ignoreList);
