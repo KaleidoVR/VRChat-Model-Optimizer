@@ -1,5 +1,8 @@
 What's new
 
+1.0.51
+UI — Textures: Crunch compression moved here and up in the list.
+
 1.0.50
 UI — On Upload: the Optimize FX warning is 18pt. Didn't like how big 24pt was.
 
