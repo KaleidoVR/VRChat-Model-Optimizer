@@ -1995,7 +1995,7 @@ namespace KaleidoVR.EditorTools
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
             window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, FX", window.includeAvatar);
-            window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono, crunch", window.includeSpecial);
+            window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
 
             GUILayout.Space(10);
@@ -2416,6 +2416,17 @@ namespace KaleidoVR.EditorTools
             }
             else
             {
+                DrawEnableDisableRow(window, "Crunch compression", "Crunch does not lower VRChat texture memory. Enable only shrinks download size.",
+                    KaleidoOptionUndo.TextureCrunchOn, KaleidoOptionUndo.TextureCrunchOff,
+                    ref window.textureEnableCrunch, ref window.textureDisableCrunch,
+                    flags.crunch, OnOffNew(window.textureEnableCrunch, window.textureDisableCrunch));
+                if (window.textureEnableCrunch)
+                {
+                    EditorGUI.indentLevel++;
+                    window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
+                    EditorGUI.indentLevel--;
+                }
+
                 DrawEnableDisableRow(window, "Read / Write", "Disable saves RAM. Enable only if a script or editor tool reads pixels from the texture.",
                     KaleidoOptionUndo.TextureReadWriteOn, KaleidoOptionUndo.TextureReadWrite,
                     ref window.textureEnableReadWrite, ref window.textureDisableReadWrite,
@@ -2435,17 +2446,6 @@ namespace KaleidoVR.EditorTools
                     KaleidoOptionUndo.StreamingMipmaps, KaleidoOptionUndo.StreamingMipmapsOff,
                     ref window.textureEnableStreamingMipmaps, ref window.textureDisableStreamingMipmaps,
                     flags.streaming, OnOffNew(window.textureEnableStreamingMipmaps, window.textureDisableStreamingMipmaps));
-
-                DrawEnableDisableRow(window, "Crunch compression", "Crunch does not lower VRChat texture memory. Enable is a Special write and only shrinks download size.",
-                    KaleidoOptionUndo.TextureCrunchOn, KaleidoOptionUndo.TextureCrunchOff,
-                    ref window.textureEnableCrunch, ref window.textureDisableCrunch,
-                    flags.crunch, OnOffNew(window.textureEnableCrunch, window.textureDisableCrunch));
-                if (window.textureEnableCrunch)
-                {
-                    EditorGUI.indentLevel++;
-                    window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
-                    EditorGUI.indentLevel--;
-                }
 
                 window.textureApplyAniso = DrawToggle(window, KaleidoOptionUndo.TextureAniso, window.textureApplyAniso, "Set anisotropic filtering", "1 is enough for avatars. Higher values cost GPU for little gain up close.");
                 if (window.textureApplyAniso) window.textureAniso = EditorGUILayout.IntSlider("Aniso Level", window.textureAniso, 0, 16);
@@ -3382,17 +3382,6 @@ namespace KaleidoVR.EditorTools
                 KaleidoOptionUndo.AudioMono, KaleidoOptionUndo.AudioStereo,
                 ref window.audioForceToMono, ref window.audioForceToStereo,
                 flags.mono, OnOffNew(window.audioForceToMono, window.audioForceToStereo));
-
-            DrawEnableDisableRow(window, "Crunch compression", "Does not lower VRChat texture memory. Enable only shrinks download size.",
-                KaleidoOptionUndo.TextureCrunchOn, KaleidoOptionUndo.TextureCrunchOff,
-                ref window.textureEnableCrunch, ref window.textureDisableCrunch,
-                flags.crunch, OnOffNew(window.textureEnableCrunch, window.textureDisableCrunch));
-            if (window.textureEnableCrunch)
-            {
-                EditorGUI.indentLevel++;
-                window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
-                EditorGUI.indentLevel--;
-            }
             window.optimizeSceneExtras = window.optimizeParticles || window.disableLightsOnAvatar || window.enableLightsOnAvatar || window.disableCamerasOnAvatar || window.enableCamerasOnAvatar;
         }
 
@@ -3639,7 +3628,6 @@ namespace KaleidoVR.EditorTools
             public string cameras;
             public string instancing;
             public string mono;
-            public string crunch;
         }
 
         private static ImporterFlagSnapshot CollectImporterFlagSnapshot(KaleidoVRCOptimizer window)
@@ -3695,8 +3683,7 @@ namespace KaleidoVR.EditorTools
                 lights = "—",
                 cameras = "—",
                 instancing = "—",
-                mono = "—",
-                crunch = "—"
+                mono = "—"
             };
             if (window == null) return snap;
 
@@ -3755,7 +3742,6 @@ namespace KaleidoVR.EditorTools
             snap.blendShapes = CountLabel(blendOn, blendOff, "On", "Off");
             snap.humanoid = CountLabel(humanOn, humanOff, "Humanoid", "Other");
             snap.meshComp = CountLabel(meshOn, meshOff, "On", "Off");
-            snap.crunch = CollectImporterFlagSnapshot(window).crunch;
             return snap;
         }
 
@@ -6468,8 +6454,6 @@ namespace KaleidoVR.EditorTools
                 chosen.Add(window.materialEnableGpuInstancing ? "• GPU instancing On" : "• GPU instancing Off");
             if (!window.IsQuestWorkspace && window.audioForceToMono) chosen.Add("• Force audio to mono");
             if (!window.IsQuestWorkspace && window.audioForceToStereo) chosen.Add("• Force audio to stereo");
-            if (!window.IsQuestWorkspace && window.textureEnableCrunch)
-                chosen.Add("• Crunch compression On (" + KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality) + "%)");
             return chosen;
         }
 
