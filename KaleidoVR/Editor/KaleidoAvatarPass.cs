@@ -218,7 +218,7 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Trimming unused bones…", 0.38f);
                 if (settings.stripUnusedBones)
-                    StripUnusedBones(root, anim, excluded, dryRun, result);
+                    StripUnusedBones(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Merging material slots…", 0.52f);
                 if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
@@ -1229,7 +1229,7 @@ namespace KaleidoVR.EditorTools
             if (known.Contains(name)) keep.Add(name);
         }
 
-        static void StripUnusedBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void StripUnusedBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
@@ -1246,6 +1246,7 @@ namespace KaleidoVR.EditorTools
                 {
                     if (bones[i] == null) continue;
                     if (anim.IsTransformMoved(bones[i], root.transform)) used[i] = true;
+                    else if (refs != null && refs.Keeps(bones[i])) used[i] = true;
                 }
 
                 int keepCount = 0;
