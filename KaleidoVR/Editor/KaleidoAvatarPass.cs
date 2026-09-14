@@ -206,10 +206,11 @@ namespace KaleidoVR.EditorTools
             {
                 HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
                 AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
+                ComponentRefInfo refs = ComponentRefInfo.Build(root);
 
                 ReportProgress("Cleaning unused objects…", 0.08f);
                 if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
-                    SweepUnused(root, settings, anim, excluded, dryRun, result);
+                    SweepUnused(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Processing blend shapes…", 0.22f);
                 if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
@@ -748,7 +749,7 @@ namespace KaleidoVR.EditorTools
                 || lower.Contains("orifice");
         }
 
-        static void SweepUnused(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void SweepUnused(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             Behaviour[] behaviours = root.GetComponentsInChildren<Behaviour>(true);
             List<Behaviour> remove = new List<Behaviour>();
@@ -795,7 +796,7 @@ namespace KaleidoVR.EditorTools
                     if (t.gameObject.activeSelf) continue;
                     string path = AnimationUtility.CalculateTransformPath(t, root.transform);
                     if (anim.IsActiveAnimated(path)) continue;
-                    if (HasRequiredRef(t, root)) continue;
+                    if (HasRequiredRef(t, root, refs)) continue;
                     result.objectsRemoved++;
                     result.lines.Add("Remove unused object: " + t.name);
                     if (!dryRun) UnityEngine.Object.DestroyImmediate(t.gameObject);
@@ -803,8 +804,9 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static bool HasRequiredRef(Transform t, GameObject root)
+        static bool HasRequiredRef(Transform t, GameObject root, ComponentRefInfo refs)
         {
+            if (refs != null && refs.Keeps(t)) return true;
             Animator animator = root.GetComponent<Animator>();
             if (animator != null && animator.isHuman)
             {
@@ -2100,6 +2102,168 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < children.Length; i++)
             {
                 foreach (AnimationClip c in ClipsFromMotion(children[i].motion)) yield return c;
+            }
+        }
+
+        sealed class ComponentRefInfo
+        {
+            public readonly HashSet<Transform> Transforms = new HashSet<Transform>();
+            public readonly HashSet<Component> Components = new HashSet<Component>();
+            Transform avatarRoot;
+            Dictionary<string, Transform> byPath;
+            Dictionary<string, List<Transform>> byName;
+
+            public static ComponentRefInfo Build(GameObject avatar)
+            {
+                ComponentRefInfo info = new ComponentRefInfo();
+                if (avatar == null) return info;
+                info.avatarRoot = avatar.transform;
+                info.IndexHierarchy(avatar.transform);
+                HashSet<int> visited = new HashSet<int>();
+                Component[] parts = avatar.GetComponentsInChildren<Component>(true);
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    Component c = parts[i];
+                    if (!ShouldScanForBlendShapeNames(c)) continue;
+                    try
+                    {
+                        info.Harvest(c, visited);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+                return info;
+            }
+
+            public bool Keeps(Transform t)
+            {
+                return t != null && Transforms.Contains(t);
+            }
+
+            public bool Keeps(Component c)
+            {
+                if (c == null) return false;
+                if (Components.Contains(c)) return true;
+                return Keeps(c.transform);
+            }
+
+            void IndexHierarchy(Transform root)
+            {
+                byPath = new Dictionary<string, Transform>(StringComparer.OrdinalIgnoreCase);
+                byName = new Dictionary<string, List<Transform>>(StringComparer.OrdinalIgnoreCase);
+                Transform[] all = root.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    Transform t = all[i];
+                    if (t == null) continue;
+                    string path = AnimationUtility.CalculateTransformPath(t, root);
+                    if (!string.IsNullOrEmpty(path)) byPath[path] = t;
+                    List<Transform> named;
+                    if (!byName.TryGetValue(t.name, out named))
+                    {
+                        named = new List<Transform>();
+                        byName[t.name] = named;
+                    }
+                    named.Add(t);
+                }
+            }
+
+            void Harvest(UnityEngine.Object obj, HashSet<int> visited)
+            {
+                if (obj == null || visited == null) return;
+                if (!visited.Add(obj.GetInstanceID())) return;
+
+                List<ScriptableObject> nested = null;
+                SerializedObject so = new SerializedObject(obj);
+                SerializedProperty p = so.GetIterator();
+                while (p.Next(true))
+                {
+                    if (p.propertyType == SerializedPropertyType.String)
+                    {
+                        KeepPath(p.stringValue);
+                        continue;
+                    }
+                    if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
+                    UnityEngine.Object value = p.objectReferenceValue;
+                    if (value == null) continue;
+                    KeepObject(value);
+                    ScriptableObject asset = value as ScriptableObject;
+                    if (asset == null || asset is MonoScript) continue;
+                    if (nested == null) nested = new List<ScriptableObject>();
+                    nested.Add(asset);
+                }
+                if (nested == null) return;
+                for (int i = 0; i < nested.Count; i++)
+                    Harvest(nested[i], visited);
+            }
+
+            void KeepObject(UnityEngine.Object value)
+            {
+                Transform t = value as Transform;
+                if (t != null)
+                {
+                    KeepTransform(t);
+                    return;
+                }
+                GameObject go = value as GameObject;
+                if (go != null)
+                {
+                    KeepTransform(go.transform);
+                    return;
+                }
+                Component c = value as Component;
+                if (c == null) return;
+                Components.Add(c);
+                KeepTransform(c.transform);
+            }
+
+            void KeepTransform(Transform t)
+            {
+                if (!UnderAvatar(t)) return;
+                while (t != null && t != avatarRoot)
+                {
+                    Transforms.Add(t);
+                    t = t.parent;
+                }
+            }
+
+            bool UnderAvatar(Transform t)
+            {
+                while (t != null)
+                {
+                    if (t == avatarRoot) return true;
+                    t = t.parent;
+                }
+                return false;
+            }
+
+            void KeepPath(string raw)
+            {
+                if (string.IsNullOrEmpty(raw) || avatarRoot == null) return;
+                if (raw.IndexOf('\n') >= 0 || raw.Length > 260) return;
+                string path = raw.Trim();
+                if (path.Length == 0) return;
+                if (path.StartsWith("blendShape.", StringComparison.OrdinalIgnoreCase)) return;
+
+                Transform found;
+                if (byPath != null && byPath.TryGetValue(path, out found))
+                {
+                    KeepTransform(found);
+                    return;
+                }
+                if (path.IndexOf('/') >= 0)
+                {
+                    found = avatarRoot.Find(path);
+                    if (found != null) KeepTransform(found);
+                    return;
+                }
+                List<Transform> named;
+                if (byName != null && byName.TryGetValue(path, out named) && named != null)
+                {
+                    for (int i = 0; i < named.Count; i++)
+                        KeepTransform(named[i]);
+                }
             }
         }
 
