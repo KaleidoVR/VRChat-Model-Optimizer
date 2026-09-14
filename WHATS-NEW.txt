@@ -1,5 +1,8 @@
 What's new
 
+1.0.58
+UI — On Upload: Apply on upload has a small note next to it: Follows this Unity editor, not the project.
+
 1.0.57
 UI — Setup: Drop your VRChat avatar here takes the avatar immediately. Contents Of Selected Model shows Reading this avatar… while that list fills.
 Ticking other options no longer rebuilds that list.
