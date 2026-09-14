@@ -3209,9 +3209,9 @@ namespace KaleidoVR.EditorTools
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
             GUILayout.Label("Meshes", EditorStyles.boldLabel);
-            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. The extra renderer components are removed; the objects stay, so PhysBones and contacts keep working. Toggles, material-swap animations, blend shapes, contact-system meshes, and extras that still use their own armature stay separate.");
-            window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone.");
-            window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders.");
+            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. The extra renderer components are removed; the objects stay, so PhysBones and contacts keep working. Toggles, material-swap animations, blend shapes, contact-system meshes, extras that still use their own armature, and any mesh another component still points at stay separate.");
+            window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone, and so is a mesh another component still uses.");
+            window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders. Meshes other components still use are left as-is.");
 
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
@@ -3222,12 +3222,12 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Cleanup", EditorStyles.boldLabel);
             window.avatarRemoveUnusedComponents = DrawToggle(window.avatarRemoveUnusedComponents, "Remove unused components", "Deletes disabled components that no animation turns on, plus EditorOnly objects.");
-            window.avatarRemoveUnusedGameObjects = DrawToggle(window.avatarRemoveUnusedGameObjects, "Remove unused GameObjects", "Deletes inactive objects that never turn on. Off by default. Humanoid bones are kept.");
-            window.avatarStripUnusedBones = DrawToggle(window.avatarStripUnusedBones, "Keep only weighted bones", "Drops bone references with zero weight unless an animation moves them.");
+            window.avatarRemoveUnusedGameObjects = DrawToggle(window.avatarRemoveUnusedGameObjects, "Remove unused GameObjects", "Deletes inactive objects that never turn on. Off by default. Humanoid bones stay, and so do objects other components still point at.");
+            window.avatarStripUnusedBones = DrawToggle(window.avatarStripUnusedBones, "Keep only weighted bones", "Drops bone references with zero weight unless an animation moves them or another component still uses them.");
 
             GUILayout.Space(8);
             GUILayout.Label("PhysBones", EditorStyles.boldLabel);
-            window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Disable PhysBones when unused", "Removes PhysBones that no remaining mesh uses, and colliders nothing references.");
+            window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Disable PhysBones when unused", "Removes PhysBones that no remaining mesh uses, and colliders nothing references. Ones another component still points at stay.");
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
