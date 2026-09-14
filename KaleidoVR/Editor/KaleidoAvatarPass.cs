@@ -226,7 +226,7 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Merging meshes…", 0.68f);
                 if (settings.mergeSkinnedMeshes)
-                    MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result);
+                    MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
@@ -1351,7 +1351,7 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static void MergeTogetherMeshes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void MergeTogetherMeshes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             Dictionary<string, List<SkinnedMeshRenderer>> groups = new Dictionary<string, List<SkinnedMeshRenderer>>();
@@ -1359,6 +1359,7 @@ namespace KaleidoVR.EditorTools
             {
                 SkinnedMeshRenderer smr = skins[i];
                 if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (refs != null && refs.Keeps(smr)) continue;
                 if (smr.sharedMesh.blendShapeCount > 0) continue;
                 string key = anim.TogetherKey(smr, root);
                 if (string.IsNullOrEmpty(key)) continue;
