@@ -379,6 +379,7 @@ namespace KaleidoVR.EditorTools
 
         public List<KaleidoModelInventoryItem> inventory = new List<KaleidoModelInventoryItem>();
         public string inventorySignature = "";
+        public bool inventoryFillQueued;
         public Vector2 inventoryScroll;
         public Vector2 inventoryModelFileScroll;
         public List<KaleidoTextureUsage> textureUsages = new List<KaleidoTextureUsage>();
@@ -1375,7 +1376,6 @@ namespace KaleidoVR.EditorTools
             KaleidoVRCOptimizerUI.DrawFooter();
             if (EditorGUI.EndChangeCheck())
             {
-                inventorySignature = "";
                 WorkspaceReadyToApply = false;
                 SaveEditorPreferences();
             }
@@ -1391,7 +1391,23 @@ namespace KaleidoVR.EditorTools
             string signature = BuildTargetSignature();
             if (signature == inventorySignature) return;
             inventorySignature = signature;
+            if (inventory != null) inventory.Clear();
+            QueueInventoryFill();
+        }
+
+        void QueueInventoryFill()
+        {
+            if (inventoryFillQueued) return;
+            inventoryFillQueued = true;
+            EditorApplication.delayCall += FillInventoryDeferred;
+        }
+
+        void FillInventoryDeferred()
+        {
+            inventoryFillQueued = false;
+            if (this == null) return;
             KaleidoVRCOptimizerLogic.FillInventory(this);
+            Repaint();
         }
 
         private string BuildTargetSignature()
@@ -4418,7 +4434,12 @@ namespace KaleidoVR.EditorTools
 
             if (window.inventory == null || window.inventory.Count == 0)
             {
-                EditorGUILayout.HelpBox("Drop an avatar above. Its meshes, materials, textures, clips, and menus will list here.", MessageType.None);
+                bool hasAvatar = window.targets != null && window.targets.Count > 0 && window.targets[0] != null;
+                EditorGUILayout.HelpBox(
+                    hasAvatar && window.inventoryFillQueued
+                        ? "Reading this avatar…"
+                        : "Drop an avatar above. Its meshes, materials, textures, clips, and menus will list here.",
+                    MessageType.None);
                 return;
             }
 
