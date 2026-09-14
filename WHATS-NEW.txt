@@ -1,5 +1,9 @@
 What's new
 
+1.0.57
+UI — Setup: Drop your VRChat avatar here takes the avatar immediately. Contents Of Selected Model shows Reading this avatar… while that list fills.
+Ticking other options no longer rebuilds that list.
+
 1.0.56
 UI — Setup: one avatar slot. Dropping another replaces it instead of stacking.
 On Upload applies the Ignore List on VRChat's upload copy.
