@@ -5,9 +5,11 @@
 // Runs on a clone at upload. Source assets and the scene stay as they are.
 
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.Animations;
+using Unity.Collections;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -146,11 +148,6 @@ namespace KaleidoVR.EditorTools
                 optimizePhysBones = EditorPrefs.GetBool(p + "AvPb", true),
                 optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false)
             };
-            if (EditorPrefs.GetBool(p + "MeshBSOff", false))
-            {
-                settings.optimizeBlendShapes = false;
-                settings.mergeSameRatioShapes = false;
-            }
             return settings;
         }
 
@@ -172,11 +169,6 @@ namespace KaleidoVR.EditorTools
                 optimizePhysBones = window.avatarOptimizePhysBones,
                 optimizeFxLayer = window.avatarOptimizeFxLayer
             };
-            if (window.meshStripBlendShapes)
-            {
-                settings.optimizeBlendShapes = false;
-                settings.mergeSameRatioShapes = false;
-            }
             return settings;
         }
 
@@ -1153,18 +1145,8 @@ namespace KaleidoVR.EditorTools
                 Transform[] bones = smr.bones;
                 if (bones == null || bones.Length == 0) continue;
                 Mesh mesh = smr.sharedMesh;
-                BoneWeight[] weights = mesh.boneWeights;
-                if (weights == null || weights.Length != mesh.vertexCount) continue;
-
                 bool[] used = new bool[bones.Length];
-                for (int i = 0; i < weights.Length; i++)
-                {
-                    BoneWeight w = weights[i];
-                    if (w.weight0 > 0f && w.boneIndex0 >= 0 && w.boneIndex0 < used.Length) used[w.boneIndex0] = true;
-                    if (w.weight1 > 0f && w.boneIndex1 >= 0 && w.boneIndex1 < used.Length) used[w.boneIndex1] = true;
-                    if (w.weight2 > 0f && w.boneIndex2 >= 0 && w.boneIndex2 < used.Length) used[w.boneIndex2] = true;
-                    if (w.weight3 > 0f && w.boneIndex3 >= 0 && w.boneIndex3 < used.Length) used[w.boneIndex3] = true;
-                }
+                if (!MarkUsedBones(mesh, used)) continue;
 
                 for (int i = 0; i < bones.Length; i++)
                 {
@@ -1174,7 +1156,7 @@ namespace KaleidoVR.EditorTools
 
                 int keepCount = 0;
                 for (int i = 0; i < used.Length; i++) if (used[i]) keepCount++;
-                if (keepCount == bones.Length) continue;
+                if (keepCount == 0 || keepCount == bones.Length) continue;
 
                 result.bonesRemoved += bones.Length - keepCount;
                 result.lines.Add(smr.name + ": drop " + (bones.Length - keepCount) + " unused bones");
@@ -1196,13 +1178,7 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoBones";
-                BoneWeight[] nw = new BoneWeight[weights.Length];
-                for (int i = 0; i < weights.Length; i++)
-                {
-                    BoneWeight w = weights[i];
-                    nw[i] = RemapWeight(w, used, map);
-                }
-                copy.boneWeights = nw;
+                RemapMeshBoneWeights(copy, used, map);
                 copy.bindposes = newBind;
                 smr.sharedMesh = PersistMesh(copy);
                 smr.bones = newBones;
@@ -1219,6 +1195,7 @@ namespace KaleidoVR.EditorTools
                 Material[] mats = smr.sharedMaterials;
                 Mesh mesh = smr.sharedMesh;
                 if (mats == null || mesh.subMeshCount <= 1) continue;
+                if (anim.HasMaterialSwap(smr, root)) continue;
 
                 int[] order = new int[mesh.subMeshCount];
                 for (int i = 0; i < order.Length; i++) order[i] = i;
@@ -1310,11 +1287,11 @@ namespace KaleidoVR.EditorTools
                 }
                 result.lines.Add("Merge meshes: " + names);
                 if (dryRun) continue;
-                CombineSkinned(pair.Value, settings, root);
+                CombineSkinned(pair.Value, settings);
             }
         }
 
-        static void CombineSkinned(List<SkinnedMeshRenderer> group, KaleidoAvatarPassSettings settings, GameObject root)
+        static void CombineSkinned(List<SkinnedMeshRenderer> group, KaleidoAvatarPassSettings settings)
         {
             SkinnedMeshRenderer dest = group[0];
             List<Transform> bones = new List<Transform>();
@@ -1322,10 +1299,16 @@ namespace KaleidoVR.EditorTools
             List<Vector3> verts = new List<Vector3>();
             List<Vector3> norms = new List<Vector3>();
             List<Vector4> tans = new List<Vector4>();
-            List<Vector2> uv0 = new List<Vector2>();
-            List<BoneWeight> weights = new List<BoneWeight>();
+            List<Vector2>[] uvs = new List<Vector2>[8];
+            bool[] anyUv = new bool[8];
+            for (int c = 0; c < 8; c++) uvs[c] = new List<Vector2>();
+            List<Color32> colors = new List<Color32>();
+            bool anyColor = false;
+            List<byte> bonesPerVertex = new List<byte>();
+            List<BoneWeight1> mappedWeights = new List<BoneWeight1>();
             List<Material> mats = new List<Material>();
             List<int[]> subTris = new List<int[]>();
+            Bounds localBox = dest.localBounds;
 
             for (int g = 0; g < group.Count; g++)
             {
@@ -1335,6 +1318,7 @@ namespace KaleidoVR.EditorTools
                 Matrix4x4[] bp = mesh.bindposes;
                 Matrix4x4 local = dest.transform.worldToLocalMatrix * smr.transform.localToWorldMatrix;
                 Matrix4x4 invLocal = local.inverse;
+                if (g > 0) localBox.Encapsulate(TransformLocalBounds(smr.localBounds, local));
                 int[] boneMap = new int[sb != null ? sb.Length : 0];
                 for (int b = 0; b < boneMap.Length; b++)
                 {
@@ -1354,8 +1338,6 @@ namespace KaleidoVR.EditorTools
                 Vector3[] mv = mesh.vertices;
                 Vector3[] mn = mesh.normals;
                 Vector4[] mt = mesh.tangents;
-                Vector2[] mu = mesh.uv;
-                BoneWeight[] mw = mesh.boneWeights;
                 for (int i = 0; i < mv.Length; i++)
                 {
                     verts.Add(local.MultiplyPoint3x4(mv[i]));
@@ -1366,14 +1348,9 @@ namespace KaleidoVR.EditorTools
                         tans.Add(new Vector4(tv.x, tv.y, tv.z, mt[i].w));
                     }
                     else tans.Add(new Vector4(1, 0, 0, 1));
-                    uv0.Add(mu != null && i < mu.Length ? mu[i] : Vector2.zero);
-                    BoneWeight w = mw != null && i < mw.Length ? mw[i] : default(BoneWeight);
-                    w.boneIndex0 = SafeMap(w.boneIndex0, boneMap);
-                    w.boneIndex1 = SafeMap(w.boneIndex1, boneMap);
-                    w.boneIndex2 = SafeMap(w.boneIndex2, boneMap);
-                    w.boneIndex3 = SafeMap(w.boneIndex3, boneMap);
-                    weights.Add(w);
                 }
+                AppendUvsAndColors(mesh, mv.Length, uvs, anyUv, colors, ref anyColor);
+                AppendMappedWeights(mesh, boneMap, bonesPerVertex, mappedWeights);
 
                 Material[] sm = smr.sharedMaterials;
                 for (int sub = 0; sub < mesh.subMeshCount; sub++)
@@ -1405,12 +1382,16 @@ namespace KaleidoVR.EditorTools
 
             Mesh combined = new Mesh();
             combined.name = dest.name + "_KaleidoMerged";
-            combined.indexFormat = verts.Count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            combined.indexFormat = verts.Count > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16;
             combined.SetVertices(verts);
             combined.SetNormals(norms);
             combined.SetTangents(tans);
-            combined.SetUVs(0, uv0);
-            combined.boneWeights = weights.ToArray();
+            for (int c = 0; c < 8; c++)
+            {
+                if (anyUv[c]) combined.SetUVs(c, uvs[c]);
+            }
+            if (anyColor) combined.colors32 = colors.ToArray();
+            ApplyMappedBoneWeights(combined, bonesPerVertex, mappedWeights);
             combined.bindposes = binds.ToArray();
             combined.subMeshCount = subTris.Count;
             for (int i = 0; i < subTris.Count; i++) combined.SetTriangles(subTris[i], i);
@@ -1418,15 +1399,218 @@ namespace KaleidoVR.EditorTools
             dest.sharedMesh = PersistMesh(combined);
             dest.bones = bones.ToArray();
             dest.sharedMaterials = mats.ToArray();
+            dest.localBounds = localBox;
 
             for (int g = 1; g < group.Count; g++)
             {
                 SkinnedMeshRenderer smr = group[g];
-                if (smr == null) continue;
-                smr.sharedMesh = null;
-                smr.enabled = false;
-                smr.gameObject.SetActive(false);
+                if (smr != null) UnityEngine.Object.DestroyImmediate(smr);
             }
+        }
+
+        static bool MarkUsedBones(Mesh mesh, bool[] used)
+        {
+            if (mesh == null || used == null || used.Length == 0) return false;
+            NativeArray<byte> per = default(NativeArray<byte>);
+            NativeArray<BoneWeight1> src = default(NativeArray<BoneWeight1>);
+            try
+            {
+                per = mesh.GetBonesPerVertex();
+                src = mesh.GetAllBoneWeights();
+                if (per.IsCreated && src.IsCreated && per.Length == mesh.vertexCount)
+                {
+                    for (int i = 0; i < src.Length; i++)
+                    {
+                        BoneWeight1 w = src[i];
+                        if (w.weight > 0f && w.boneIndex >= 0 && w.boneIndex < used.Length)
+                            used[w.boneIndex] = true;
+                    }
+                    return true;
+                }
+            }
+            finally
+            {
+                if (per.IsCreated) per.Dispose();
+                if (src.IsCreated) src.Dispose();
+            }
+
+            BoneWeight[] weights = mesh.boneWeights;
+            if (weights == null || weights.Length != mesh.vertexCount) return false;
+            for (int i = 0; i < weights.Length; i++)
+            {
+                BoneWeight w = weights[i];
+                if (w.weight0 > 0f && w.boneIndex0 >= 0 && w.boneIndex0 < used.Length) used[w.boneIndex0] = true;
+                if (w.weight1 > 0f && w.boneIndex1 >= 0 && w.boneIndex1 < used.Length) used[w.boneIndex1] = true;
+                if (w.weight2 > 0f && w.boneIndex2 >= 0 && w.boneIndex2 < used.Length) used[w.boneIndex2] = true;
+                if (w.weight3 > 0f && w.boneIndex3 >= 0 && w.boneIndex3 < used.Length) used[w.boneIndex3] = true;
+            }
+            return true;
+        }
+
+        static Bounds TransformLocalBounds(Bounds bounds, Matrix4x4 matrix)
+        {
+            Vector3 c = bounds.center;
+            Vector3 e = bounds.extents;
+            Bounds result = new Bounds(matrix.MultiplyPoint3x4(c + new Vector3(-e.x, -e.y, -e.z)), Vector3.zero);
+            for (int i = 1; i < 8; i++)
+            {
+                Vector3 offset = new Vector3(
+                    (i & 1) == 0 ? -e.x : e.x,
+                    (i & 2) == 0 ? -e.y : e.y,
+                    (i & 4) == 0 ? -e.z : e.z);
+                result.Encapsulate(matrix.MultiplyPoint3x4(c + offset));
+            }
+            return result;
+        }
+
+        static void AppendUvsAndColors(Mesh mesh, int vertCount, List<Vector2>[] uvs, bool[] anyUv, List<Color32> colors, ref bool anyColor)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                List<Vector2> src = new List<Vector2>();
+                mesh.GetUVs(c, src);
+                bool have = src.Count == vertCount;
+                if (have) anyUv[c] = true;
+                for (int i = 0; i < vertCount; i++)
+                    uvs[c].Add(have ? src[i] : Vector2.zero);
+            }
+            if (mesh.HasVertexAttribute(VertexAttribute.Color))
+            {
+                Color32[] srcColors = mesh.colors32;
+                if (srcColors != null && srcColors.Length == vertCount)
+                {
+                    anyColor = true;
+                    colors.AddRange(srcColors);
+                    return;
+                }
+            }
+            for (int i = 0; i < vertCount; i++) colors.Add(new Color32(255, 255, 255, 255));
+        }
+
+        static void AppendMappedWeights(Mesh mesh, int[] boneMap, List<byte> perVertex, List<BoneWeight1> weights)
+        {
+            NativeArray<byte> per = default(NativeArray<byte>);
+            NativeArray<BoneWeight1> src = default(NativeArray<BoneWeight1>);
+            try
+            {
+                per = mesh.GetBonesPerVertex();
+                src = mesh.GetAllBoneWeights();
+                if (per.IsCreated && per.Length == mesh.vertexCount)
+                {
+                    int offset = 0;
+                    for (int v = 0; v < per.Length; v++)
+                    {
+                        int n = per[v];
+                        int written = 0;
+                        for (int k = 0; k < n; k++)
+                        {
+                            BoneWeight1 w = src[offset + k];
+                            w.boneIndex = SafeMap(w.boneIndex, boneMap);
+                            if (w.weight <= 0f) continue;
+                            weights.Add(w);
+                            written++;
+                        }
+                        offset += n;
+                        perVertex.Add((byte)written);
+                    }
+                    return;
+                }
+            }
+            finally
+            {
+                if (per.IsCreated) per.Dispose();
+                if (src.IsCreated) src.Dispose();
+            }
+
+            BoneWeight[] mw = mesh.boneWeights;
+            int count = mesh.vertexCount;
+            for (int i = 0; i < count; i++)
+            {
+                BoneWeight w = mw != null && i < mw.Length ? mw[i] : default(BoneWeight);
+                int start = weights.Count;
+                AddMappedWeight(weights, SafeMap(w.boneIndex0, boneMap), w.weight0);
+                AddMappedWeight(weights, SafeMap(w.boneIndex1, boneMap), w.weight1);
+                AddMappedWeight(weights, SafeMap(w.boneIndex2, boneMap), w.weight2);
+                AddMappedWeight(weights, SafeMap(w.boneIndex3, boneMap), w.weight3);
+                perVertex.Add((byte)(weights.Count - start));
+            }
+        }
+
+        static void AddMappedWeight(List<BoneWeight1> list, int bone, float weight)
+        {
+            if (weight <= 0f) return;
+            list.Add(new BoneWeight1 { boneIndex = bone, weight = weight });
+        }
+
+        static void ApplyMappedBoneWeights(Mesh mesh, List<byte> perVertex, List<BoneWeight1> weights)
+        {
+            NativeArray<byte> per = new NativeArray<byte>(perVertex.ToArray(), Allocator.Temp);
+            NativeArray<BoneWeight1> w = new NativeArray<BoneWeight1>(weights.ToArray(), Allocator.Temp);
+            try
+            {
+                mesh.SetBoneWeights(per, w);
+            }
+            finally
+            {
+                per.Dispose();
+                w.Dispose();
+            }
+        }
+
+        static void RemapMeshBoneWeights(Mesh mesh, bool[] used, int[] map)
+        {
+            NativeArray<byte> per = default(NativeArray<byte>);
+            NativeArray<BoneWeight1> src = default(NativeArray<BoneWeight1>);
+            try
+            {
+                per = mesh.GetBonesPerVertex();
+                src = mesh.GetAllBoneWeights();
+                if (per.IsCreated && per.Length == mesh.vertexCount)
+                {
+                    List<BoneWeight1> kept = new List<BoneWeight1>(src.Length);
+                    byte[] newPer = new byte[per.Length];
+                    int offset = 0;
+                    for (int v = 0; v < per.Length; v++)
+                    {
+                        int n = per[v];
+                        int start = kept.Count;
+                        float sum = 0f;
+                        for (int i = 0; i < n; i++)
+                        {
+                            BoneWeight1 w = src[offset + i];
+                            if (w.boneIndex < 0 || w.boneIndex >= used.Length || !used[w.boneIndex] || w.weight <= 0f)
+                                continue;
+                            kept.Add(new BoneWeight1 { boneIndex = map[w.boneIndex], weight = w.weight });
+                            sum += w.weight;
+                        }
+                        offset += n;
+                        if (kept.Count > start && sum > 0f && Mathf.Abs(sum - 1f) > 0.001f)
+                        {
+                            for (int i = start; i < kept.Count; i++)
+                            {
+                                BoneWeight1 w = kept[i];
+                                w.weight /= sum;
+                                kept[i] = w;
+                            }
+                        }
+                        newPer[v] = (byte)(kept.Count - start);
+                    }
+                    ApplyMappedBoneWeights(mesh, new List<byte>(newPer), kept);
+                    return;
+                }
+            }
+            finally
+            {
+                if (per.IsCreated) per.Dispose();
+                if (src.IsCreated) src.Dispose();
+            }
+
+            BoneWeight[] weights = mesh.boneWeights;
+            if (weights == null) return;
+            BoneWeight[] nw = new BoneWeight[weights.Length];
+            for (int i = 0; i < weights.Length; i++)
+                nw[i] = RemapWeight(weights[i], used, map);
+            mesh.boneWeights = nw;
         }
 
         static BoneWeight RemapWeight(BoneWeight w, bool[] used, int[] map)
@@ -1985,7 +2169,7 @@ namespace KaleidoVR.EditorTools
             {
                 string path = AnimationUtility.CalculateTransformPath(smr.transform, root.transform);
                 bool tog = enabled.Contains(path + "|" + typeof(SkinnedMeshRenderer).FullName) || actives.Contains(path);
-                if (tog || matAnimated.Contains(path)) return null;
+                if (tog || matAnimated.Contains(path) || HasMaterialSwap(path)) return null;
                 Transform t = smr.transform.parent;
                 while (t != null && t != root.transform)
                 {
@@ -1995,6 +2179,22 @@ namespace KaleidoVR.EditorTools
                 }
                 int layer = smr.gameObject.layer;
                 return "always|" + layer + "|" + (smr.updateWhenOffscreen ? "1" : "0");
+            }
+
+            public bool HasMaterialSwap(SkinnedMeshRenderer smr, GameObject root)
+            {
+                if (smr == null || root == null) return false;
+                return HasMaterialSwap(AnimationUtility.CalculateTransformPath(smr.transform, root.transform));
+            }
+
+            bool HasMaterialSwap(string path)
+            {
+                string prefix = path + "|m_Materials.Array.data";
+                foreach (string s in swapped)
+                {
+                    if (s.StartsWith(prefix, StringComparison.Ordinal)) return true;
+                }
+                return false;
             }
 
             public Dictionary<int, int> SameRatioPairs(SkinnedMeshRenderer smr, GameObject root, Mesh mesh)
