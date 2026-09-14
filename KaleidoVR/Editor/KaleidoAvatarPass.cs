@@ -230,7 +230,7 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
-                    SweepPhysBones(root, anim, excluded, dryRun, result);
+                    SweepPhysBones(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Optimizing FX…", 0.92f);
                 if (settings.optimizeFxLayer)
@@ -1760,7 +1760,7 @@ namespace KaleidoVR.EditorTools
             return true;
         }
 
-        static void SweepPhysBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void SweepPhysBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             Type pbType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBone");
             Type colType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.PhysBone.Components.VRCPhysBoneCollider");
@@ -1776,6 +1776,7 @@ namespace KaleidoVR.EditorTools
                 if (pb == null || IsExcluded(pb, excluded)) continue;
                 Transform pbRoot = rootField != null ? rootField.GetValue(pb) as Transform : pb.transform;
                 if (pbRoot == null) pbRoot = pb.transform;
+                if (refs != null && (refs.Keeps(pb) || refs.Keeps(pbRoot))) continue;
                 bool used = false;
                 for (int s = 0; s < skins.Length; s++)
                 {
@@ -1811,6 +1812,7 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < cols.Length; i++)
             {
                 if (cols[i] == null || referenced.Contains(cols[i]) || IsExcluded(cols[i], excluded)) continue;
+                if (refs != null && refs.Keeps(cols[i])) continue;
                 result.componentsRemoved++;
                 result.lines.Add("Remove unused PhysBone collider: " + cols[i].name);
                 if (!dryRun) UnityEngine.Object.DestroyImmediate(cols[i]);
