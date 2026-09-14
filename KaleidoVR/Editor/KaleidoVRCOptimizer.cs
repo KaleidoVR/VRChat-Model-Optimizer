@@ -3198,7 +3198,13 @@ namespace KaleidoVR.EditorTools
         {
             EditorGUILayout.HelpBox("Off until you tick Apply on upload. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Meshes and components another upload pass already replaced are left alone.", MessageType.Info);
 
-            window.avatarApplyOnUpload = DrawToggle(window.avatarApplyOnUpload, "Apply on upload", "Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
+            EditorGUILayout.BeginHorizontal();
+            window.avatarApplyOnUpload = EditorGUILayout.ToggleLeft("Apply on upload", window.avatarApplyOnUpload, GUILayout.ExpandWidth(false));
+            GUILayout.Space(8);
+            GUILayout.Label("Follows this Unity editor, not the project.", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+            DrawWhy("Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
+            GUILayout.Space(3);
 
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
