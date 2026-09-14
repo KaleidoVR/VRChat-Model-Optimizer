@@ -3201,7 +3201,7 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.BeginHorizontal();
             window.avatarApplyOnUpload = EditorGUILayout.ToggleLeft("Apply on upload", window.avatarApplyOnUpload, GUILayout.ExpandWidth(false));
             GUILayout.Space(8);
-            GUILayout.Label("Follows this Unity editor, not the project.", EditorStyles.miniLabel);
+            GUILayout.Label("Follows this Unity editor, not the project.", OnUploadPrefNoteStyle());
             EditorGUILayout.EndHorizontal();
             DrawWhy("Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
             GUILayout.Space(3);
@@ -3997,6 +3997,18 @@ namespace KaleidoVR.EditorTools
         private static void DrawWhy(string why)
         {
             EditorGUILayout.LabelField(why, MiniWrap());
+        }
+
+        private static GUIStyle onUploadPrefNoteStyle;
+
+        private static GUIStyle OnUploadPrefNoteStyle()
+        {
+            if (onUploadPrefNoteStyle == null)
+                onUploadPrefNoteStyle = new GUIStyle(EditorStyles.miniLabel);
+            onUploadPrefNoteStyle.normal.textColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.72f, 0.28f, 1f)
+                : new Color(0.72f, 0.38f, 0.04f, 1f);
+            return onUploadPrefNoteStyle;
         }
 
         private static GUIStyle smallRedWarningStyle;
