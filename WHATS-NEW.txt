@@ -1,5 +1,10 @@
 What's new
 
+1.0.59
+UI — On Upload: the Apply on upload note Follows this Unity editor, not the project. is orange.
+On Upload keeps blend shapes that other components on this avatar still name.
+UI — On Upload: Remove unused blend shapes says those named shapes stay.
+
 1.0.58
 UI — On Upload: Apply on upload has a small note next to it: Follows this Unity editor, not the project.
 
