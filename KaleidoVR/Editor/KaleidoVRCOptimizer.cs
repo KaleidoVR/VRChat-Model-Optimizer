@@ -380,6 +380,9 @@ namespace KaleidoVR.EditorTools
         public List<KaleidoModelInventoryItem> inventory = new List<KaleidoModelInventoryItem>();
         public string inventorySignature = "";
         public bool inventoryFillQueued;
+        public int lastAvatarCheckId;
+        public bool lastAvatarCheckOk = true;
+        public string lastAvatarCheckReason = "";
         public Vector2 inventoryScroll;
         public Vector2 inventoryModelFileScroll;
         public List<KaleidoTextureUsage> textureUsages = new List<KaleidoTextureUsage>();
@@ -1960,7 +1963,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("VRChat Avatar Model", EditorStyles.boldLabel);
             DrawWhy("Start here. Drop one VRChat avatar. Everything this window lists or changes comes from that model only.");
             window.KeepSingleAvatarTarget();
-            DrawAvatarTarget(window.targets, "Drop your VRChat avatar here");
+            DrawAvatarTarget(window);
 
             window.RefreshInventoryIfNeeded();
             DrawModelContents(window);
@@ -4600,21 +4603,32 @@ namespace KaleidoVR.EditorTools
             KaleidoVRCOptimizerHelpers.HandleDragAndDrop(dropArea, list, true, true);
         }
 
-        private static void DrawAvatarTarget(List<UnityEngine.Object> list, string dropLabel)
+        private static void DrawAvatarTarget(KaleidoVRCOptimizer window)
         {
+            List<UnityEngine.Object> list = window != null ? window.targets : null;
             if (list == null) return;
-            DrawProminentAvatarDrop(list, dropLabel);
+            DrawProminentAvatarDrop(list, "Drop your VRChat avatar here");
 
             UnityEngine.Object current = list.Count > 0 ? list[0] : null;
-            if (current != null)
+            int id = current != null ? current.GetInstanceID() : 0;
+            if (id != window.lastAvatarCheckId)
             {
-                GameObject resolved;
-                string reason;
-                if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(current, out resolved, out reason))
+                window.lastAvatarCheckId = id;
+                if (current == null)
                 {
-                    EditorGUILayout.HelpBox(reason, MessageType.Warning);
+                    window.lastAvatarCheckOk = true;
+                    window.lastAvatarCheckReason = "";
+                }
+                else
+                {
+                    GameObject resolved;
+                    string reason;
+                    window.lastAvatarCheckOk = KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(current, out resolved, out reason);
+                    window.lastAvatarCheckReason = reason;
                 }
             }
+            if (current != null && !window.lastAvatarCheckOk)
+                EditorGUILayout.HelpBox(window.lastAvatarCheckReason, MessageType.Warning);
 
             Rect rowRect = EditorGUILayout.BeginHorizontal();
             if (Event.current.type == EventType.Repaint)
@@ -5057,22 +5071,36 @@ namespace KaleidoVR.EditorTools
                 || propertyName.Equals("_MatcapTex", StringComparison.OrdinalIgnoreCase);
         }
 
+        static readonly Dictionary<string, Type> typeByFullName = new Dictionary<string, Type>();
+        static readonly HashSet<string> typeLookupMiss = new HashSet<string>();
+
         public static Type FindTypeByFullName(string fullName)
         {
-            Type direct = Type.GetType(fullName + ", VRC.SDK3A") ?? Type.GetType(fullName);
-            if (direct != null) return direct;
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            if (string.IsNullOrEmpty(fullName)) return null;
+            Type cached;
+            if (typeByFullName.TryGetValue(fullName, out cached)) return cached;
+            if (typeLookupMiss.Contains(fullName)) return null;
+
+            Type found = Type.GetType(fullName + ", VRC.SDK3A") ?? Type.GetType(fullName);
+            if (found == null)
             {
-                try
+                Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (int i = 0; i < assemblies.Length; i++)
                 {
-                    Type found = assembly.GetType(fullName, false);
-                    if (found != null) return found;
-                }
-                catch (Exception)
-                {
+                    try
+                    {
+                        found = assemblies[i].GetType(fullName, false);
+                    }
+                    catch (Exception)
+                    {
+                        found = null;
+                    }
+                    if (found != null) break;
                 }
             }
-            return null;
+            if (found == null) typeLookupMiss.Add(fullName);
+            else typeByFullName[fullName] = found;
+            return found;
         }
 
         public static int CountComponents(GameObject root, Type type)
