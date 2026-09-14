@@ -1,5 +1,14 @@
 What's new
 
+1.0.56
+UI — Setup: one avatar slot. Dropping another replaces it instead of stacking.
+On Upload applies the Ignore List on VRChat's upload copy.
+On Upload merge no longer turns extra objects off. Leftover renderers are removed, so PhysBones and contacts keep working and Skinned Meshes rank drops.
+On Upload merge keeps extra UV channels, vertex colors, and extra bone weights, and expands bounds so combined extras do not clip.
+On Upload leaves meshes with material-swap animations alone.
+On Upload still drops unused blend shapes even if Special has blend-shape import Off.
+UI — On Upload: the merge tooltip says extra objects stay so PhysBones and contacts keep working.
+
 1.0.55
 On Upload: if the pass stops, the Console shows why Kaleido cancelled the VRChat upload.
 
