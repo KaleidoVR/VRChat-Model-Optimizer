@@ -868,6 +868,9 @@ namespace KaleidoVR.EditorTools
             List<DescriptorShapeIndexMap> indexMaps = new List<DescriptorShapeIndexMap>();
             CollectIndexedDescriptorShapes(root, descriptorShapes, indexMaps);
             foreach (string name in descriptorShapes) keep.Add(name);
+            HashSet<string> referencedShapes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddReferencedBlendShapes(root, referencedShapes);
+            foreach (string name in referencedShapes) keep.Add(name);
 
             bool remapped = false;
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
@@ -902,7 +905,8 @@ namespace KaleidoVR.EditorTools
                         string na = mesh.GetBlendShapeName(pair.Key);
                         string nb = mesh.GetBlendShapeName(pair.Value);
                         if (IsProtectedShape(na) || IsProtectedShape(nb)
-                            || descriptorShapes.Contains(na) || descriptorShapes.Contains(nb))
+                            || descriptorShapes.Contains(na) || descriptorShapes.Contains(nb)
+                            || referencedShapes.Contains(na) || referencedShapes.Contains(nb))
                             skip.Add(pair.Key);
                     }
                     for (int i = 0; i < skip.Count; i++) ratioInto.Remove(skip[i]);
@@ -1133,6 +1137,94 @@ namespace KaleidoVR.EditorTools
                         if (!string.IsNullOrEmpty(arr[a])) keep.Add(arr[a]);
                 }
             }
+        }
+
+        static void AddReferencedBlendShapes(GameObject root, HashSet<string> keep)
+        {
+            if (root == null || keep == null) return;
+            HashSet<string> known = CollectKnownBlendShapeNames(root);
+            if (known.Count == 0) return;
+
+            HashSet<int> visited = new HashSet<int>();
+            Component[] parts = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                Component c = parts[i];
+                if (!ShouldScanForBlendShapeNames(c)) continue;
+                try
+                {
+                    HarvestSerializedShapeNames(c, known, keep, visited);
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        static HashSet<string> CollectKnownBlendShapeNames(GameObject root)
+        {
+            HashSet<string> known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (root == null) return known;
+            SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int s = 0; s < skins.Length; s++)
+            {
+                Mesh mesh = skins[s] != null ? skins[s].sharedMesh : null;
+                if (mesh == null) continue;
+                for (int i = 0; i < mesh.blendShapeCount; i++)
+                {
+                    string name = mesh.GetBlendShapeName(i);
+                    if (!string.IsNullOrEmpty(name)) known.Add(name);
+                }
+            }
+            return known;
+        }
+
+        static bool ShouldScanForBlendShapeNames(Component c)
+        {
+            if (c == null || c is Transform) return false;
+            if (c is Renderer || c is MeshFilter || c is Animator) return false;
+            if (c is Camera || c is Light || c is AudioSource || c is ParticleSystem) return false;
+            if (c is Collider || c is Rigidbody || c is Joint) return false;
+            Type t = c.GetType();
+            string ns = t.Namespace ?? "";
+            if (ns.StartsWith("UnityEngine", StringComparison.Ordinal) || ns.StartsWith("UnityEditor", StringComparison.Ordinal))
+                return false;
+            return true;
+        }
+
+        static void HarvestSerializedShapeNames(UnityEngine.Object obj, HashSet<string> known, HashSet<string> keep, HashSet<int> visited)
+        {
+            if (obj == null || known == null || keep == null || visited == null) return;
+            if (!visited.Add(obj.GetInstanceID())) return;
+
+            List<ScriptableObject> nested = null;
+            SerializedObject so = new SerializedObject(obj);
+            SerializedProperty p = so.GetIterator();
+            while (p.Next(true))
+            {
+                if (p.propertyType == SerializedPropertyType.String)
+                {
+                    TryKeepReferencedShape(p.stringValue, known, keep);
+                    continue;
+                }
+                if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
+                ScriptableObject asset = p.objectReferenceValue as ScriptableObject;
+                if (asset == null || asset is MonoScript) continue;
+                if (nested == null) nested = new List<ScriptableObject>();
+                nested.Add(asset);
+            }
+            if (nested == null) return;
+            for (int i = 0; i < nested.Count; i++)
+                HarvestSerializedShapeNames(nested[i], known, keep, visited);
+        }
+
+        static void TryKeepReferencedShape(string raw, HashSet<string> known, HashSet<string> keep)
+        {
+            if (string.IsNullOrEmpty(raw) || known == null || keep == null) return;
+            string name = raw.Trim();
+            if (name.StartsWith("blendShape.", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring("blendShape.".Length);
+            if (known.Contains(name)) keep.Add(name);
         }
 
         static void StripUnusedBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
