@@ -222,7 +222,7 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Merging material slots…", 0.52f);
                 if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
-                    MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result);
+                    MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Merging meshes…", 0.68f);
                 if (settings.mergeSkinnedMeshes)
@@ -1280,13 +1280,14 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static void MergeSlotsOnRenderers(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void MergeSlotsOnRenderers(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
                 if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (refs != null && refs.Keeps(smr)) continue;
                 Material[] mats = smr.sharedMaterials;
                 Mesh mesh = smr.sharedMesh;
                 if (mats == null || mesh.subMeshCount <= 1) continue;
