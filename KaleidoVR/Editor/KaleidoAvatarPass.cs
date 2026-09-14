@@ -106,6 +106,28 @@ namespace KaleidoVR.EditorTools
             return set;
         }
 
+        public static HashSet<Transform> ExclusionsForUpload(KaleidoVRCOptimizer window, GameObject uploadCopy)
+        {
+            if (uploadCopy == null) return new HashSet<Transform>();
+            GameObject source = SetupAvatarRoot(window);
+            if (source == null) return ExclusionsFrom(window, uploadCopy);
+            return RemapExclusions(source, uploadCopy, ExclusionsFrom(window, source));
+        }
+
+        static GameObject SetupAvatarRoot(KaleidoVRCOptimizer window)
+        {
+            if (window == null || window.targets == null) return null;
+            for (int i = 0; i < window.targets.Count; i++)
+            {
+                GameObject root;
+                string reason;
+                if (!KaleidoVRCOptimizerHelpers.TryResolveVrchatAvatarModel(window.targets[i], out root, out reason))
+                    continue;
+                if (root != null) return root;
+            }
+            return null;
+        }
+
         public static KaleidoAvatarPassSettings FromPrefs()
         {
             string p = KaleidoVRCOptimizer.PrefsPrefix;

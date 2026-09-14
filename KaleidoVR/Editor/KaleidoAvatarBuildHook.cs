@@ -65,7 +65,7 @@ namespace KaleidoVR.EditorTools
                     avatarGameObject,
                     settings,
                     false,
-                    KaleidoAvatarPass.ExclusionsFrom(window, avatarGameObject),
+                    KaleidoAvatarPass.ExclusionsForUpload(window, avatarGameObject),
                     true);
                 if (result != null && !result.ok)
                 {
