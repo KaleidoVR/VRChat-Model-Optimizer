@@ -1,5 +1,9 @@
 What's new
 
+1.0.62
+UI — The header logo is half as tall.
+UI — One short note sits above PC Workspace and Quest / Android Workspace: Confirm, Fix, and Apply write into this project and stay on the assets. Scan only reports. The avatar-only drop note and the per-workspace write notes are gone.
+
 1.0.61
 On Upload no longer cancels the VRChat upload when a leftover skinned renderer has no mesh.
 
