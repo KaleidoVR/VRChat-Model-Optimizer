@@ -41,7 +41,7 @@ It appears in the same **KaleidoVR** menu as Asset Organizer.
 3. **Profiles** — pick a built-in or a saved recipe, and tick which tabs it should change.
 4. **Rank** — Scan or Dry Run. Shows VRChat limits plus VRAM, GrabPass, animator cost, Write Defaults, and texture flags. Some orange rows can be fixed here. Write Defaults asks Confirm.
 5. **Textures / Meshes / Scene** — enable only what you want. Ignore on a texture skips the type cap; Set still writes that row.
-6. **On Upload** — tick Apply on upload to run mesh merge, unused cleanup, blend shapes, PhysBones, and optional FX on the upload copy. FX is off by default and can change gestures and face. Create an Optimized Copy to preview; do not edit it or upload it as the master.
+6. **On Upload** — tick Apply on upload to run mesh merge, unused cleanup, blend shapes, PhysBones, and optional FX on the upload copy. That choice follows this Unity editor, not the project. FX is off by default and can change gestures and face. Unused cleanup and merge leave what other components on this avatar still name or point at. Create an Optimized Copy to preview; do not edit it or upload it as the master.
 7. **Special** — compression, Humanoid, Recalculate bounds, and other high-risk writes. Apply warns when those are not at their defaults.
 8. Optional logs go to `Logs/KaleidoVR/Optimizer/`.
 
