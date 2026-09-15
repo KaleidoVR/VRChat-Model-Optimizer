@@ -1,5 +1,8 @@
 What's new
 
+1.0.61
+On Upload no longer cancels the VRChat upload when a leftover skinned renderer has no mesh.
+
 1.0.60
 On Upload leaves unused objects, bones, PhysBones, material slots, and meshes that other components on this avatar still point at.
 UI — On Upload: Remove unused GameObjects, Keep only weighted bones, Disable PhysBones when unused, Merge identical material slots, Allow shuffling material slots, and Merge skinned meshes say extra components keep what they reference.
