@@ -1806,7 +1806,7 @@ namespace KaleidoVR.EditorTools
             GUIStyle centeredTitleStyle = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
             GUIStyle centeredVersionStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(10); GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace();
-            if (logo != null) { DrawTrimmedLogo(logo, 320f, 200f); }
+            if (logo != null) { DrawTrimmedLogo(logo, 160f, 100f); }
             else { GUILayout.Label($"...Place your logo at {KaleidoVRCOptimizer.ICON_PATH}...", EditorStyles.miniLabel); }
             GUILayout.FlexibleSpace(); GUILayout.EndHorizontal(); GUILayout.Space(10);
             GUILayout.Label("KALEIDO VR MODEL OPTIMIZER", centeredTitleStyle); GUILayout.Label($"v{version}", centeredVersionStyle);
