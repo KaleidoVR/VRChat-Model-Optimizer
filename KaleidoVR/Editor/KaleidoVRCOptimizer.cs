@@ -2481,7 +2481,14 @@ namespace KaleidoVR.EditorTools
                 if (window.textureEnableCrunch)
                 {
                     EditorGUI.indentLevel++;
+                    EditorGUILayout.BeginHorizontal();
                     window.textureCrunchQuality = EditorGUILayout.IntSlider("Crunch Compression %", KaleidoVRCOptimizer.ClampCrunchQuality(window.textureCrunchQuality), 1, 100);
+                    if (GUILayout.Button("Reset all to 50", GUILayout.Width(120)))
+                    {
+                        KaleidoVRCOptimizerLogic.ResetAllCrunchTo50(window);
+                        GUI.changed = true;
+                    }
+                    EditorGUILayout.EndHorizontal();
                     EditorGUI.indentLevel--;
                 }
 
