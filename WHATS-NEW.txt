@@ -1,5 +1,9 @@
 What's new
 
+1.0.60
+On Upload leaves unused objects, bones, PhysBones, material slots, and meshes that other components on this avatar still point at.
+UI — On Upload: Remove unused GameObjects, Keep only weighted bones, Disable PhysBones when unused, Merge identical material slots, Allow shuffling material slots, and Merge skinned meshes say extra components keep what they reference.
+
 1.0.59
 UI — On Upload: the Apply on upload note Follows this Unity editor, not the project. is orange.
 On Upload keeps blend shapes that other components on this avatar still name.
