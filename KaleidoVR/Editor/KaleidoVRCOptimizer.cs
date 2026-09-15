@@ -1816,8 +1816,6 @@ namespace KaleidoVR.EditorTools
                 KaleidoVRCreditsWindow.Open();
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.HelpBox("Avatar models only. Drop a VRChat avatar (VRCAvatarDescriptor) or a skinned character FBX. Worlds, folders, clothing dumps, and loose textures are rejected.", MessageType.Info);
-            EditorGUILayout.HelpBox("Confirm, Fix, and Apply write into this Unity project. Those changes stay on the assets. Scan only reports — it does not write. Run again only if the avatar or your settings change.", MessageType.Info);
         }
 
         private static string logoTrimPath;
@@ -1907,6 +1905,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawWorkspaceBar(KaleidoVRCOptimizer window)
         {
             GUILayout.Space(4);
+            EditorGUILayout.HelpBox("Confirm, Fix, and Apply write into this project and stay on the assets. Scan only reports.", MessageType.Info);
             EditorGUILayout.BeginHorizontal();
             bool pcOn = !window.IsQuestWorkspace;
             if (GUILayout.Toggle(pcOn, "PC Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)) && !pcOn)
@@ -1914,15 +1913,6 @@ namespace KaleidoVR.EditorTools
             if (GUILayout.Toggle(!pcOn, "Quest / Android Workspace", EditorStyles.miniButton, GUILayout.Height(28), GUILayout.ExpandWidth(true)) && pcOn)
                 window.workspace = 1;
             EditorGUILayout.EndHorizontal();
-
-            if (window.IsQuestWorkspace)
-            {
-                EditorGUILayout.HelpBox("Scan, Dry Run, and Apply only write Android texture overrides and the renderer settings shown here. The other workspace is left alone.", MessageType.Info);
-            }
-            else
-            {
-                EditorGUILayout.HelpBox("Scan, Dry Run, and Apply only write Standalone / default importer sizes and the scene options shown here. Android overrides stay untouched until you switch workspaces.", MessageType.Info);
-            }
         }
 
         private static void DrawTabRow(KaleidoVRCOptimizer window, string[] names, int offset)
