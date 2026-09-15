@@ -1,5 +1,10 @@
 What's new
 
+1.0.63
+UI — Textures: with Crunch Enable on, Reset all to 50 sits to the right of the global Crunch Compression % slider.
+On Upload keeps audio sources and the objects that hold them.
+UI — On Upload: Remove unused components and Remove unused GameObjects say audio sources stay.
+
 1.0.62
 UI — The header logo is half as tall.
 UI — One short note sits above PC Workspace and Quest / Android Workspace: Confirm, Fix, and Apply write into this project and stay on the assets. Scan only reports. The avatar-only drop note and the per-workspace write notes are gone.
