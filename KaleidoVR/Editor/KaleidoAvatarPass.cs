@@ -513,12 +513,7 @@ namespace KaleidoVR.EditorTools
                 SkinnedMeshRenderer smr = skins[i];
                 if (smr == null) continue;
                 Mesh mesh = smr.sharedMesh;
-                if (mesh == null)
-                {
-                    if (smr.enabled)
-                        throw new InvalidOperationException("Skinned mesh is empty after On Upload: " + smr.name);
-                    continue;
-                }
+                if (mesh == null) continue;
                 if (mesh.name.IndexOf("_Kaleido", StringComparison.Ordinal) < 0) continue;
                 if (mesh.vertexCount == 0)
                     throw new InvalidOperationException("Skinned mesh has no vertices after On Upload: " + smr.name);
