@@ -3218,8 +3218,8 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Cleanup", EditorStyles.boldLabel);
-            window.avatarRemoveUnusedComponents = DrawToggle(window.avatarRemoveUnusedComponents, "Remove unused components", "Deletes disabled components that no animation turns on, plus EditorOnly objects.");
-            window.avatarRemoveUnusedGameObjects = DrawToggle(window.avatarRemoveUnusedGameObjects, "Remove unused GameObjects", "Deletes inactive objects that never turn on. Off by default. Humanoid bones stay, and so do objects other components still point at.");
+            window.avatarRemoveUnusedComponents = DrawToggle(window.avatarRemoveUnusedComponents, "Remove unused components", "Deletes disabled components that no animation turns on, plus EditorOnly objects. Audio sources stay.");
+            window.avatarRemoveUnusedGameObjects = DrawToggle(window.avatarRemoveUnusedGameObjects, "Remove unused GameObjects", "Deletes inactive objects that never turn on. Off by default. Humanoid bones stay, and so do objects other components still point at. Objects with an audio source stay.");
             window.avatarStripUnusedBones = DrawToggle(window.avatarStripUnusedBones, "Keep only weighted bones", "Drops bone references with zero weight unless an animation moves them or another component still uses them.");
 
             GUILayout.Space(8);
