@@ -5753,6 +5753,23 @@ namespace KaleidoVR.EditorTools
             return KaleidoVRCOptimizer.ClampCrunchQuality(global);
         }
 
+        public static void ResetAllCrunchTo50(KaleidoVRCOptimizer window)
+        {
+            if (window == null) return;
+            window.textureCrunchQuality = 50;
+            if (window.textureUsages != null)
+            {
+                for (int i = 0; i < window.textureUsages.Count; i++)
+                {
+                    KaleidoTextureUsage usage = window.textureUsages[i];
+                    if (usage == null) continue;
+                    usage.usedCustomCrunch = false;
+                    usage.crunchQuality = 50;
+                }
+            }
+            SaveTextureRowPrefs(window);
+        }
+
         public static int GetPlannedRowSize(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
         {
             if (usage == null) return 0;
