@@ -751,7 +751,7 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < behaviours.Length; i++)
             {
                 Behaviour b = behaviours[i];
-                if (b == null || b is Animator || IsExcluded(b, excluded)) continue;
+                if (b == null || b is Animator || b is AudioSource || IsExcluded(b, excluded)) continue;
                 if (IsEditorMarker(b) || !IsOwnedType(b.GetType())) continue;
                 if (b.enabled) continue;
                 string path = AnimationUtility.CalculateTransformPath(b.transform, root.transform);
@@ -1180,7 +1180,8 @@ namespace KaleidoVR.EditorTools
         {
             if (c == null || c is Transform) return false;
             if (c is Renderer || c is MeshFilter || c is Animator) return false;
-            if (c is Camera || c is Light || c is AudioSource || c is ParticleSystem) return false;
+            if (c is AudioSource) return true;
+            if (c is Camera || c is Light || c is ParticleSystem) return false;
             if (c is Collider || c is Rigidbody || c is Joint) return false;
             Type t = c.GetType();
             string ns = t.Namespace ?? "";
