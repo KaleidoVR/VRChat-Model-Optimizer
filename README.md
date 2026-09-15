@@ -12,7 +12,7 @@ A Unity editor tool for one VRChat avatar at a time. Drop the model on Setup. Sc
 
 PC and Quest are separate workspaces. Texture, mesh, and scene writes stay on the workspace you are in. Profiles store tab recipes — built-in PC, Quest, Standard, and Everything, plus your own. Special stays off unless you tick it.
 
-On Upload is separate and off by default. Scan, Dry Run, and Apply do not run it. When Apply on upload is on, those options run on the assembled VRChat upload copy only. The scene and source assets stay as they are. Create an Optimized Copy in the scene to check that pass first. After a successful upload, Generated cache is cleared, that copy is removed, and the original is turned back on.
+On Upload is separate and off by default. Scan, Dry Run, and Apply do not run it. Apply on upload follows this Unity editor, not the project. When it is on, those options run on the assembled VRChat upload copy only. The scene and source assets stay as they are. Blend shapes, objects, bones, PhysBones, slots, and meshes that other components still name or point at stay. Create an Optimized Copy in the scene to check that pass first. After a successful upload, Generated cache is cleared, that copy is removed, and the original is turned back on.
 
 - Unity **2022.3.22f1** or newer, including Unity 6 (6000.x)
 - VRChat SDK3 Avatars is optional (needed for descriptor targeting, PhysBone / contact counts, constraint conversion, and On Upload)
