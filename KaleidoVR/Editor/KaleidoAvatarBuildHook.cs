@@ -2,7 +2,7 @@
 // Created and maintained by KaleidoVR - https://kalivr.com
 // Copyright (c) 2026 KaleidoVR. All rights reserved.
 // Applies On Upload on the assembled upload clone. Skips Play Mode.
-// Does not write the scene. Leaves meshes and markers Kaleido did not create.
+// Does not write the scene. Skips if On Upload already ran on this copy.
 
 #if VRC_SDK_VRCSDK3 || VRCSDK3_AVATARS
 using UnityEditor;
@@ -47,26 +47,14 @@ namespace KaleidoVR.EditorTools
         {
             if (avatarGameObject == null) return true;
             if (Application.isPlaying) return true;
-
-            KaleidoVRCOptimizer[] windows = Resources.FindObjectsOfTypeAll<KaleidoVRCOptimizer>();
-            KaleidoVRCOptimizer window = windows != null && windows.Length > 0 ? windows[0] : null;
-            KaleidoAvatarPassSettings settings = window != null
-                ? KaleidoAvatarPass.FromWindow(window)
-                : KaleidoAvatarPass.FromPrefs();
-            if (settings == null || !settings.applyOnUpload) return true;
+            if (KaleidoAvatarPass.UploadPassAlreadyRan(avatarGameObject)) return true;
 
             bool ok = true;
             string fail = null;
             Exception thrown = null;
             try
             {
-                KaleidoOnUploadSplash.Open(avatarGameObject.name);
-                KaleidoAvatarPassResult result = KaleidoAvatarPass.Run(
-                    avatarGameObject,
-                    settings,
-                    false,
-                    KaleidoAvatarPass.ExclusionsForUpload(window, avatarGameObject),
-                    true);
+                KaleidoAvatarPassResult result = KaleidoAvatarPass.ApplyOnAssembledUpload(avatarGameObject, true, true);
                 if (result != null && !result.ok)
                 {
                     ok = false;
@@ -78,10 +66,6 @@ namespace KaleidoVR.EditorTools
                 ok = false;
                 thrown = ex;
                 fail = ex.Message;
-            }
-            finally
-            {
-                KaleidoOnUploadSplash.CloseIfOpen();
             }
             if (!ok) LogUploadAbort(avatarGameObject, fail, thrown);
             return ok;
