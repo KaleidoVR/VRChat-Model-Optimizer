@@ -1,5 +1,14 @@
 What's new
 
+1.0.64
+On Upload waits until other upload passes finish, and only runs once on that copy.
+On Upload can optimize finished unsaved meshes that are already on this avatar's skeleton.
+Dry Run On Upload, Create optimized copy, and Rank's On Upload column assemble other upload passes on a hidden copy first when that pipeline is in the project.
+UI — On Upload: the intro and merge tooltip say finished meshes on this skeleton can merge, including unsaved ones copied into Generated. Extras that still have their own armature stay.
+UI — Rank: Unique Materials has Now, On Upload, and Change. A note under the On Upload header says whether the hidden copy was assembled.
+UI — Rank: the tab intro says the On Upload column is a hidden copy, assembled first when other upload passes are in the project. Texture VRAM stays on Now.
+UI — On Upload: Create optimized copy and the note under it say other upload passes run on the clone first when they are in the project.
+
 1.0.63
 UI — Textures: with Crunch Enable on, Reset all to 50 sits to the right of the global Crunch Compression % slider.
 On Upload keeps audio sources and the objects that hold them.
