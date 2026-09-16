@@ -3193,20 +3193,20 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawAvatarTab(KaleidoVRCOptimizer window)
         {
-            EditorGUILayout.HelpBox("Off until you tick Apply on upload. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Meshes and components another upload pass already replaced are left alone.", MessageType.Info);
+            EditorGUILayout.HelpBox("Off until you tick Apply on upload. Scan, Dry Run, and Apply do not run these options. They run on the assembled upload copy and do not write the scene or source assets. Finished meshes already on this avatar's skeleton can be merged. Extras that still use their own armature, EditorOnly work, and anything another component still points at stay.", MessageType.Info);
 
             EditorGUILayout.BeginHorizontal();
             window.avatarApplyOnUpload = EditorGUILayout.ToggleLeft("Apply on upload", window.avatarApplyOnUpload, GUILayout.ExpandWidth(false));
             GUILayout.Space(8);
             GUILayout.Label("Follows this Unity editor, not the project.", OnUploadPrefNoteStyle());
             EditorGUILayout.EndHorizontal();
-            DrawWhy("Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Leaves runtime meshes Kaleido did not create.");
+            DrawWhy("Off by default. Runs the options below on the assembled upload copy. Does not write the scene. Skipped in Play Mode. Unsaved meshes already skinned to this avatar can be copied into Generated. Extras that still have their own armature stay.");
             GUILayout.Space(3);
 
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
             GUILayout.Label("Meshes", EditorStyles.boldLabel);
-            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer. The extra renderer components are removed; the objects stay, so PhysBones and contacts keep working. Toggles, material-swap animations, blend shapes, contact-system meshes, extras that still use their own armature, and any mesh another component still points at stay separate.");
+            window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer, including finished unsaved meshes already on this skeleton. The extra renderer components are removed; the objects stay, so PhysBones and contacts keep working. Toggles, material-swap animations, blend shapes, contact-system meshes, extras that still use their own armature, and any mesh another component still points at stay separate.");
             window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone, and so is a mesh another component still uses.");
             window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders. Meshes other components still use are left as-is.");
 
