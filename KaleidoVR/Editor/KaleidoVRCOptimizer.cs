@@ -173,6 +173,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
         public bool avatarOptimizeFxLayer = false;
+        public bool avatarEnableMeshReadWrite = true;
     }
 
     [Serializable]
@@ -327,6 +328,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
         public bool avatarOptimizeFxLayer = false;
+        public bool avatarEnableMeshReadWrite = true;
         public readonly List<string> onUploadPreviewLines = new List<string>();
 
         public KaleidoOptimizerReport lastReport;
@@ -710,7 +712,8 @@ namespace KaleidoVR.EditorTools
                 avatarRemoveUnusedGameObjects = avatarRemoveUnusedGameObjects,
                 avatarStripUnusedBones = avatarStripUnusedBones,
                 avatarOptimizePhysBones = avatarOptimizePhysBones,
-                avatarOptimizeFxLayer = avatarOptimizeFxLayer
+                avatarOptimizeFxLayer = avatarOptimizeFxLayer,
+                avatarEnableMeshReadWrite = avatarEnableMeshReadWrite
             };
         }
 
@@ -813,6 +816,7 @@ namespace KaleidoVR.EditorTools
                 avatarStripUnusedBones = p.avatarStripUnusedBones;
                 avatarOptimizePhysBones = p.avatarOptimizePhysBones;
                 avatarOptimizeFxLayer = p.avatarOptimizeFxLayer;
+                avatarEnableMeshReadWrite = p.avatarEnableMeshReadWrite;
             }
             if (spec)
             {
@@ -930,6 +934,7 @@ namespace KaleidoVR.EditorTools
             avatarStripUnusedBones = GetBool("AvBone", true);
             avatarOptimizePhysBones = GetBool("AvPb", true);
             avatarOptimizeFxLayer = GetBool("AvFx", false);
+            avatarEnableMeshReadWrite = GetBool("AvMeshRW", true);
 
             optimizeTextures = GetBool("OptTex", true);
             applyAlbedoSize = GetBool("ASize", false);
@@ -1168,6 +1173,7 @@ namespace KaleidoVR.EditorTools
             avatarStripUnusedBones = true;
             avatarOptimizePhysBones = true;
             avatarOptimizeFxLayer = false;
+            avatarEnableMeshReadWrite = true;
         }
 
         private void PersistSharedSafeDefaults()
@@ -1232,6 +1238,7 @@ namespace KaleidoVR.EditorTools
             SetBool("AvBone", avatarStripUnusedBones);
             SetBool("AvPb", avatarOptimizePhysBones);
             SetBool("AvFx", avatarOptimizeFxLayer);
+            SetBool("AvMeshRW", avatarEnableMeshReadWrite);
         }
 
         public void SaveEditorPreferences()
@@ -1264,6 +1271,7 @@ namespace KaleidoVR.EditorTools
             SetBool("AvBone", avatarStripUnusedBones);
             SetBool("AvPb", avatarOptimizePhysBones);
             SetBool("AvFx", avatarOptimizeFxLayer);
+            SetBool("AvMeshRW", avatarEnableMeshReadWrite);
 
             SetBool("OptTex", optimizeTextures);
             SetBool("ASize", applyAlbedoSize); SetInt("APc", albedoPc); SetInt("AQ", albedoQuest);

@@ -32,6 +32,7 @@ namespace KaleidoVR.EditorTools
         public bool stripUnusedBones = true;
         public bool optimizePhysBones = true;
         public bool optimizeFxLayer = false;
+        public bool enableMeshReadWrite = true;
     }
 
     public sealed class KaleidoAvatarPassResult
@@ -146,7 +147,9 @@ namespace KaleidoVR.EditorTools
                 removeUnusedGameObjects = EditorPrefs.GetBool(p + "AvGo", false),
                 stripUnusedBones = EditorPrefs.GetBool(p + "AvBone", true),
                 optimizePhysBones = EditorPrefs.GetBool(p + "AvPb", true),
-                optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false)
+                optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false),
+                enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
+                    && EditorPrefs.GetInt(p + "Workspace", 0) == 1
             };
             return settings;
         }
@@ -167,7 +170,8 @@ namespace KaleidoVR.EditorTools
                 removeUnusedGameObjects = window.avatarRemoveUnusedGameObjects,
                 stripUnusedBones = window.avatarStripUnusedBones,
                 optimizePhysBones = window.avatarOptimizePhysBones,
-                optimizeFxLayer = window.avatarOptimizeFxLayer
+                optimizeFxLayer = window.avatarOptimizeFxLayer,
+                enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite
             };
             return settings;
         }
@@ -369,6 +373,12 @@ namespace KaleidoVR.EditorTools
                 HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
                 AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
                 ComponentRefInfo refs = ComponentRefInfo.Build(root);
+
+                if (settings.enableMeshReadWrite)
+                {
+                    ReportProgress("Enabling mesh Read/Write…", 0.04f);
+                    EnableReadableMeshes(root, dryRun, result);
+                }
 
                 ReportProgress("Cleaning unused objects…", 0.08f);
                 if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
@@ -611,6 +621,49 @@ namespace KaleidoVR.EditorTools
                 sb.Append(Array.IndexOf(invalid, name[i]) >= 0 ? '_' : name[i]);
             string trimmed = sb.ToString().Trim();
             return trimmed.Length == 0 ? "KaleidoMesh" : trimmed;
+        }
+
+        static void EnableReadableMeshes(GameObject root, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || result == null) return;
+            Dictionary<Mesh, Mesh> copies = new Dictionary<Mesh, Mesh>();
+            int n = 0;
+            SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int i = 0; i < skins.Length; i++)
+            {
+                SkinnedMeshRenderer smr = skins[i];
+                if (smr == null || KaleidoVRCOptimizerEval.IsEditorOnly(smr.gameObject)) continue;
+                if (AssignReadableMesh(smr.sharedMesh, copies, dryRun, out Mesh copy))
+                {
+                    n++;
+                    if (!dryRun) smr.sharedMesh = copy;
+                }
+            }
+            MeshFilter[] filters = root.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter filter = filters[i];
+                if (filter == null || KaleidoVRCOptimizerEval.IsEditorOnly(filter.gameObject)) continue;
+                if (AssignReadableMesh(filter.sharedMesh, copies, dryRun, out Mesh copy))
+                {
+                    n++;
+                    if (!dryRun) filter.sharedMesh = copy;
+                }
+            }
+            if (n > 0) result.lines.Add("Read/Write On for " + n + " mesh(es) on the upload copy.");
+        }
+
+        static bool AssignReadableMesh(Mesh mesh, Dictionary<Mesh, Mesh> copies, bool dryRun, out Mesh copy)
+        {
+            copy = mesh;
+            if (mesh == null || mesh.isReadable || copies == null) return false;
+            if (dryRun) return true;
+            if (copies.TryGetValue(mesh, out copy)) return true;
+            copy = UnityEngine.Object.Instantiate(mesh);
+            copy.name = mesh.name + "_KaleidoRW";
+            copy = PersistMesh(copy);
+            copies.Add(mesh, copy);
+            return true;
         }
 
         static Mesh PersistMesh(Mesh mesh)
