@@ -182,6 +182,76 @@ namespace KaleidoVR.EditorTools
         public const string OptimizedCopySuffix = " (Optimized Copy)";
         const string GeneratedRoot = "Assets/KaleidoVR";
         static bool persistGenerated;
+        static bool suppressUploadSplash;
+        static readonly List<GameObject> claimedUploadCopies = new List<GameObject>();
+
+        public static bool SuppressUploadSplash
+        {
+            get { return suppressUploadSplash; }
+            set { suppressUploadSplash = value; }
+        }
+
+        public static bool UploadPassAlreadyRan(GameObject root)
+        {
+            PruneClaimedUploadCopies();
+            if (root == null) return false;
+            for (int i = 0; i < claimedUploadCopies.Count; i++)
+            {
+                if (claimedUploadCopies[i] == root) return true;
+            }
+            return false;
+        }
+
+        static bool ClaimUploadPass(GameObject root)
+        {
+            if (root == null) return false;
+            if (UploadPassAlreadyRan(root)) return false;
+            claimedUploadCopies.Add(root);
+            return true;
+        }
+
+        static void PruneClaimedUploadCopies()
+        {
+            for (int i = claimedUploadCopies.Count - 1; i >= 0; i--)
+            {
+                if (claimedUploadCopies[i] == null)
+                    claimedUploadCopies.RemoveAt(i);
+            }
+        }
+
+        static KaleidoVRCOptimizer FindOptimizerWindow()
+        {
+            KaleidoVRCOptimizer[] windows = Resources.FindObjectsOfTypeAll<KaleidoVRCOptimizer>();
+            return windows != null && windows.Length > 0 ? windows[0] : null;
+        }
+
+        public static KaleidoAvatarPassResult ApplyOnAssembledUpload(GameObject avatar, bool persist, bool splash)
+        {
+            KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
+            if (avatar == null) return result;
+            if (Application.isPlaying) return result;
+            if (UploadPassAlreadyRan(avatar)) return result;
+
+            KaleidoVRCOptimizer window = FindOptimizerWindow();
+            KaleidoAvatarPassSettings settings = window != null ? FromWindow(window) : FromPrefs();
+            if (settings == null || !settings.applyOnUpload) return result;
+
+            bool showSplash = splash && !suppressUploadSplash;
+            try
+            {
+                if (showSplash) KaleidoOnUploadSplash.Open(avatar.name);
+                return Run(
+                    avatar,
+                    settings,
+                    false,
+                    ExclusionsForUpload(window, avatar),
+                    persist);
+            }
+            finally
+            {
+                if (showSplash) KaleidoOnUploadSplash.CloseIfOpen();
+            }
+        }
 
         public static void Preview(GameObject root, KaleidoAvatarPassSettings settings, List<string> lines, HashSet<Transform> extraExclusions)
         {
@@ -200,6 +270,11 @@ namespace KaleidoVR.EditorTools
         {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
+            if (!dryRun && !ClaimUploadPass(root))
+            {
+                result.lines.Add("On Upload already ran on this copy.");
+                return result;
+            }
 
             persistGenerated = persist && !dryRun;
             try
