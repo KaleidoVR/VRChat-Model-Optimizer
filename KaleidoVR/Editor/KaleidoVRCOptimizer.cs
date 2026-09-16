@@ -1633,7 +1633,7 @@ namespace KaleidoVR.EditorTools
         private static readonly string[] BuiltinNames = { "PC", "Quest", "Standard", "Everything" };
         private static readonly string[] BuiltinSummaries =
         {
-            "PC start. Leaves max sizes and compression formats as-is, keeps blend shapes and mesh Read/Write, does not weld verts or rewrite bone weights. Special stays off.",
+            "PC start. Leaves max sizes and compression formats as-is, keeps blend shapes, leaves mesh Read/Write as-is, does not weld verts or rewrite bone weights. Special stays off.",
             "Quest start. Turns on 1K body map caps, leaves ASTC as-is, 4 bone weights, shadow casting off. Still will not weld, strip visemes, or touch Special. Test hair/toggles after apply.",
             "Default start. Suggested 2K PC / 1K Quest sizes stay in the dropdowns but are not written until you tick a type. Does not rewrite compression, skin weights, weld, or force 4-bone quality. Special stays off.",
             "Full pack. Dual 2K/1K caps on, leaves compression formats as-is (Set compression lives on Special), offscreen cull, motion vectors off, Vorbis SFX, particle shadow strip. Scan/Rank includes VRAM, GrabPass, animator, crunch, and animation-swap flags. Special stays off. Uncheck anything you do not want before Apply."
@@ -1664,6 +1664,7 @@ namespace KaleidoVR.EditorTools
         private static bool evalFlagsOpen = true;
         private static bool evalWdOpen;
         private static bool evalEmptyOpen;
+        private static bool evalRwOpen;
         private static bool evalGrabOpen;
         private static bool evalBlendOpen;
         private static GUIStyle miniWrap;
@@ -2427,7 +2428,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
             DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. The On Upload column is a hidden copy and does not write the scene. When other upload passes are in the project, that copy is assembled first so the numbers match VRChat upload. Texture VRAM stays on Now; On Upload does not rewrite importers.");
             EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
-            DrawRankColorKey();
+            DrawRankColorKey(window);
             DrawStats(window);
         }
 
@@ -3225,6 +3226,8 @@ namespace KaleidoVR.EditorTools
             EditorGUI.BeginDisabledGroup(!window.avatarApplyOnUpload);
             GUILayout.Space(8);
             GUILayout.Label("Meshes", EditorStyles.boldLabel);
+            if (window.IsQuestWorkspace)
+                window.avatarEnableMeshReadWrite = DrawToggle(window.avatarEnableMeshReadWrite, "Enable mesh Read / Write", "Quest ranks Very Poor and blocks upload if any mesh has Read/Write off. Makes a readable copy on the upload clone only. Does not write the FBX in the project.");
             window.avatarMergeSkinnedMeshes = DrawToggle(window.avatarMergeSkinnedMeshes, "Merge skinned meshes that animate together", "Combines always-visible meshes on the same layer, including finished unsaved meshes already on this skeleton. The extra renderer components are removed; the objects stay, so PhysBones and contacts keep working. Toggles, material-swap animations, blend shapes, contact-system meshes, extras that still use their own armature, and any mesh another component still points at stay separate.");
             window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone, and so is a mesh another component still uses.");
             window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders. Meshes other components still use are left as-is.");
@@ -3323,7 +3326,6 @@ namespace KaleidoVR.EditorTools
                 DrawWhy("Dry Run / Apply only writes these importer flags. Weld, quads, lightmap UVs, and animation compression stay in the other workspace.");
                 window.optimizeMeshes = DrawToggle(window.optimizeMeshes, "Process model importers", "Master switch for the mesh writes below.");
                 EditorGUI.BeginDisabledGroup(!window.optimizeMeshes);
-                window.meshEnableReadWrite = DrawToggle(window, KaleidoOptionUndo.MeshReadWrite, window.meshEnableReadWrite, "Enable mesh Read / Write", "Required by VRChat on every platform. If any mesh has Read/Write off, rank is Very Poor and upload is blocked.");
                 window.applySkinWeights = DrawToggle(window, KaleidoOptionUndo.SkinWeights, window.applySkinWeights, "Set skin weights to 4 bones", "Caps import weights at 4 influences. Unlimited weights are set from the other workspace.");
                 if (window.applySkinWeights) window.skinWeights = KaleidoSkinWeightChoice.FourBones;
                 EditorGUI.EndDisabledGroup();
@@ -3332,7 +3334,7 @@ namespace KaleidoVR.EditorTools
 
             window.optimizeMeshes = DrawToggle(window.optimizeMeshes, "Process model importers", "Master switch for FBX/GLB import settings. Off = skip every model.");
             EditorGUI.BeginDisabledGroup(!window.optimizeMeshes);
-            window.meshEnableReadWrite = DrawToggle(window, KaleidoOptionUndo.MeshReadWrite, window.meshEnableReadWrite, "Enable mesh Read / Write", "Required by VRChat. If any mesh on the avatar has Read/Write off, the SDK ranks the avatar Very Poor and blocks upload.");
+            window.meshEnableReadWrite = DrawToggle(window, KaleidoOptionUndo.MeshReadWrite, window.meshEnableReadWrite, "Enable mesh Read / Write", "Off by default. Apply writes Read/Write On for this avatar's model importers. PC still uploads if it stays off; rank stays Very Poor. Rank can write the same flag now.");
             window.meshOptimizePolygons = DrawToggle(window, KaleidoOptionUndo.OptimizePolygons, window.meshOptimizePolygons, "Optimize mesh polygons", "Reorders triangles for the GPU. Safe for avatars. Does not reduce triangle count.");
             window.meshOptimizeVertices = DrawToggle(window, KaleidoOptionUndo.OptimizeVertices, window.meshOptimizeVertices, "Optimize mesh vertices", "Reorders vertices for cache locality. Safe. Does not decimate.");
             window.meshWeldVertices = DrawToggle(window, KaleidoOptionUndo.WeldVertices, window.meshWeldVertices, "Weld vertices", "Merges duplicates on import. Usually wanted. Uncheck if a mesh relies on split verts for UV islands/sharp edges you already authored.");
@@ -4091,7 +4093,10 @@ namespace KaleidoVR.EditorTools
             DrawStatNowUpload("Rank", rank, uploadRank, report.hasOnUploadEstimate, IsProblemRank(rank));
             if (report.meshReadWriteDisabled)
             {
-                EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor until Read/Write is enabled.", MessageType.Error);
+                if (window.IsQuestWorkspace)
+                    EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor and Quest upload is blocked until Read/Write is on. On Upload can copy those meshes readable without writing the FBX.", MessageType.Error);
+                else
+                    EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor. PC still uploads. Use On / Off under Hidden cost to write the importer now.", MessageType.Warning);
             }
             DrawCountNowUpload("Triangles", report.triangles, report.onUploadTriangles, report.hasOnUploadEstimate);
             DrawCountNowUpload("Material Slots", report.materialSlots, report.onUploadMaterialSlots, report.hasOnUploadEstimate);
@@ -4165,7 +4170,9 @@ namespace KaleidoVR.EditorTools
             evalHiddenOpen = EditorGUILayout.Foldout(evalHiddenOpen, "Hidden cost (animator / shaders / blendshapes)", true);
             if (evalHiddenOpen)
             {
-                DrawWhy("VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be fixed from this tab. GrabPass and blendshape load are reported only.");
+                DrawWhy(window.IsQuestWorkspace
+                    ? "VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be fixed from this tab. GrabPass and blendshape load are reported only."
+                    : "VRChat rank does not count these. Orange rows need a look. Write Defaults, empty states, and mesh Read/Write can be fixed from this tab. GrabPass and blendshape load are reported only.");
                 DrawStatRow("GrabPasses", report.grabPasses.ToString("N0") + "  " + report.grabPassQuality, report.grabPasses > 0);
                 if (report.grabPassShaders != null && report.grabPassShaders.Count > 0)
                 {
@@ -4188,6 +4195,7 @@ namespace KaleidoVR.EditorTools
                     if (evalWdOpen) DrawEvalList(report.writeDefaultOutliers);
                 }
                 DrawEmptyStatesRow(window, report);
+                DrawMeshReadWriteRow(window, report);
             }
 
             GUILayout.Space(6);
@@ -4223,21 +4231,27 @@ namespace KaleidoVR.EditorTools
             return quality == "Poor" || quality == "Very Poor";
         }
 
-        private static void DrawRankColorKey()
+        private static void DrawRankColorKey(KaleidoVRCOptimizer window)
         {
             EnsureSizeStyles();
             GUILayout.Space(4);
             GUILayout.Label("Color key", EditorStyles.miniBoldLabel);
 
-            GUIStyle redStyle = new GUIStyle(EditorStyles.boldLabel);
-            redStyle.normal.textColor = EditorGUIUtility.isProSkin
-                ? new Color(1f, 0.38f, 0.38f, 1f)
-                : new Color(0.72f, 0.08f, 0.08f, 1f);
-
-            DrawColorKeyLine(sizeUpStyle, "Orange", "Needs a look. Poor / Very Poor, mixed Write Defaults, empty states, streaming mip maps off, leftover Unity constraints, GrabPass, and similar flags.");
-            DrawColorKeyLine(redStyle, "Red", "Blocks upload. Mesh Read/Write is off on at least one mesh.");
+            DrawColorKeyLine(sizeUpStyle, "Orange", window != null && window.IsQuestWorkspace
+                ? "Needs a look. Poor / Very Poor, mixed Write Defaults, empty states, streaming mip maps off, leftover Unity constraints, GrabPass, and similar flags."
+                : "Needs a look. Poor / Very Poor, mesh Read/Write off, mixed Write Defaults, empty states, streaming mip maps off, leftover Unity constraints, GrabPass, and similar flags.");
+            if (window != null && window.IsQuestWorkspace)
+            {
+                GUIStyle redStyle = new GUIStyle(EditorStyles.boldLabel);
+                redStyle.normal.textColor = EditorGUIUtility.isProSkin
+                    ? new Color(1f, 0.38f, 0.38f, 1f)
+                    : new Color(0.72f, 0.08f, 0.08f, 1f);
+                DrawColorKeyLine(redStyle, "Red", "Blocks Quest upload. Mesh Read/Write is off on at least one mesh.");
+            }
             DrawColorKeyLine(EditorStyles.label, "Normal", "No issue on that row.");
-            DrawWhy("Fix uses the same orange and writes now. Ignore leaves that row alone. Write Defaults still asks Confirm after On or Off. Those writes stay in Unity.");
+            DrawWhy(window != null && window.IsQuestWorkspace
+                ? "Fix uses the same orange and writes now. Ignore leaves that row alone. Write Defaults still asks Confirm after On or Off. Those writes stay in Unity."
+                : "Fix uses the same orange and writes now. Ignore leaves that row alone. Write Defaults and mesh Read/Write still ask Confirm after On or Off. Those writes stay in Unity.");
             GUILayout.Space(4);
         }
 
@@ -4377,6 +4391,80 @@ namespace KaleidoVR.EditorTools
             GUI.changed = false;
             if (written > 0 && window.ActiveReport != null)
                 window.ActiveReport.planned.Insert(0, "Assigned the shared empty motion to " + written + " animator state(s).");
+        }
+
+        private static void DrawMeshReadWriteRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
+        {
+            EnsureSizeStyles();
+            int onCount = report.meshReadWriteOnCount;
+            int offCount = report.meshReadWriteOffCount;
+            int total = onCount + offCount;
+            string status;
+            if (total == 0) status = "—";
+            else if (offCount > 0 && onCount > 0) status = "Mixed  (" + onCount + " on, " + offCount + " off)";
+            else if (offCount > 0) status = "Off";
+            else status = "On";
+            DrawStatRow("Mesh Read/Write", status, offCount > 0);
+            if (report.meshReadWriteOffMeshes != null && report.meshReadWriteOffMeshes.Count > 0)
+            {
+                evalRwOpen = EditorGUILayout.Foldout(evalRwOpen, "Meshes with Read/Write off (" + report.meshReadWriteOffMeshes.Count + ")", false);
+                if (evalRwOpen) DrawEvalList(report.meshReadWriteOffMeshes);
+            }
+            if (window.IsQuestWorkspace)
+            {
+                if (offCount > 0)
+                    DrawWhy("Quest upload is blocked while any mesh is off. Enable mesh Read / Write on the On Upload tab. That writes the clone only.");
+                return;
+            }
+            if (total == 0) return;
+
+            bool alreadyOn = offCount == 0;
+            bool alreadyOff = onCount == 0;
+            bool pending = (window.meshReadWriteAction == 1 && !alreadyOn) || (window.meshReadWriteAction == 2 && !alreadyOff);
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            if (GUILayout.Toggle(window.meshReadWriteAction == 1, "On", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.meshReadWriteAction != 1)
+                window.meshReadWriteAction = 1;
+            if (GUILayout.Toggle(window.meshReadWriteAction == 2, "Off", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.meshReadWriteAction != 2)
+                window.meshReadWriteAction = 2;
+            if (GUILayout.Toggle(window.meshReadWriteAction == 0, "Ignore", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.meshReadWriteAction != 0)
+                window.meshReadWriteAction = 0;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            if (!pending) return;
+
+            const float MidCol = 88f;
+            GUIStyle midCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleCenter };
+            midCaption.normal.textColor = sizeUpStyle.normal.textColor;
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            EditorGUILayout.BeginVertical(GUILayout.Width(MidCol), GUILayout.MaxWidth(MidCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Will apply", midCaption, GUILayout.Width(MidCol));
+            Color prev = GUI.backgroundColor;
+            GUI.backgroundColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.72f, 0.28f, 1f)
+                : new Color(1f, 0.78f, 0.40f, 1f);
+            if (GUILayout.Button("Confirm", GUILayout.Width(MidCol), GUILayout.Height(18)))
+            {
+                bool turnOn = window.meshReadWriteAction == 1;
+                int written = KaleidoVRCOptimizerEval.SetMeshReadWrite(CurrentAvatarRoots(window), turnOn);
+                window.meshReadWriteAction = 0;
+                window.StoreReport(KaleidoVRCOptimizerLogic.Scan(window, false));
+                GUI.changed = false;
+                if (written > 0 && window.ActiveReport != null)
+                    window.ActiveReport.planned.Insert(0, "Mesh Read/Write " + (turnOn ? "On" : "Off") + " on " + written + " model importer(s).");
+            }
+            GUI.backgroundColor = prev;
+            if (GUILayout.Button("Cancel", GUILayout.Width(MidCol), GUILayout.Height(18)))
+                window.meshReadWriteAction = 0;
+            EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            DrawWhy(window.meshReadWriteAction == 1
+                ? "Confirm writes Read/Write On for every model this avatar uses."
+                : "Confirm writes Read/Write Off for every model this avatar uses.");
         }
 
         private static void DrawStreamingMipmapsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
@@ -6598,7 +6686,11 @@ namespace KaleidoVR.EditorTools
 
         private static void BuildHints(KaleidoOptimizerReport report, bool quest)
         {
-            if (report.meshReadWriteDisabled) report.notes.Add("Enable Mesh Read/Write. VRChat ranks any avatar with it off as Very Poor and the SDK blocks upload.");
+            if (report.meshReadWriteDisabled)
+            {
+                if (quest) report.notes.Add("Enable Mesh Read/Write on the On Upload tab. VRChat ranks any avatar with it off as Very Poor and Quest upload is blocked.");
+                else report.notes.Add("Mesh Read/Write is off on at least one mesh. VRChat ranks that avatar Very Poor. PC still uploads. Use On / Off on Rank to write the importer now.");
+            }
             if (quest)
             {
                 if (report.triangles > 20000) report.notes.Add("Poor allows 20k triangles. Over that, mobile viewers cannot see the avatar without Show Avatar.");
