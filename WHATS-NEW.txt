@@ -1,5 +1,15 @@
 What's new
 
+1.0.65
+Rank can Confirm mesh Read/Write On or Off. That writes the model importers now. PC still uploads if it stays off; rank stays Very Poor.
+PC Enable mesh Read/Write on Meshes starts off. Quest Apply no longer writes that importer flag.
+Quest On Upload can copy unread meshes onto the upload clone so Quest sees them readable. The FBX in the project stays as it is. Needs Apply on upload.
+UI — Rank: Mesh Read/Write is a warning on PC, not red. On / Off / Ignore and Confirm sit under Hidden cost, below empty animator states.
+UI — Rank: Quest still uses red for Mesh Read/Write off. The color-key Red line is only on Quest / Android Workspace.
+UI — Meshes (PC): Enable mesh Read / Write is off by default.
+UI — Meshes (Quest): Enable mesh Read / Write is gone from this tab.
+UI — On Upload (Quest): Enable mesh Read / Write sits under Meshes.
+
 1.0.64
 On Upload waits until other upload passes finish, and only runs once on that copy.
 On Upload can optimize finished unsaved meshes that are already on this avatar's skeleton.
