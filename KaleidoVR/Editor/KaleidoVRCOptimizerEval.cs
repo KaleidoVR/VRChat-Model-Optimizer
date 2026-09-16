@@ -423,6 +423,54 @@ namespace KaleidoVR.EditorTools
             return changed;
         }
 
+        public static int SetMeshReadWrite(List<GameObject> roots, bool on)
+        {
+            if (roots == null) return 0;
+            HashSet<string> paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < roots.Count; i++)
+            {
+                GameObject root = roots[i];
+                if (root == null) continue;
+                SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                for (int s = 0; s < skins.Length; s++)
+                {
+                    if (skins[s] == null || IsEditorOnly(skins[s].gameObject)) continue;
+                    AddMeshPath(paths, skins[s].sharedMesh);
+                }
+                MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+                for (int r = 0; r < renderers.Length; r++)
+                {
+                    if (renderers[r] == null || IsEditorOnly(renderers[r].gameObject)) continue;
+                    MeshFilter filter = renderers[r].GetComponent<MeshFilter>();
+                    if (filter != null) AddMeshPath(paths, filter.sharedMesh);
+                }
+            }
+
+            int changed = 0;
+            List<ModelImporter> importers = new List<ModelImporter>();
+            foreach (string path in paths)
+            {
+                if (string.IsNullOrEmpty(path) || KaleidoVRCOptimizerHelpers.ShouldIgnoreAsset(path)) continue;
+                ModelImporter importer = AssetImporter.GetAtPath(path) as ModelImporter;
+                if (importer == null || importer.isReadable == on) continue;
+                Undo.RecordObject(importer, on ? "Enable Mesh Read/Write" : "Disable Mesh Read/Write");
+                importer.isReadable = on;
+                EditorUtility.SetDirty(importer);
+                importers.Add(importer);
+                changed++;
+            }
+            for (int i = 0; i < importers.Count; i++)
+                importers[i].SaveAndReimport();
+            return changed;
+        }
+
+        static void AddMeshPath(HashSet<string> paths, Mesh mesh)
+        {
+            if (paths == null || mesh == null) return;
+            string path = AssetDatabase.GetAssetPath(mesh);
+            if (!string.IsNullOrEmpty(path)) paths.Add(path);
+        }
+
         public static int SetEmptyMotions(List<GameObject> roots)
         {
             if (roots == null) return 0;
