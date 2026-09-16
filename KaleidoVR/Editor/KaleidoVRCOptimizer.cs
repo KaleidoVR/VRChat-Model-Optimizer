@@ -2407,7 +2407,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
-            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. On Upload numbers come from a hidden copy and do not write the scene.");
+            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. The On Upload column is a hidden copy and does not write the scene. When other upload passes are in the project, that copy is assembled first so the numbers match VRChat upload. Texture VRAM stays on Now; On Upload does not rewrite importers.");
             EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
             DrawRankColorKey();
             DrawStats(window);
@@ -3267,7 +3267,7 @@ namespace KaleidoVR.EditorTools
                 }
                 else if (EditorUtility.DisplayDialog(
                     "Create optimized copy",
-                    "This makes a scene clone and runs On Upload on that clone only. Use it to check what a VRChat upload will do — pose it, look at the face, and compare rank.\n\nDo not edit the copy or upload it as your master. The original is turned off, not deleted. Turn the original back on when you are done, and delete the copy if you do not need it.",
+                    "This makes a scene clone. When other upload passes are in the project they run on that clone first, then On Upload. Use it to check what a VRChat upload will do — pose it, look at the face, and compare rank.\n\nDo not edit the copy or upload it as your master. The original is turned off, not deleted. Turn the original back on when you are done, and delete the copy if you do not need it.",
                     "Create",
                     "Cancel"))
                 {
@@ -3277,7 +3277,7 @@ namespace KaleidoVR.EditorTools
                     };
                 }
             }
-            DrawWhy("Makes a scene copy and runs this tab on that copy so you can test before upload. The original is turned off. Do not edit the copy. A successful VRChat upload removes the copy and turns the original back on.");
+            DrawWhy("Makes a scene copy and runs other upload passes on it when they are in the project, then this tab. The original is turned off. Do not edit the copy. A successful VRChat upload removes the copy and turns the original back on.");
 
             GUILayout.Space(10);
             bool hasCache = KaleidoAvatarPass.HasGeneratedCleanup();
@@ -4062,7 +4062,12 @@ namespace KaleidoVR.EditorTools
 
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
             if (report.hasOnUploadEstimate)
+            {
                 DrawNowUploadHeader();
+                DrawWhy(report.onUploadAssembled
+                    ? "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged."
+                    : "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.");
+            }
             string rank = window.IsQuestWorkspace ? report.questRank : report.pcRank;
             string uploadRank = window.IsQuestWorkspace ? report.onUploadQuestRank : report.onUploadPcRank;
             DrawStatNowUpload("Rank", rank, uploadRank, report.hasOnUploadEstimate, IsProblemRank(rank));
@@ -4072,7 +4077,7 @@ namespace KaleidoVR.EditorTools
             }
             DrawCountNowUpload("Triangles", report.triangles, report.onUploadTriangles, report.hasOnUploadEstimate);
             DrawCountNowUpload("Material Slots", report.materialSlots, report.onUploadMaterialSlots, report.hasOnUploadEstimate);
-            EditorGUILayout.LabelField("Unique Materials", report.uniqueMaterials.ToString("N0"));
+            DrawCountNowUpload("Unique Materials", report.uniqueMaterials, report.onUploadUniqueMaterials, report.hasOnUploadEstimate);
             DrawCountNowUpload("Skinned Meshes", report.skinnedMeshes, report.onUploadSkinnedMeshes, report.hasOnUploadEstimate);
             DrawCountNowUpload("Basic Meshes", report.meshRenderers, report.onUploadMeshRenderers, report.hasOnUploadEstimate);
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
