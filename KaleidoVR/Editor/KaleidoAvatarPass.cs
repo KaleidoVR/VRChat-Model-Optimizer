@@ -183,6 +183,9 @@ namespace KaleidoVR.EditorTools
         const string GeneratedRoot = "Assets/KaleidoVR";
         static bool persistGenerated;
         static bool suppressUploadSplash;
+        static bool? persistOverride;
+        static bool? splashOverride;
+        static KaleidoAvatarPassResult latestRun;
         static readonly List<GameObject> claimedUploadCopies = new List<GameObject>();
 
         public static bool SuppressUploadSplash
@@ -236,7 +239,9 @@ namespace KaleidoVR.EditorTools
             KaleidoAvatarPassSettings settings = window != null ? FromWindow(window) : FromPrefs();
             if (settings == null || !settings.applyOnUpload) return result;
 
-            bool showSplash = splash && !suppressUploadSplash;
+            bool persistUse = persistOverride.HasValue ? persistOverride.Value : persist;
+            bool splashUse = splashOverride.HasValue ? splashOverride.Value : splash;
+            bool showSplash = splashUse && !suppressUploadSplash;
             try
             {
                 if (showSplash) KaleidoOnUploadSplash.Open(avatar.name);
@@ -245,7 +250,7 @@ namespace KaleidoVR.EditorTools
                     settings,
                     false,
                     ExclusionsForUpload(window, avatar),
-                    persist);
+                    persistUse);
             }
             finally
             {
@@ -253,12 +258,93 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        public static void BeginHiddenAssemble(bool persist, bool splash)
+        {
+            persistOverride = persist;
+            splashOverride = splash;
+            suppressUploadSplash = !splash;
+        }
+
+        public static void EndHiddenAssemble()
+        {
+            persistOverride = null;
+            splashOverride = null;
+            suppressUploadSplash = false;
+        }
+
+        public static bool TryAssembleOtherUploadPasses(GameObject clone)
+        {
+            if (clone == null) return false;
+            Type processor = FindTypeInLoadedAssemblies("nadena.dev.ndmf.AvatarProcessor");
+            if (processor == null) return false;
+            MethodInfo process = processor.GetMethod(
+                "ProcessAvatar",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(GameObject) },
+                null);
+            if (process == null) return false;
+            try
+            {
+                process.Invoke(null, new object[] { clone });
+                return true;
+            }
+            catch (TargetInvocationException ex)
+            {
+                throw ex.InnerException ?? ex;
+            }
+        }
+
+        static Type FindTypeInLoadedAssemblies(string fullName)
+        {
+            if (string.IsNullOrEmpty(fullName)) return null;
+            Type t = Type.GetType(fullName + ", nadena.dev.ndmf");
+            if (t != null) return t;
+            Assembly[] asms = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < asms.Length; i++)
+            {
+                try
+                {
+                    t = asms[i].GetType(fullName);
+                    if (t != null) return t;
+                }
+                catch (Exception)
+                {
+                }
+            }
+            return null;
+        }
+
         public static void Preview(GameObject root, KaleidoAvatarPassSettings settings, List<string> lines, HashSet<Transform> extraExclusions)
         {
-            if (root == null || settings == null) return;
-            KaleidoAvatarPassResult result = Run(root, settings, true, extraExclusions, false);
-            if (result == null) return;
-            for (int i = 0; i < result.lines.Count; i++) lines.Add(result.lines[i]);
+            if (root == null || settings == null || lines == null) return;
+            GameObject copy = UnityEngine.Object.Instantiate(root);
+            copy.name = root.name + "_KaleidoPreview";
+            copy.hideFlags = HideFlags.HideAndDontSave | HideFlags.HideInHierarchy;
+            BeginHiddenAssemble(false, false);
+            try
+            {
+                try
+                {
+                    TryAssembleOtherUploadPasses(copy);
+                }
+                catch (Exception ex)
+                {
+                    lines.Add("On Upload preview stopped while assembling: " + ex.Message);
+                    return;
+                }
+                HashSet<Transform> mapped = RemapExclusions(root, copy, extraExclusions);
+                KaleidoAvatarPassResult result = UploadPassAlreadyRan(copy)
+                    ? latestRun
+                    : Run(copy, settings, false, mapped, false);
+                if (result == null) return;
+                for (int i = 0; i < result.lines.Count; i++) lines.Add(result.lines[i]);
+            }
+            finally
+            {
+                EndHiddenAssemble();
+                UnityEngine.Object.DestroyImmediate(copy);
+            }
         }
 
         public static KaleidoAvatarPassResult Run(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, HashSet<Transform> extraExclusions)
@@ -273,6 +359,7 @@ namespace KaleidoVR.EditorTools
             if (!dryRun && !ClaimUploadPass(root))
             {
                 result.lines.Add("On Upload already ran on this copy.");
+                latestRun = result;
                 return result;
             }
 
@@ -330,6 +417,7 @@ namespace KaleidoVR.EditorTools
             finally
             {
                 persistGenerated = false;
+                latestRun = result;
             }
             return result;
         }
@@ -605,9 +693,14 @@ namespace KaleidoVR.EditorTools
             copy.transform.SetParent(source.transform.parent, false);
             copy.transform.SetSiblingIndex(source.transform.GetSiblingIndex() + 1);
             source.SetActive(false);
+            BeginHiddenAssemble(true, false);
             try
             {
-                KaleidoAvatarPassResult result = Run(copy, settings, false, RemapExclusions(source, copy, extraExclusions), true);
+                TryAssembleOtherUploadPasses(copy);
+                HashSet<Transform> mapped = RemapExclusions(source, copy, extraExclusions);
+                KaleidoAvatarPassResult result = UploadPassAlreadyRan(copy)
+                    ? latestRun
+                    : Run(copy, settings, false, mapped, true);
                 if (result != null && !result.ok)
                     throw new InvalidOperationException(string.IsNullOrEmpty(result.failReason) ? "On Upload copy failed." : result.failReason);
             }
@@ -618,6 +711,10 @@ namespace KaleidoVR.EditorTools
                 EditorUtility.DisplayDialog("KaleidoVR", "Could not create the optimized copy.\n\n" + ex.Message, "OK");
                 return null;
             }
+            finally
+            {
+                EndHiddenAssemble();
+            }
             Undo.RegisterCreatedObjectUndo(copy, "KaleidoVR Optimized Copy");
             Selection.activeGameObject = copy;
             return copy;
@@ -626,15 +723,35 @@ namespace KaleidoVR.EditorTools
         static HashSet<Transform> RemapExclusions(GameObject source, GameObject copy, HashSet<Transform> extra)
         {
             HashSet<Transform> mapped = new HashSet<Transform>();
-            if (extra == null) return mapped;
+            if (extra == null || copy == null) return mapped;
             foreach (Transform t in extra)
             {
                 if (t == null) continue;
-                string path = AnimationUtility.CalculateTransformPath(t, source.transform);
-                Transform found = string.IsNullOrEmpty(path) ? copy.transform : copy.transform.Find(path);
+                Transform found = null;
+                if (source != null)
+                {
+                    string path = AnimationUtility.CalculateTransformPath(t, source.transform);
+                    found = string.IsNullOrEmpty(path) ? copy.transform : copy.transform.Find(path);
+                }
+                if (found == null) found = FindUniqueChildByName(copy.transform, t.name);
                 if (found != null) mapped.Add(found);
             }
             return mapped;
+        }
+
+        static Transform FindUniqueChildByName(Transform root, string name)
+        {
+            if (root == null || string.IsNullOrEmpty(name)) return null;
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            Transform match = null;
+            int n = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i] == null || all[i].name != name) continue;
+                n++;
+                match = all[i];
+            }
+            return n == 1 ? match : null;
         }
 
         static HashSet<Transform> CollectExclusions(GameObject root, HashSet<Transform> extra)
