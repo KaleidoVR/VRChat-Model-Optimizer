@@ -289,7 +289,7 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Processing blend shapes…", 0.22f);
                 if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
-                    ProcessBlendShapes(root, settings, anim, excluded, dryRun, result);
+                    ProcessBlendShapes(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Trimming unused bones…", 0.38f);
                 if (settings.stripUnusedBones)
@@ -717,16 +717,23 @@ namespace KaleidoVR.EditorTools
 
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded)
         {
-            return ShouldLeaveRenderer(renderer, excluded, null);
+            return ShouldLeaveRenderer(renderer, excluded, null, null);
         }
 
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root)
         {
+            return ShouldLeaveRenderer(renderer, excluded, root, null);
+        }
+
+        static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root, ComponentRefInfo refs)
+        {
             if (renderer == null || IsExcluded(renderer, excluded) || IsSensitiveMesh(renderer)) return true;
             if (IsAttachedExtra(renderer, root)) return true;
+            if (refs != null && refs.Keeps(renderer)) return true;
             SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
             Mesh mesh = smr != null ? smr.sharedMesh : null;
-            return IsExternalRuntimeAsset(mesh);
+            if (refs != null && refs.KeepsAsset(mesh)) return true;
+            return false;
         }
 
         static bool IsAttachedExtra(Renderer renderer, GameObject root)
@@ -928,7 +935,7 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static void ProcessBlendShapes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        static void ProcessBlendShapes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
             HashSet<string> keep = new HashSet<string>(anim.UsedBlendShapes, StringComparer.OrdinalIgnoreCase);
             if (settings.mmdCompatibility)
@@ -949,7 +956,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs)) continue;
                 Mesh mesh = smr.sharedMesh;
                 if (mesh.blendShapeCount == 0) continue;
 
@@ -1306,7 +1313,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs)) continue;
                 Transform[] bones = smr.bones;
                 if (bones == null || bones.Length == 0) continue;
                 Mesh mesh = smr.sharedMesh;
@@ -1357,7 +1364,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs)) continue;
                 if (refs != null && refs.Keeps(smr)) continue;
                 Material[] mats = smr.sharedMaterials;
                 Mesh mesh = smr.sharedMesh;
@@ -1429,7 +1436,7 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < skins.Length; i++)
             {
                 SkinnedMeshRenderer smr = skins[i];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs)) continue;
                 if (refs != null && refs.Keeps(smr)) continue;
                 if (smr.sharedMesh.blendShapeCount > 0) continue;
                 string key = anim.TogetherKey(smr, root);
@@ -2185,6 +2192,7 @@ namespace KaleidoVR.EditorTools
         {
             public readonly HashSet<Transform> Transforms = new HashSet<Transform>();
             public readonly HashSet<Component> Components = new HashSet<Component>();
+            public readonly HashSet<UnityEngine.Object> Assets = new HashSet<UnityEngine.Object>();
             Transform avatarRoot;
             Dictionary<string, Transform> byPath;
             Dictionary<string, List<Transform>> byName;
@@ -2222,6 +2230,11 @@ namespace KaleidoVR.EditorTools
                 if (c == null) return false;
                 if (Components.Contains(c)) return true;
                 return Keeps(c.transform);
+            }
+
+            public bool KeepsAsset(UnityEngine.Object asset)
+            {
+                return asset != null && Assets.Contains(asset);
             }
 
             void IndexHierarchy(Transform root)
@@ -2289,9 +2302,13 @@ namespace KaleidoVR.EditorTools
                     return;
                 }
                 Component c = value as Component;
-                if (c == null) return;
-                Components.Add(c);
-                KeepTransform(c.transform);
+                if (c != null)
+                {
+                    Components.Add(c);
+                    KeepTransform(c.transform);
+                    return;
+                }
+                if (value is Mesh) Assets.Add(value);
             }
 
             void KeepTransform(Transform t)
