@@ -1576,6 +1576,7 @@ namespace KaleidoVR.EditorTools
         public int missingStreamingCount;
         public List<string> missingStreamingMipmaps = new List<string>();
         public bool hasOnUploadEstimate;
+        public bool onUploadAssembled;
         public string onUploadPcRank = "—";
         public string onUploadQuestRank = "—";
         public int onUploadTriangles;
@@ -6330,6 +6331,7 @@ namespace KaleidoVR.EditorTools
         private static void FillOnUploadEstimate(KaleidoVRCOptimizer window, List<GameObject> roots, KaleidoOptimizerReport report, List<string> logEntries)
         {
             report.hasOnUploadEstimate = false;
+            report.onUploadAssembled = false;
             if (window == null || report == null || roots == null || roots.Count == 0) return;
             KaleidoAvatarPassSettings settings = KaleidoAvatarPass.FromWindow(window);
             if (settings == null || !settings.applyOnUpload) return;
@@ -6338,6 +6340,7 @@ namespace KaleidoVR.EditorTools
             try
             {
                 EditorUtility.DisplayProgressBar("KaleidoVR VRChat Model Optimizer", "Estimating On Upload…", 0.55f);
+                bool assembledAny = false;
                 for (int i = 0; i < roots.Count; i++)
                 {
                     GameObject root = roots[i];
@@ -6345,7 +6348,24 @@ namespace KaleidoVR.EditorTools
                     GameObject copy = UnityEngine.Object.Instantiate(root);
                     copy.name = root.name + "_KaleidoRank";
                     copy.hideFlags = HideFlags.HideAndDontSave | HideFlags.HideInHierarchy;
-                    KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
+                    KaleidoAvatarPass.BeginHiddenAssemble(false, false);
+                    try
+                    {
+                        try
+                        {
+                            if (KaleidoAvatarPass.TryAssembleOtherUploadPasses(copy))
+                                assembledAny = true;
+                        }
+                        catch (Exception)
+                        {
+                        }
+                        if (!KaleidoAvatarPass.UploadPassAlreadyRan(copy))
+                            KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
+                    }
+                    finally
+                    {
+                        KaleidoAvatarPass.EndHiddenAssemble();
+                    }
                     copies.Add(copy);
                 }
                 if (copies.Count == 0) return;
@@ -6354,12 +6374,12 @@ namespace KaleidoVR.EditorTools
                 GatherStats(copies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), projected, new List<string>());
                 projected.textureBytesEstimate = report.textureBytesEstimate;
                 projected.uniqueTextures = report.uniqueTextures;
-                projected.uniqueMaterials = report.uniqueMaterials;
                 projected.meshReadWriteDisabled = report.meshReadWriteDisabled;
                 projected.pcRank = RankAvatar(projected, false);
                 projected.questRank = RankAvatar(projected, true);
 
                 report.hasOnUploadEstimate = true;
+                report.onUploadAssembled = assembledAny;
                 report.onUploadPcRank = projected.pcRank;
                 report.onUploadQuestRank = projected.questRank;
                 report.onUploadTriangles = projected.triangles;
@@ -6380,7 +6400,9 @@ namespace KaleidoVR.EditorTools
                 report.onUploadUnityConstraints = projected.unityConstraints;
                 report.onUploadVrcConstraints = projected.vrcConstraints;
                 if (logEntries != null)
-                    logEntries.Add("On Upload estimate: slots " + report.materialSlots + "→" + report.onUploadMaterialSlots
+                    logEntries.Add("On Upload estimate" + (assembledAny ? " (assembled)" : "")
+                        + ": slots " + report.materialSlots + "→" + report.onUploadMaterialSlots
+                        + " mats " + report.uniqueMaterials + "→" + report.onUploadUniqueMaterials
                         + " skinned " + report.skinnedMeshes + "→" + report.onUploadSkinnedMeshes
                         + " shapes " + report.blendShapes + "→" + report.onUploadBlendShapes
                         + " pc " + report.pcRank + "→" + report.onUploadPcRank);
