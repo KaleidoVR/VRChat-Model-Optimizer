@@ -115,7 +115,7 @@ namespace KaleidoVR.EditorTools
         public bool alphaIsTransparencyOffAlbedo = false;
 
         public bool optimizeMeshes = true;
-        public bool meshEnableReadWrite = true;
+        public bool meshEnableReadWrite = false;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
         public bool meshWeldVertices = false;
@@ -269,7 +269,7 @@ namespace KaleidoVR.EditorTools
         public bool alphaIsTransparencyOffAlbedo = false;
 
         public bool optimizeMeshes = true;
-        public bool meshEnableReadWrite = true;
+        public bool meshEnableReadWrite = false;
         public bool meshOptimizePolygons = true;
         public bool meshOptimizeVertices = true;
         public bool meshWeldVertices = false;
@@ -393,6 +393,7 @@ namespace KaleidoVR.EditorTools
         public List<KaleidoTextureSizeEdit> textureSizeHistory = new List<KaleidoTextureSizeEdit>();
         public int textureSizeHistoryIndex = -1;
         public int writeDefaultsAction;
+        public int meshReadWriteAction;
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
         public static void ShowWindow()
@@ -542,7 +543,7 @@ namespace KaleidoVR.EditorTools
             alphaIsTransparencyOffAlbedo = false;
 
             optimizeMeshes = true;
-            meshEnableReadWrite = true;
+            meshEnableReadWrite = false;
             meshOptimizePolygons = true;
             meshOptimizeVertices = true;
             meshWeldVertices = false;
@@ -979,7 +980,7 @@ namespace KaleidoVR.EditorTools
             optimizeMeshes = GetBool("OptMesh", true);
             applyMeshCompression = GetBool("MeshCompOn", false);
             meshCompression = (KaleidoMeshCompressionChoice)GetInt("MeshComp", (int)KaleidoMeshCompressionChoice.Off);
-            meshEnableReadWrite = GetBool("MeshEnableRW", true);
+            meshEnableReadWrite = GetBool("MeshEnableRW", false);
             meshOptimizePolygons = GetBool("MeshPoly", true);
             meshOptimizeVertices = GetBool("MeshVert", true);
             meshWeldVertices = GetBool("MeshWeld", false);
@@ -1033,7 +1034,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 9;
+            const int currentSchema = 10;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -1089,6 +1090,12 @@ namespace KaleidoVR.EditorTools
             if (schema < 9)
             {
                 avatarOptimizeFxLayer = false;
+            }
+
+            if (schema < 10)
+            {
+                meshEnableReadWrite = false;
+                avatarEnableMeshReadWrite = true;
             }
 
             SetInt("Schema", currentSchema);
@@ -1243,7 +1250,7 @@ namespace KaleidoVR.EditorTools
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 9);
+            SetInt("Schema", 10);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -1546,6 +1553,9 @@ namespace KaleidoVR.EditorTools
         public int particleSystems;
         public int physBoneColliders;
         public bool meshReadWriteDisabled;
+        public int meshReadWriteOnCount;
+        public int meshReadWriteOffCount;
+        public List<string> meshReadWriteOffMeshes = new List<string>();
         public string pcRank = "—";
         public string questRank = "—";
         public string summary = "Drop a VRChat avatar model and press Scan Performance.";
@@ -5234,7 +5244,11 @@ namespace KaleidoVR.EditorTools
     {
         public static KaleidoOptimizerReport Scan(KaleidoVRCOptimizer window, bool apply)
         {
-            if (!apply) window.writeDefaultsAction = 0;
+            if (!apply)
+            {
+                window.writeDefaultsAction = 0;
+                window.meshReadWriteAction = 0;
+            }
             window.KeepSingleAvatarTarget();
             KaleidoOptimizerReport report = new KaleidoOptimizerReport();
             List<string> logEntries = new List<string>
@@ -6279,6 +6293,7 @@ namespace KaleidoVR.EditorTools
             }
 
             HashSet<int> seen = new HashSet<int>();
+            HashSet<Mesh> readWriteSeen = new HashSet<Mesh>();
             foreach (GameObject root in statRoots)
             {
                 if (root == null || !seen.Add(root.GetInstanceID())) continue;
@@ -6288,6 +6303,7 @@ namespace KaleidoVR.EditorTools
                     if (KaleidoVRCOptimizerEval.IsEditorOnly(skinned.gameObject)) continue;
                     report.skinnedMeshes++;
                     AccumulateMesh(skinned.sharedMesh, report);
+                    NoteMeshReadWrite(skinned.sharedMesh, skinned.name, report, readWriteSeen);
                     AccumulateMaterials(skinned.sharedMaterials, uniqueMats, uniqueTex, report);
                     if (skinned.bones != null && skinned.bones.Length > report.bones) report.bones = skinned.bones.Length;
                     if (skinned.updateWhenOffscreen) report.notes.Add(skinned.name + ": Update When Offscreen is on (CPU cost when culled).");
@@ -6298,7 +6314,11 @@ namespace KaleidoVR.EditorTools
                     if (KaleidoVRCOptimizerEval.IsEditorOnly(meshRenderer.gameObject)) continue;
                     report.meshRenderers++;
                     MeshFilter filter = meshRenderer.GetComponent<MeshFilter>();
-                    if (filter != null) AccumulateMesh(filter.sharedMesh, report);
+                    if (filter != null)
+                    {
+                        AccumulateMesh(filter.sharedMesh, report);
+                        NoteMeshReadWrite(filter.sharedMesh, meshRenderer.name, report, readWriteSeen);
+                    }
                     AccumulateMaterials(meshRenderer.sharedMaterials, uniqueMats, uniqueTex, report);
                 }
 
@@ -6387,7 +6407,6 @@ namespace KaleidoVR.EditorTools
                 GatherStats(copies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), projected, new List<string>());
                 projected.textureBytesEstimate = report.textureBytesEstimate;
                 projected.uniqueTextures = report.uniqueTextures;
-                projected.meshReadWriteDisabled = report.meshReadWriteDisabled;
                 projected.pcRank = RankAvatar(projected, false);
                 projected.questRank = RankAvatar(projected, true);
 
@@ -6432,6 +6451,21 @@ namespace KaleidoVR.EditorTools
                 }
                 EditorUtility.ClearProgressBar();
             }
+        }
+
+        private static void NoteMeshReadWrite(Mesh mesh, string owner, KaleidoOptimizerReport report, HashSet<Mesh> seen)
+        {
+            if (mesh == null || report == null || seen == null || !seen.Add(mesh)) return;
+            if (mesh.isReadable)
+            {
+                report.meshReadWriteOnCount++;
+                return;
+            }
+            report.meshReadWriteOffCount++;
+            report.meshReadWriteDisabled = true;
+            if (report.meshReadWriteOffMeshes == null) report.meshReadWriteOffMeshes = new List<string>();
+            if (report.meshReadWriteOffMeshes.Count < 40)
+                report.meshReadWriteOffMeshes.Add(owner + " — " + mesh.name);
         }
 
         private static void AccumulateMesh(Mesh mesh, KaleidoOptimizerReport report)
@@ -7278,15 +7312,6 @@ namespace KaleidoVR.EditorTools
             bool dirty = false;
             if (window.IsQuestWorkspace)
             {
-                if (window.meshEnableReadWrite && !importer.isReadable)
-                {
-                    if (write)
-                    {
-                        KaleidoOptionUndo.Capture(KaleidoOptionUndo.MeshReadWrite, "model", path, "", "", "", KaleidoOptionUndo.Int("readable", 0));
-                        importer.isReadable = true;
-                    }
-                    dirty = true;
-                }
                 if (window.applySkinWeights && importer.skinWeights != ModelImporterSkinWeights.Standard)
                 {
                     if (write)
