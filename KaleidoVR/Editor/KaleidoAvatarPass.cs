@@ -174,8 +174,8 @@ namespace KaleidoVR.EditorTools
 
         public static int UploadCallbackOrder()
         {
-            // Lower runs first. High so other upload passes can attach extras first.
-            return 10000;
+            // Lower runs first. Last among preprocess so other upload passes finish first.
+            return int.MaxValue;
         }
 
         public const string GeneratedFolderPath = "Assets/KaleidoVR/Generated";
