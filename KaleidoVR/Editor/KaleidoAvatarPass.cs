@@ -136,6 +136,7 @@ namespace KaleidoVR.EditorTools
 
         public static KaleidoAvatarPassSettings FromPrefs()
         {
+            KaleidoVRCOptimizer.EnsurePrefsMigrated();
             string p = KaleidoVRCOptimizer.PrefsPrefix;
             KaleidoAvatarPassSettings settings = new KaleidoAvatarPassSettings
             {

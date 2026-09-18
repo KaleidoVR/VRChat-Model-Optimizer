@@ -1,14 +1,14 @@
 What's new
 
 1.0.66
-On Upload removes unused contacts that are disabled and never turn on. Enabled senders stay so other avatars can still hit them. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay. Ignore List, contact-system names, and anything another component still points at stay. Reopen the tool once so existing projects pick it up.
+I added unused contacts to On Upload. It takes off contact senders and receivers that are disabled and never turn on. Enabled senders stay, so other avatars can still hit you. If a receiver still feeds a parameter into FX, menus, or Expression Parameters, I leave it. I also leave anything on your Ignore List, contact-system names, and anything else on the avatar that still points at a contact. You do not have to open the window for that default — Unity writes it when the project loads. Apply on upload stays off unless you already had it on.
 UI — On Upload: Remove unused contacts sits under Contacts, after PhysBones. It starts on when Apply on upload is ticked.
 UI — Profiles: the On Upload tab checkbox lists contacts.
 
 1.0.65
 Rank can Confirm mesh Read/Write On or Off. That writes the model importers now. PC still uploads if it stays off; rank stays Very Poor.
-PC Enable mesh Read/Write on Meshes starts off. Quest Apply no longer writes that importer flag.
-Quest On Upload can copy unread meshes onto the upload clone so Quest sees them readable. The FBX in the project stays as it is. Needs Apply on upload.
+I turned PC Enable mesh Read/Write off on Meshes by default. Quest Apply no longer writes that importer flag.
+On Quest, On Upload can copy unread meshes onto the upload clone so Quest sees them readable. The FBX in your project stays as it is. That needs Apply on upload.
 UI — Rank: Mesh Read/Write is a warning on PC, not red. On / Off / Ignore and Confirm sit under Hidden cost, below empty animator states.
 UI — Rank: Quest still uses red for Mesh Read/Write off. The color-key Red line is only on Quest / Android Workspace.
 UI — Meshes (PC): Enable mesh Read / Write is off by default.
@@ -16,33 +16,34 @@ UI — Meshes (Quest): Enable mesh Read / Write is gone from this tab.
 UI — On Upload (Quest): Enable mesh Read / Write sits under Meshes.
 
 1.0.64
-On Upload waits until other upload passes finish, and only runs once on that copy.
-On Upload can optimize finished unsaved meshes that are already on this avatar's skeleton.
-Dry Run On Upload, Create optimized copy, and Rank's On Upload column assemble other upload passes on a hidden copy first when that pipeline is in the project.
+On Upload now waits until other upload passes finish, and it only runs once on that copy.
+It can optimize finished unsaved meshes that are already on this avatar's skeleton.
+Dry Run On Upload, Create optimized copy, and Rank's On Upload column assemble those other passes on a hidden copy first when that pipeline is in your project.
 UI — On Upload: the intro and merge tooltip say finished meshes on this skeleton can merge, including unsaved ones copied into Generated. Extras that still have their own armature stay.
 UI — Rank: Unique Materials has Now, On Upload, and Change. A note under the On Upload header says whether the hidden copy was assembled.
 UI — Rank: the tab intro says the On Upload column is a hidden copy, assembled first when other upload passes are in the project. Texture VRAM stays on Now.
 UI — On Upload: Create optimized copy and the note under it say other upload passes run on the clone first when they are in the project.
 
 1.0.63
+I keep audio sources on On Upload, and the objects that hold them.
 UI — Textures: with Crunch Enable on, Reset all to 50 sits to the right of the global Crunch Compression % slider.
-On Upload keeps audio sources and the objects that hold them.
 UI — On Upload: Remove unused components and Remove unused GameObjects say audio sources stay.
 
 1.0.62
+I cut the header logo to half height.
 UI — The header logo is half as tall.
 UI — One short note sits above PC Workspace and Quest / Android Workspace: Confirm, Fix, and Apply write into this project and stay on the assets. Scan only reports. The avatar-only drop note and the per-workspace write notes are gone.
 
 1.0.61
-On Upload no longer cancels the VRChat upload when a leftover skinned renderer has no mesh.
+On Upload no longer cancels your VRChat upload when a leftover skinned renderer has no mesh.
 
 1.0.60
-On Upload leaves unused objects, bones, PhysBones, material slots, and meshes that other components on this avatar still point at.
+On Upload leaves unused objects, bones, PhysBones, material slots, and meshes that other components on your avatar still point at.
 UI — On Upload: Remove unused GameObjects, Keep only weighted bones, Disable PhysBones when unused, Merge identical material slots, Allow shuffling material slots, and Merge skinned meshes say extra components keep what they reference.
 
 1.0.59
+On Upload keeps blend shapes that other components on your avatar still name.
 UI — On Upload: the Apply on upload note Follows this Unity editor, not the project. is orange.
-On Upload keeps blend shapes that other components on this avatar still name.
 UI — On Upload: Remove unused blend shapes says those named shapes stay.
 
 1.0.58
@@ -54,15 +55,15 @@ Ticking other options no longer rebuilds that list.
 
 1.0.56
 UI — Setup: one avatar slot. Dropping another replaces it instead of stacking.
-On Upload applies the Ignore List on VRChat's upload copy.
-On Upload merge no longer turns extra objects off. Leftover renderers are removed, so PhysBones and contacts keep working and Skinned Meshes rank drops.
-On Upload merge keeps extra UV channels, vertex colors, and extra bone weights, and expands bounds so combined extras do not clip.
-On Upload leaves meshes with material-swap animations alone.
-On Upload still drops unused blend shapes even if Special has blend-shape import Off.
+On Upload applies your Ignore List on VRChat's upload copy.
+Merge no longer turns extra objects off. I remove leftover renderers so PhysBones and contacts keep working and Skinned Meshes rank drops.
+Merge keeps extra UV channels, vertex colors, and extra bone weights, and expands bounds so combined extras do not clip.
+I leave meshes with material-swap animations alone.
+I still drop unused blend shapes even if Special has blend-shape import Off.
 UI — On Upload: the merge tooltip says extra objects stay so PhysBones and contacts keep working.
 
 1.0.55
-On Upload: if the pass stops, the Console shows why Kaleido cancelled the VRChat upload.
+If On Upload stops, the Console shows you why I cancelled the VRChat upload.
 
 1.0.54
 UI — Textures On This Model: the list box is a little wider so the bottom scrollbar is gone.
@@ -90,22 +91,22 @@ Textures On This Model stays centered when the window is wide.
 
 1.0.47
 On Upload no longer parks hair, ears, and other extras in T-pose when meshes merge. Bind poses move with the vertices.
-Extras that still use their own armature are left alone until other upload passes attach them.
+I leave extras that still use their own armature alone until other upload passes attach them.
 
 1.0.46
-The Optimize FX warning is a bit larger so it is easier to read.
+I made the Optimize FX warning a bit larger.
 
 1.0.45
-Optimize FX layer is off by default and shows a warning. Reopen the tool once so existing projects pick that up.
+Optimize FX layer is off by default and shows a warning. Open the window once so existing projects pick that up.
 Hand gesture clips stay as-is when Optimize FX runs (detected by GestureLeft / GestureRight).
-After a successful VRChat upload, Generated is cleared. Optimized Copies that used that cache are removed and the original is turned back on.
+After a successful VRChat upload, I clear Generated. Optimized Copies that used that cache are removed and the original is turned back on.
 
 1.0.44
 Create optimized copy asks first. The clone is for checking what a VRChat upload will do. Do not edit it or use it as the master. The original is turned off, not deleted.
 
 1.0.43
 Remove unused blend shapes keeps Eye Look blink / look-up / look-down and rewrites those descriptor indices, so idle no longer drives leftover smiles.
-Apply on upload is off by default. Reopen the tool once so existing projects pick that up.
+Apply on upload is off by default. Open the window once so existing projects pick that up.
 On Upload has Clear cache for generated meshes and FX in Assets/KaleidoVR/Generated.
 With no avatar on Setup, Rank shows Select a model on Setup instead of Scan Performance.
 The On Upload splash stays on screen for the whole pass, with the loading bar inside it.
@@ -126,30 +127,30 @@ Rank Scan / Dry Run adds Now / On Upload / Change next to the performance stats.
 
 1.0.39
 On Upload no longer bakes leftover blend-shape weights into the face. Unused shapes drop only at zero weight.
-Blink / wink / squint stay, and weights are restored by name after a strip.
+Blink / wink / squint stay, and I restore weights by name after a strip.
 Merge same-ratio blend shapes is off by default.
 The two tab rows use the same four-column widths.
-Reopen the tool once so existing projects pick up the new default.
+Open the window once so existing projects pick up the new default.
 
 1.0.38
-Linking additional features that were already in the works.
+I linked in features that were already in the works.
 On Upload tab: merge meshes that animate together, merge identical material slots, unused blend shapes, unused components, unused bones, unused PhysBones, and FX cleanup.
-Those options run on the assembled upload copy. The scene and source assets stay as they are.
-Meshes and markers Kaleido did not create are left alone. Setup Ignore List skips those objects. Upload skips Play Mode.
+Those options run on the assembled upload copy. Your scene and source assets stay as they are.
+I leave meshes and markers I did not create alone. Setup Ignore List skips those objects. Upload skips Play Mode.
 Scan, Dry Run, and Apply stay on importer, Scene, and Special writes. Dry Run On Upload and Create optimized copy live on that tab.
 Standard is the default built-in. Type max-size caps, format rewrite, weld, bone-quality cuts, Scene disables, and Special stay off.
-Reopen the tool once so existing projects pick up the new defaults.
+Open the window once so existing projects pick up the new defaults.
 
 1.0.37
 Ignore on Textures On This Model no longer greys out Set. Ignore skips the type cap; Set still writes that texture by hand.
-Ignore and Set choices are remembered per texture and come back on later runs.
+I remember Ignore and Set per texture so they come back on later runs.
 Undo on Enable / Disable rows clears the checkbox after a successful restore, so Recalculate bounds does not stay Enable.
 
 1.0.36
 Texture importer on/off options are Enable, Disable, or neither, with Current and New. Neither leaves each listed texture as-is.
 Special on/off options use the same layout. Enable can turn lights, cameras, stereo, and blend-shape import back on.
 Apply only shows the Special warning when a Special write is not at its default. Leaving Set compression, mesh compression, Humanoid, Recalculate bounds, and crunch at Disable does not prompt.
-Opening the tool once turns Set compression off if an older install had left it on, so listed textures keep the author's format unless you Enable it.
+Opening the window once turns Set compression off if an older install had left it on, so listed textures keep the author's format unless you Enable it.
 Dry Run / Apply log lists the chosen writes, then each texture as Old -> New.
 
 1.0.35
@@ -158,7 +159,7 @@ Current, New, and Ignore headers sit over their columns.
 Recalculate skinned bounds keeps Center Y at 0 so the 2 m cube sits on the mid-body instead of below it.
 
 1.0.34
-Recalculate skinned bounds writes a 2 m cube (inspector Extent 1 / 1 / 1) centered on the avatar middle, the same box on every skinned mesh. This replaces the old tiny local-space boxes that clipped meshes when Update When Offscreen was off. Light meshes used only for contact systems are skipped.
+Recalculate skinned bounds writes a 2 m cube (inspector Extent 1 / 1 / 1) centered on the avatar middle, the same box on every skinned mesh. This replaces the old tiny local-space boxes that clipped meshes when Update When Offscreen was off. I skip light meshes used only for contact systems.
 After Apply has written a checked option, Undo sits beside it and restores the previous values.
 The Special tab shows a centered red Warning (Special Use Case). Apply asks again when any Special option is on.
 Apply mesh compression has a Compression Level dropdown (Off / Low / Medium / High).
@@ -171,12 +172,102 @@ Textures On This Model has an Ignore checkbox to the right of New max size. A ch
 Thanks to epic6g for reporting that the body MainTex was classified under Other.
 
 1.0.32
-Even spacing above and below the header logo, so it is not flush against the window edge or the title.
+Even space above and below the header logo, so it is not flush against the window or the title.
 
 1.0.31
-The empty band above the header logo is gone. The logo is drawn to where its artwork actually starts instead of including the transparent space around it.
-Kali_Logo.png is cropped to content (400x209 instead of 400x400), so it costs about half the texture memory.
+I cut the empty band above the header logo. The logo draws where the artwork starts.
+Kali_Logo.png is cropped to the art (400x209 instead of 400x400).
 
 1.0.30
-The Scan / Dry Run / Apply color key is centered under those buttons.
-Its labels share one baseline, so the color words no longer sit lower than the text beside them.
+I centered the Scan / Dry Run / Apply color key under those buttons. The color words sit on the same line as the text beside them.
+
+1.0.29
+UI — The Scan / Dry Run / Apply color key sits on one straight line.
+
+1.0.28
+Normal map previews stay inside the texture list.
+UI — README: I resized the header image.
+
+1.0.27
+Normal maps preview in blue. I rebuild the channel BC5 drops.
+
+1.0.26
+Copyright is KaleidoVR. I dropped the open license.
+
+1.0.25
+I sized the Credits window to the logo, the text, and the buttons.
+
+1.0.24
+Scan is blue, Dry Run is orange, Apply is green.
+
+1.0.23
+I put KaleidoVR Credits last on the KaleidoVR menu.
+
+1.0.22
+UI — Rank: highlight colors sit at the top of the tab.
+
+1.0.21
+From Rank you can turn streaming mip maps on, and convert leftover Unity constraints.
+
+1.0.20
+Rank highlights problems. You can fix Write Defaults and empty states from that tab.
+
+1.0.19
+Scan, Dry Run, and Apply keep the same names in both workspaces. Switching back to PC Workspace works.
+
+1.0.18
+Rank scans VRAM and animator cost. I added Auto BC7/DXT1 and an Everything profile.
+
+1.0.16
+Apply Max Sizes Only stays on after a Dry Run that finds size writes.
+
+1.0.15
+Each texture Set dropdown starts at the size you already have, not the type cap.
+
+1.0.14
+Raising a texture Set asks you to Confirm or Cancel.
+
+1.0.13
+Raising a texture max size from a row selector asks you to Confirm first.
+
+1.0.12
+Type caps never raise a texture. A row that would go up shows orange.
+UI — Textures: Max Size By Type labels are shorter.
+
+1.0.11
+UI — Textures: Will apply and the arrow sit centered between Current and New.
+
+1.0.10
+UI — Textures: Will apply sits between Current and New. The extra status line is gone.
+
+1.0.9
+You can revert a texture max-size write one at a time. Max Sizes Only writes sizes and leaves the other importer flags alone.
+UI — Textures: the row labels are shorter.
+
+1.0.8
+UI — Textures On This Model: each row shows Current and New max size.
+
+1.0.7
+A texture Set dropdown writes that size when you change it.
+
+1.0.6
+UI — outlined scroll lists have more left and right padding so rows sit off the border.
+
+1.0.5
+PC and Quest are separate workspaces. Each has its own Scan, Dry Run, and Apply.
+
+1.0.4
+You can export and import profiles as JSON.
+UI — more space on the Setup drop and the texture list.
+
+1.0.3
+I added Textures On This Model, Quest settings, and Dry Run before Apply.
+
+1.0.2
+Rank limits match VRChat's avatar performance rules.
+
+1.0.1
+The tool lands in Assets/KaleidoVR/Editor with the other KaleidoVR Unity tools.
+
+1.0.0
+First public release. Install the GitHub .unitypackage, or copy KaleidoVR into Assets.

@@ -202,6 +202,177 @@ namespace KaleidoVR.EditorTools
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
+        public const int PrefsSchema = 11;
+
+        [InitializeOnLoad]
+        static class PrefsMigrate
+        {
+            static PrefsMigrate()
+            {
+                Run();
+            }
+
+            public static void Run()
+            {
+                int schema = Has("Schema") ? EditorPrefs.GetInt(PrefsPrefix + "Schema") : 1;
+                if (schema >= PrefsSchema) return;
+
+                int builtin = Has("Builtin") ? EditorPrefs.GetInt(PrefsPrefix + "Builtin") : 2;
+
+                if (schema < 2)
+                {
+                    if (GetI("PcFmt", (int)KaleidoPcTexFormat.AutoBc7Dxt1) == (int)KaleidoPcTexFormat.HighQuality)
+                        SetI("PcFmt", (int)KaleidoPcTexFormat.AutoBc7Dxt1);
+                    SetB("TexNorm", true);
+                }
+
+                if (schema < 3)
+                {
+                    SetB("PcFmtOn", false);
+                    SetB("AndFmtOn", false);
+                }
+
+                if (schema < 4)
+                {
+                    SetB("RendOff", false);
+                    SetB("RendMV", false);
+                    SetB("AnimCull", false);
+                    SetB("AudBG", false);
+                }
+
+                if (schema < 5)
+                {
+                    if (builtin != 1 && builtin != 3)
+                    {
+                        SetB("ASize", false);
+                        SetB("NSize", false);
+                        SetB("MSize", false);
+                        SetB("ESize", false);
+                        SetB("CSize", false);
+                        SetB("OSize", false);
+                    }
+                }
+
+                if (schema < 6)
+                    ApplySharedSafeDefaultPrefs(builtin);
+
+                if (schema < 7)
+                    SetB("AvRatio", false);
+
+                if (schema < 8)
+                    SetB("AvUp", false);
+
+                if (schema < 9)
+                    SetB("AvFx", false);
+
+                if (schema < 10)
+                {
+                    SetB("MeshEnableRW", false);
+                    SetB("AvMeshRW", true);
+                }
+
+                if (schema < 11)
+                    SetB("AvContact", true);
+
+                SetI("Schema", PrefsSchema);
+            }
+
+            static void ApplySharedSafeDefaultPrefs(int presetIndex)
+            {
+                SetB("OptTex", true);
+                SetB("PcFmtOn", false);
+                SetB("AndFmtOn", false);
+                SetB("TexCrunchOn", false);
+                SetB("TexCrunch", true);
+                SetB("TexMipsOn", true);
+                SetB("TexMips", true);
+                SetB("TexStreamOn", true);
+                SetB("TexStreamOff", false);
+
+                SetB("OptMesh", true);
+                SetB("MeshBS", true);
+                SetB("MeshBSOff", false);
+                SetB("MeshBSOn", false);
+                SetB("MeshWeld", false);
+                SetB("MeshAnim", presetIndex == 3);
+                SetB("MeshCompOn", false);
+                SetB("MeshHum", false);
+                if (presetIndex != 1) SetB("SkinOn", false);
+
+                SetB("OptAnim", true);
+                if (presetIndex != 3) SetB("AnimCull", false);
+
+                SetB("IncSpec", false);
+                SetB("RendBounds", false);
+                SetB("OptMat", false);
+                SetB("MatGPU", false);
+                SetB("AudMono", false);
+                SetB("AudStereo", false);
+
+                if (presetIndex != 1)
+                {
+                    SetB("RendBone4", false);
+                    SetB("RendShad", false);
+                }
+
+                if (presetIndex != 1 && presetIndex != 3)
+                {
+                    SetB("ASize", false);
+                    SetB("NSize", false);
+                    SetB("MSize", false);
+                    SetB("ESize", false);
+                    SetB("CSize", false);
+                    SetB("OSize", false);
+                    SetB("RendOff", false);
+                    SetB("RendRecv", false);
+                    SetB("RendProbe", false);
+                    SetB("RendMV", false);
+                    SetB("AudBG", false);
+                    SetB("AudVorb", false);
+                    SetB("ExtraPart", false);
+                    SetB("ExtraLight", false);
+                    SetB("ExtraLightOn", false);
+                    SetB("ExtraCam", false);
+                    SetB("ExtraCamOn", false);
+                }
+
+                SetB("IncAvatar", true);
+                SetB("AvUp", false);
+                SetB("AvMerge", true);
+                SetB("AvSlots", true);
+                SetB("AvShuffle", true);
+                SetB("AvShape", true);
+                SetB("AvRatio", false);
+                SetB("AvMmd", true);
+                SetB("AvComp", true);
+                SetB("AvGo", presetIndex == 3);
+                SetB("AvBone", true);
+                SetB("AvPb", true);
+                SetB("AvContact", true);
+                SetB("AvFx", false);
+                SetB("AvMeshRW", true);
+            }
+
+            static bool Has(string key)
+            {
+                return EditorPrefs.HasKey(PrefsPrefix + key);
+            }
+
+            static int GetI(string key, int fallback)
+            {
+                return Has(key) ? EditorPrefs.GetInt(PrefsPrefix + key) : fallback;
+            }
+
+            static void SetB(string key, bool value)
+            {
+                EditorPrefs.SetBool(PrefsPrefix + key, value);
+            }
+
+            static void SetI(string key, int value)
+            {
+                EditorPrefs.SetInt(PrefsPrefix + key, value);
+            }
+        }
 
         public static string ICON_PATH { get { return ResolveIconPath(); } }
 
@@ -396,6 +567,11 @@ namespace KaleidoVR.EditorTools
         public int textureSizeHistoryIndex = -1;
         public int writeDefaultsAction;
         public int meshReadWriteAction;
+
+        public static void EnsurePrefsMigrated()
+        {
+            PrefsMigrate.Run();
+        }
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
         public static void ShowWindow()
@@ -911,6 +1087,7 @@ namespace KaleidoVR.EditorTools
 
         private void LoadEditorPreferences()
         {
+            PrefsMigrate.Run();
             LoadUserProfiles();
             workspace = GetInt("Workspace", 0);
             textureSort = GetInt("TexSort", 0);
@@ -1033,146 +1210,6 @@ namespace KaleidoVR.EditorTools
             if (enableCamerasOnAvatar) disableCamerasOnAvatar = false;
             optimizeParticles = GetBool("ExtraPart", false);
             optimizeSceneExtras = disableLightsOnAvatar || enableLightsOnAvatar || disableCamerasOnAvatar || enableCamerasOnAvatar || optimizeParticles;
-
-            MigrateEditorPreferences();
-        }
-
-        private void MigrateEditorPreferences()
-        {
-            const int currentSchema = 11;
-            int schema = GetInt("Schema", 1);
-            if (schema >= currentSchema) return;
-
-            if (schema < 2)
-            {
-                if (pcTexFormat == KaleidoPcTexFormat.HighQuality)
-                    pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
-                autoDetectNormalMaps = true;
-            }
-
-            if (schema < 3)
-            {
-                applyPcTexFormat = false;
-                applyAndroidTexFormat = false;
-            }
-
-            if (schema < 4)
-            {
-                rendererDisableUpdateWhenOffscreen = false;
-                rendererDisableMotionVectors = false;
-                animatorCullWhenOffscreen = false;
-                audioLoadInBackground = false;
-            }
-
-            if (schema < 5)
-            {
-                if (builtinPresetIndex != 1 && builtinPresetIndex != 3)
-                {
-                    applyAlbedoSize = false;
-                    applyNormalSize = false;
-                    applyMaskSize = false;
-                    applyEmissionSize = false;
-                    applyMatcapSize = false;
-                    applyOtherSize = false;
-                }
-            }
-
-            if (schema < 6)
-            {
-                ApplySharedSafeDefaults(builtinPresetIndex);
-            }
-
-            if (schema < 7)
-            {
-                avatarMergeSameRatioShapes = false;
-            }
-
-            if (schema < 8)
-            {
-                avatarApplyOnUpload = false;
-            }
-
-            if (schema < 9)
-            {
-                avatarOptimizeFxLayer = false;
-            }
-
-            if (schema < 10)
-            {
-                meshEnableReadWrite = false;
-                avatarEnableMeshReadWrite = true;
-            }
-
-            if (schema < 11)
-            {
-                avatarOptimizeContacts = true;
-            }
-
-            SetInt("Schema", currentSchema);
-            PersistSharedSafeDefaults();
-        }
-
-        private void ApplySharedSafeDefaults(int presetIndex)
-        {
-            optimizeTextures = true;
-            applyPcTexFormat = false;
-            applyAndroidTexFormat = false;
-            textureEnableCrunch = false;
-            textureDisableCrunch = true;
-            textureApplyMipmaps = true;
-            textureEnableMipmaps = true;
-            textureEnableStreamingMipmaps = true;
-            textureDisableStreamingMipmaps = false;
-
-            optimizeMeshes = true;
-            meshKeepBlendShapes = true;
-            meshStripBlendShapes = false;
-            meshRestoreBlendShapes = false;
-            meshWeldVertices = false;
-            meshOptimizeAnimation = presetIndex == 3;
-            applyMeshCompression = false;
-            meshForceHumanoid = false;
-            if (presetIndex != 1) applySkinWeights = false;
-
-            optimizeAnimators = true;
-            if (presetIndex != 3) animatorCullWhenOffscreen = false;
-
-            includeSpecial = false;
-            rendererRecalculateBounds = false;
-            optimizeMaterials = false;
-            materialEnableGpuInstancing = false;
-            audioForceToMono = false;
-            audioForceToStereo = false;
-
-            if (presetIndex != 1)
-            {
-                rendererForceBone4 = false;
-                rendererDisableShadows = false;
-            }
-
-            if (presetIndex != 1 && presetIndex != 3)
-            {
-                applyAlbedoSize = false;
-                applyNormalSize = false;
-                applyMaskSize = false;
-                applyEmissionSize = false;
-                applyMatcapSize = false;
-                applyOtherSize = false;
-                rendererDisableUpdateWhenOffscreen = false;
-                rendererDisableReceiveShadows = false;
-                rendererDisableProbes = false;
-                rendererDisableMotionVectors = false;
-                audioLoadInBackground = false;
-                audioApplyVorbis = false;
-                optimizeParticles = false;
-                disableLightsOnAvatar = false;
-                enableLightsOnAvatar = false;
-                disableCamerasOnAvatar = false;
-                enableCamerasOnAvatar = false;
-                optimizeSceneExtras = false;
-            }
-
-            ApplyAvatarTabDefaults(presetIndex);
         }
 
         private void ApplyAvatarTabDefaults(int presetIndex)
@@ -1194,75 +1231,9 @@ namespace KaleidoVR.EditorTools
             avatarEnableMeshReadWrite = true;
         }
 
-        private void PersistSharedSafeDefaults()
-        {
-            SetInt("PcFmt", (int)pcTexFormat);
-            SetBool("TexNorm", autoDetectNormalMaps);
-            SetBool("PcFmtOn", applyPcTexFormat);
-            SetBool("AndFmtOn", applyAndroidTexFormat);
-            SetBool("TexCrunch", textureDisableCrunch);
-            SetBool("TexCrunchOn", textureEnableCrunch);
-            SetBool("TexMipsOn", textureApplyMipmaps);
-            SetBool("TexMips", textureEnableMipmaps);
-            SetBool("TexStreamOn", textureEnableStreamingMipmaps);
-            SetBool("TexStreamOff", textureDisableStreamingMipmaps);
-            SetBool("OptTex", optimizeTextures);
-            SetBool("OptMesh", optimizeMeshes);
-            SetBool("MeshBS", meshKeepBlendShapes);
-            SetBool("MeshBSOff", meshStripBlendShapes);
-            SetBool("MeshBSOn", meshRestoreBlendShapes);
-            SetBool("MeshWeld", meshWeldVertices);
-            SetBool("MeshAnim", meshOptimizeAnimation);
-            SetBool("MeshCompOn", applyMeshCompression);
-            SetBool("MeshHum", meshForceHumanoid);
-            SetBool("SkinOn", applySkinWeights);
-            SetBool("OptAnim", optimizeAnimators);
-            SetBool("AnimCull", animatorCullWhenOffscreen);
-            SetBool("IncSpec", includeSpecial);
-            SetBool("RendBounds", rendererRecalculateBounds);
-            SetBool("OptMat", optimizeMaterials);
-            SetBool("MatGPU", materialEnableGpuInstancing);
-            SetBool("AudMono", audioForceToMono);
-            SetBool("AudStereo", audioForceToStereo);
-            SetBool("RendBone4", rendererForceBone4);
-            SetBool("RendShad", rendererDisableShadows);
-            SetBool("ASize", applyAlbedoSize);
-            SetBool("NSize", applyNormalSize);
-            SetBool("MSize", applyMaskSize);
-            SetBool("ESize", applyEmissionSize);
-            SetBool("CSize", applyMatcapSize);
-            SetBool("OSize", applyOtherSize);
-            SetBool("RendOff", rendererDisableUpdateWhenOffscreen);
-            SetBool("RendRecv", rendererDisableReceiveShadows);
-            SetBool("RendProbe", rendererDisableProbes);
-            SetBool("RendMV", rendererDisableMotionVectors);
-            SetBool("AudBG", audioLoadInBackground);
-            SetBool("AudVorb", audioApplyVorbis);
-            SetBool("ExtraPart", optimizeParticles);
-            SetBool("ExtraLight", disableLightsOnAvatar);
-            SetBool("ExtraLightOn", enableLightsOnAvatar);
-            SetBool("ExtraCam", disableCamerasOnAvatar);
-            SetBool("ExtraCamOn", enableCamerasOnAvatar);
-            SetBool("IncAvatar", includeAvatar);
-            SetBool("AvUp", avatarApplyOnUpload);
-            SetBool("AvMerge", avatarMergeSkinnedMeshes);
-            SetBool("AvSlots", avatarMergeIdenticalSlots);
-            SetBool("AvShuffle", avatarShuffleSlots);
-            SetBool("AvShape", avatarOptimizeBlendShapes);
-            SetBool("AvRatio", avatarMergeSameRatioShapes);
-            SetBool("AvMmd", avatarMmdCompatibility);
-            SetBool("AvComp", avatarRemoveUnusedComponents);
-            SetBool("AvGo", avatarRemoveUnusedGameObjects);
-            SetBool("AvBone", avatarStripUnusedBones);
-            SetBool("AvPb", avatarOptimizePhysBones);
-            SetBool("AvContact", avatarOptimizeContacts);
-            SetBool("AvFx", avatarOptimizeFxLayer);
-            SetBool("AvMeshRW", avatarEnableMeshReadWrite);
-        }
-
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 11);
+            SetInt("Schema", PrefsSchema);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
