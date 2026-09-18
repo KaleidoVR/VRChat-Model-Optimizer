@@ -2085,7 +2085,7 @@ namespace KaleidoVR.EditorTools
             window.includeRenderers = EditorGUILayout.ToggleLeft("Scene  —  offscreen, probes, particles, shadows, 4-bone quality", window.includeRenderers);
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
-            window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, FX", window.includeAvatar);
+            window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, contacts, FX", window.includeAvatar);
             window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
 
@@ -3260,6 +3260,10 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("PhysBones", EditorStyles.boldLabel);
             window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Disable PhysBones when unused", "Removes PhysBones that no remaining mesh uses, and colliders nothing references. Ones another component still points at stay.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("Contacts", EditorStyles.boldLabel);
+            window.avatarOptimizeContacts = DrawToggle(window.avatarOptimizeContacts, "Remove unused contacts", "Removes contact senders and receivers that are disabled and never turn on. Enabled senders stay so other avatars can still hit them. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay, and so does anything another component still points at.");
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
