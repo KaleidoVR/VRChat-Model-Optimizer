@@ -1,5 +1,10 @@
 What's new
 
+1.0.66
+On Upload removes unused contacts that are disabled and never turn on. Enabled senders stay so other avatars can still hit them. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay. Ignore List, contact-system names, and anything another component still points at stay. Reopen the tool once so existing projects pick it up.
+UI — On Upload: Remove unused contacts sits under Contacts, after PhysBones. It starts on when Apply on upload is ticked.
+UI — Profiles: the On Upload tab checkbox lists contacts.
+
 1.0.65
 Rank can Confirm mesh Read/Write On or Off. That writes the model importers now. PC still uploads if it stays off; rank stays Very Poor.
 PC Enable mesh Read/Write on Meshes starts off. Quest Apply no longer writes that importer flag.
