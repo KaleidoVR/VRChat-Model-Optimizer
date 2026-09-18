@@ -47,7 +47,12 @@ It appears in the same **KaleidoVR** menu as Asset Organizer.
 
 ## Credits
 
-Created and maintained by **KaleidoVR**.
+This is my tool. I started it years ago. I sat on it through a lot of life, including a house fire. I never forgot it. I just was not in a place to finish it. When I got my head back on straight, I did.
+
+I wrote it. My name is on it. It is not done by AI. Anyone who says otherwise has been glued to their Reddit keyboard too long. When the commits went up is not when the work was done.
+
+Created and maintained by KaleidoVR.
+KaleidoVR@hotmail.com
 
 - [kalivr.com](https://kalivr.com)
 - [Discord](https://discord.com/invite/cRsufJssTA)
