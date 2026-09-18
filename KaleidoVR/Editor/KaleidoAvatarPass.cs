@@ -1,7 +1,7 @@
 // KaleidoVR VRChat Model Optimizer
 // Created and maintained by KaleidoVR - https://kalivr.com
 // Copyright (c) 2026 KaleidoVR. All rights reserved.
-// Avatar structure pass: unused cleanup, blend shapes, mesh / slot merge, PhysBones, FX.
+// Avatar structure pass: unused cleanup, blend shapes, mesh / slot merge, PhysBones, contacts, FX.
 // Runs on a clone at upload. Source assets and the scene stay as they are.
 
 using UnityEngine;
@@ -31,6 +31,7 @@ namespace KaleidoVR.EditorTools
         public bool removeUnusedGameObjects = false;
         public bool stripUnusedBones = true;
         public bool optimizePhysBones = true;
+        public bool optimizeContacts = true;
         public bool optimizeFxLayer = false;
         public bool enableMeshReadWrite = true;
     }
@@ -47,6 +48,7 @@ namespace KaleidoVR.EditorTools
         public int componentsRemoved;
         public int objectsRemoved;
         public int physBonesDisabled;
+        public int contactsRemoved;
         public int fxLayersRemoved;
         public int curvesRemoved;
         public bool ok = true;
@@ -61,6 +63,7 @@ namespace KaleidoVR.EditorTools
                 + ", components −" + componentsRemoved
                 + ", objects −" + objectsRemoved
                 + ", PhysBones −" + physBonesDisabled
+                + ", contacts −" + contactsRemoved
                 + ", FX layers −" + fxLayersRemoved;
         }
     }
@@ -147,6 +150,7 @@ namespace KaleidoVR.EditorTools
                 removeUnusedGameObjects = EditorPrefs.GetBool(p + "AvGo", false),
                 stripUnusedBones = EditorPrefs.GetBool(p + "AvBone", true),
                 optimizePhysBones = EditorPrefs.GetBool(p + "AvPb", true),
+                optimizeContacts = EditorPrefs.GetBool(p + "AvContact", true),
                 optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false),
                 enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
                     && EditorPrefs.GetInt(p + "Workspace", 0) == 1
@@ -170,6 +174,7 @@ namespace KaleidoVR.EditorTools
                 removeUnusedGameObjects = window.avatarRemoveUnusedGameObjects,
                 stripUnusedBones = window.avatarStripUnusedBones,
                 optimizePhysBones = window.avatarOptimizePhysBones,
+                optimizeContacts = window.avatarOptimizeContacts,
                 optimizeFxLayer = window.avatarOptimizeFxLayer,
                 enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite
             };
@@ -403,6 +408,10 @@ namespace KaleidoVR.EditorTools
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
                     SweepPhysBones(root, anim, excluded, dryRun, result, refs);
+
+                ReportProgress("Cleaning contacts…", 0.87f);
+                if (settings.optimizeContacts)
+                    SweepContacts(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Optimizing FX…", 0.92f);
                 if (settings.optimizeFxLayer)
@@ -2084,6 +2093,172 @@ namespace KaleidoVR.EditorTools
                 }
             }
             return false;
+        }
+
+        static void SweepContacts(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
+        {
+            Type senderType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.Contact.Components.VRCContactSender");
+            Type receiverType = KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Dynamics.Contact.Components.VRCContactReceiver");
+            if (senderType == null && receiverType == null) return;
+
+            HashSet<string> usedParams = CollectUsedParameters(root);
+            if (senderType != null)
+                SweepContactType(root, senderType, false, usedParams, anim, excluded, dryRun, result, refs);
+            if (receiverType != null)
+                SweepContactType(root, receiverType, true, usedParams, anim, excluded, dryRun, result, refs);
+        }
+
+        static void SweepContactType(
+            GameObject root,
+            Type type,
+            bool receiver,
+            HashSet<string> usedParams,
+            AvatarAnimInfo anim,
+            HashSet<Transform> excluded,
+            bool dryRun,
+            KaleidoAvatarPassResult result,
+            ComponentRefInfo refs)
+        {
+            Component[] found = root.GetComponentsInChildren(type, true);
+            FieldInfo rootField = type.GetField("rootTransform") ?? type.GetField("m_RootTransform");
+            for (int i = 0; i < found.Length; i++)
+            {
+                Behaviour contact = found[i] as Behaviour;
+                if (contact == null || IsExcluded(contact, excluded)) continue;
+                if (IsEditorMarker(contact) || !IsOwnedType(contact.GetType())) continue;
+                Transform contactRoot = rootField != null ? rootField.GetValue(contact) as Transform : null;
+                if (contactRoot == null) contactRoot = contact.transform;
+                if (refs != null && (refs.Keeps(contact) || refs.Keeps(contactRoot))) continue;
+                if (ContactLooksSensitive(contact)) continue;
+
+                string path = AnimationUtility.CalculateTransformPath(contact.transform, root.transform);
+                if (anim.IsEnabledAnimated(path, type)) continue;
+
+                if (contact.enabled) continue;
+
+                if (receiver && ReceiverParameterIsUsed(contact, usedParams)) continue;
+
+                result.contactsRemoved++;
+                result.lines.Add("Remove unused contact: " + contact.name);
+                if (!dryRun) UnityEngine.Object.DestroyImmediate(contact);
+            }
+        }
+
+        static bool ReceiverParameterIsUsed(Component receiver, HashSet<string> usedParams)
+        {
+            string name = ContactParameterName(receiver);
+            if (string.IsNullOrEmpty(name)) return false;
+            return usedParams != null && usedParams.Contains(name);
+        }
+
+        static string ContactParameterName(Component contact)
+        {
+            if (contact == null) return null;
+            FieldInfo field = contact.GetType().GetField("parameter") ?? contact.GetType().GetField("m_Parameter");
+            if (field == null) return null;
+            return field.GetValue(contact) as string;
+        }
+
+        static bool ContactLooksSensitive(Component contact)
+        {
+            if (contact == null) return false;
+            if (LooksSensitive(contact.name) || LooksSensitive(contact.gameObject.name)) return true;
+            FieldInfo tags = contact.GetType().GetField("collisionTags") ?? contact.GetType().GetField("m_CollisionTags");
+            if (tags == null) return false;
+            object val = tags.GetValue(contact);
+            System.Collections.IList list = val as System.Collections.IList;
+            if (list != null)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (LooksSensitive(list[i] as string)) return true;
+                }
+                return false;
+            }
+            return LooksSensitive(val as string);
+        }
+
+        static HashSet<string> CollectUsedParameters(GameObject root)
+        {
+            HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (root == null) return names;
+
+            HashSet<RuntimeAnimatorController> seen = new HashSet<RuntimeAnimatorController>();
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                if (animators[i] == null || animators[i].runtimeAnimatorController == null) continue;
+                AddControllerParameters(animators[i].runtimeAnimatorController, names, seen);
+            }
+
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return names;
+            AddDescriptorControllerParameters(desc, "baseAnimationLayers", names, seen);
+            AddDescriptorControllerParameters(desc, "specialAnimationLayers", names, seen);
+
+            FieldInfo expr = desc.GetType().GetField("expressionParameters");
+            if (expr != null) HarvestParameterStrings(expr.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
+
+            FieldInfo menu = desc.GetType().GetField("expressionsMenu");
+            if (menu != null) HarvestParameterStrings(menu.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
+            return names;
+        }
+
+        static void AddDescriptorControllerParameters(Component desc, string fieldName, HashSet<string> names, HashSet<RuntimeAnimatorController> seen)
+        {
+            FieldInfo layers = desc.GetType().GetField(fieldName);
+            if (layers == null) return;
+            Array arr = layers.GetValue(desc) as Array;
+            if (arr == null) return;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                if (anim == null) continue;
+                RuntimeAnimatorController controller = anim.GetValue(layer) as RuntimeAnimatorController;
+                AddControllerParameters(controller, names, seen);
+            }
+        }
+
+        static void AddControllerParameters(RuntimeAnimatorController controller, HashSet<string> names, HashSet<RuntimeAnimatorController> seen)
+        {
+            if (controller == null || names == null || seen == null) return;
+            if (!seen.Add(controller)) return;
+            AnimatorOverrideController ovr = controller as AnimatorOverrideController;
+            AnimatorController ac = ovr != null ? ovr.runtimeAnimatorController as AnimatorController : controller as AnimatorController;
+            if (ac == null || ac.parameters == null) return;
+            for (int i = 0; i < ac.parameters.Length; i++)
+            {
+                AnimatorControllerParameter p = ac.parameters[i];
+                if (p != null && !string.IsNullOrEmpty(p.name)) names.Add(p.name);
+            }
+        }
+
+        static void HarvestParameterStrings(UnityEngine.Object obj, HashSet<string> names, HashSet<int> visited)
+        {
+            if (obj == null || names == null || visited == null) return;
+            if (!visited.Add(obj.GetInstanceID())) return;
+
+            List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
+            SerializedObject so = new SerializedObject(obj);
+            SerializedProperty p = so.GetIterator();
+            while (p.Next(true))
+            {
+                if (p.propertyType == SerializedPropertyType.String)
+                {
+                    string value = p.stringValue;
+                    if (!string.IsNullOrEmpty(value) && value.Length <= 128 && value.IndexOf('\n') < 0)
+                        names.Add(value);
+                    continue;
+                }
+                if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
+                UnityEngine.Object next = p.objectReferenceValue;
+                if (next == null || next is MonoScript) continue;
+                if (next is ScriptableObject) nested.Add(next);
+            }
+            for (int i = 0; i < nested.Count; i++)
+                HarvestParameterStrings(nested[i], names, visited);
         }
 
         static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)

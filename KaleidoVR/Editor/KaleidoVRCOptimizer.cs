@@ -172,6 +172,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarRemoveUnusedGameObjects = false;
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
+        public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
         public bool avatarEnableMeshReadWrite = true;
     }
@@ -327,6 +328,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarRemoveUnusedGameObjects = false;
         public bool avatarStripUnusedBones = true;
         public bool avatarOptimizePhysBones = true;
+        public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
         public bool avatarEnableMeshReadWrite = true;
         public readonly List<string> onUploadPreviewLines = new List<string>();
@@ -713,6 +715,7 @@ namespace KaleidoVR.EditorTools
                 avatarRemoveUnusedGameObjects = avatarRemoveUnusedGameObjects,
                 avatarStripUnusedBones = avatarStripUnusedBones,
                 avatarOptimizePhysBones = avatarOptimizePhysBones,
+                avatarOptimizeContacts = avatarOptimizeContacts,
                 avatarOptimizeFxLayer = avatarOptimizeFxLayer,
                 avatarEnableMeshReadWrite = avatarEnableMeshReadWrite
             };
@@ -816,6 +819,7 @@ namespace KaleidoVR.EditorTools
                 avatarRemoveUnusedGameObjects = p.avatarRemoveUnusedGameObjects;
                 avatarStripUnusedBones = p.avatarStripUnusedBones;
                 avatarOptimizePhysBones = p.avatarOptimizePhysBones;
+                avatarOptimizeContacts = p.avatarOptimizeContacts;
                 avatarOptimizeFxLayer = p.avatarOptimizeFxLayer;
                 avatarEnableMeshReadWrite = p.avatarEnableMeshReadWrite;
             }
@@ -934,6 +938,7 @@ namespace KaleidoVR.EditorTools
             avatarRemoveUnusedGameObjects = GetBool("AvGo", false);
             avatarStripUnusedBones = GetBool("AvBone", true);
             avatarOptimizePhysBones = GetBool("AvPb", true);
+            avatarOptimizeContacts = GetBool("AvContact", true);
             avatarOptimizeFxLayer = GetBool("AvFx", false);
             avatarEnableMeshReadWrite = GetBool("AvMeshRW", true);
 
@@ -1034,7 +1039,7 @@ namespace KaleidoVR.EditorTools
 
         private void MigrateEditorPreferences()
         {
-            const int currentSchema = 10;
+            const int currentSchema = 11;
             int schema = GetInt("Schema", 1);
             if (schema >= currentSchema) return;
 
@@ -1096,6 +1101,11 @@ namespace KaleidoVR.EditorTools
             {
                 meshEnableReadWrite = false;
                 avatarEnableMeshReadWrite = true;
+            }
+
+            if (schema < 11)
+            {
+                avatarOptimizeContacts = true;
             }
 
             SetInt("Schema", currentSchema);
@@ -1179,6 +1189,7 @@ namespace KaleidoVR.EditorTools
             avatarRemoveUnusedGameObjects = presetIndex == 3;
             avatarStripUnusedBones = true;
             avatarOptimizePhysBones = true;
+            avatarOptimizeContacts = true;
             avatarOptimizeFxLayer = false;
             avatarEnableMeshReadWrite = true;
         }
@@ -1244,13 +1255,14 @@ namespace KaleidoVR.EditorTools
             SetBool("AvGo", avatarRemoveUnusedGameObjects);
             SetBool("AvBone", avatarStripUnusedBones);
             SetBool("AvPb", avatarOptimizePhysBones);
+            SetBool("AvContact", avatarOptimizeContacts);
             SetBool("AvFx", avatarOptimizeFxLayer);
             SetBool("AvMeshRW", avatarEnableMeshReadWrite);
         }
 
         public void SaveEditorPreferences()
         {
-            SetInt("Schema", 10);
+            SetInt("Schema", 11);
             SetInt("Workspace", workspace);
             SetInt("TexSort", textureSort);
             SetInt("Builtin", builtinPresetIndex);
@@ -1277,6 +1289,7 @@ namespace KaleidoVR.EditorTools
             SetBool("AvGo", avatarRemoveUnusedGameObjects);
             SetBool("AvBone", avatarStripUnusedBones);
             SetBool("AvPb", avatarOptimizePhysBones);
+            SetBool("AvContact", avatarOptimizeContacts);
             SetBool("AvFx", avatarOptimizeFxLayer);
             SetBool("AvMeshRW", avatarEnableMeshReadWrite);
 
