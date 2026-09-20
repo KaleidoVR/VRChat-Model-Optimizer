@@ -366,6 +366,12 @@ namespace KaleidoVR.EditorTools
         {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
+            if (HasForeignUploadComponents(root))
+            {
+                result.lines.Add("On Upload skipped: other upload components are still on this copy.");
+                latestRun = result;
+                return result;
+            }
             if (!dryRun && !ClaimUploadPass(root))
             {
                 result.lines.Add("On Upload already ran on this copy.");
@@ -882,6 +888,19 @@ namespace KaleidoVR.EditorTools
                 Component c = parts[i];
                 if (c == null || c is Transform) continue;
                 if (IsEditorMarker(c) || !IsOwnedType(c.GetType())) return true;
+            }
+            return false;
+        }
+
+        static bool HasForeignUploadComponents(GameObject root)
+        {
+            if (root == null) return false;
+            Component[] parts = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                Component c = parts[i];
+                if (c == null || c is Transform) continue;
+                if (!IsOwnedType(c.GetType())) return true;
             }
             return false;
         }
