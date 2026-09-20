@@ -2219,6 +2219,8 @@ namespace KaleidoVR.EditorTools
             {
                 Component pb = pbs[i];
                 if (pb == null || IsExcluded(pb, excluded)) continue;
+                if (IsEditorMarker(pb) || !IsOwnedType(pb.GetType())) continue;
+                if (HasExternalWork(pb.gameObject, true)) continue;
                 Transform pbRoot = rootField != null ? rootField.GetValue(pb) as Transform : pb.transform;
                 if (pbRoot == null) pbRoot = pb.transform;
                 if (refs != null && (refs.Keeps(pb) || refs.Keeps(pbRoot))) continue;
@@ -2257,6 +2259,8 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < cols.Length; i++)
             {
                 if (cols[i] == null || referenced.Contains(cols[i]) || IsExcluded(cols[i], excluded)) continue;
+                if (IsEditorMarker(cols[i]) || !IsOwnedType(cols[i].GetType())) continue;
+                if (HasExternalWork(cols[i].gameObject, true)) continue;
                 if (refs != null && refs.Keeps(cols[i])) continue;
                 result.componentsRemoved++;
                 result.lines.Add("Remove unused PhysBone collider: " + cols[i].name);
