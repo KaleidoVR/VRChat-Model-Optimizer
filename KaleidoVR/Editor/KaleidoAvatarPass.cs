@@ -855,8 +855,8 @@ namespace KaleidoVR.EditorTools
             string asm = type.Assembly != null ? type.Assembly.GetName().Name : "";
             if (ns.StartsWith("Unity", StringComparison.Ordinal) || ns.StartsWith("TMPro", StringComparison.Ordinal)) return true;
             if (ns.StartsWith("KaleidoVR", StringComparison.Ordinal)) return true;
-            if (ns.StartsWith("VRC", StringComparison.Ordinal) || ns.StartsWith("VRCSDK", StringComparison.Ordinal)) return true;
-            if (asm.StartsWith("VRC", StringComparison.Ordinal) || asm.StartsWith("VRCSDK", StringComparison.Ordinal)) return true;
+            if (ns.StartsWith("VRC.", StringComparison.Ordinal) || ns.StartsWith("VRCSDK", StringComparison.Ordinal)) return true;
+            if (asm.StartsWith("VRC.", StringComparison.Ordinal) || asm.StartsWith("VRCSDK", StringComparison.Ordinal)) return true;
             return false;
         }
 
