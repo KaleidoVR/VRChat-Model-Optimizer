@@ -1,8 +1,8 @@
 What's new
 
 1.0.67
-On Upload was welding extras that still had their own bones onto the body. A tail or strap could sit on the wrong bone after you only changed something else. I only merge meshes that actually share the same weighted bones now. Bad weights no longer snap to the first bone on the list.
-If other upload components are still on the copy, I skip On Upload and wait. I do not delete those components. EditorOnly objects that still have a component stay. I leave PhysBones on leftover objects.
+I fixed On Upload stuffing extras onto the body when they still have their own bones. You would change the pants and the tail or the straps would jump. Those stay on their own bones now. I do not dump leftover weights onto Chest.
+If another upload pass is still on the copy, I wait. I do not take those components off. EditorOnly objects that still have something on them stay. PhysBones on those leftovers stay too.
 
 1.0.66
 I added unused contacts to On Upload. It takes off contact senders and receivers that are disabled and never turn on. Enabled senders stay, so other avatars can still hit you. If a receiver still feeds a parameter into FX, menus, or Expression Parameters, I leave it. I also leave anything on your Ignore List, contact-system names, and anything else on the avatar that still points at a contact. You do not have to open the window for that default — Unity writes it when the project loads. Apply on upload stays off unless you already had it on.
