@@ -1646,8 +1646,32 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        static int CountLiveBones(SkinnedMeshRenderer smr)
+        {
+            if (smr == null || smr.bones == null) return 0;
+            int n = 0;
+            for (int i = 0; i < smr.bones.Length; i++)
+                if (smr.bones[i] != null) n++;
+            return n;
+        }
+
         static void CombineSkinned(List<SkinnedMeshRenderer> group, KaleidoAvatarPassSettings settings)
         {
+            int destIndex = 0;
+            int destBones = CountLiveBones(group[0]);
+            for (int i = 1; i < group.Count; i++)
+            {
+                int n = CountLiveBones(group[i]);
+                if (n <= destBones) continue;
+                destBones = n;
+                destIndex = i;
+            }
+            if (destIndex != 0)
+            {
+                SkinnedMeshRenderer swap = group[0];
+                group[0] = group[destIndex];
+                group[destIndex] = swap;
+            }
             SkinnedMeshRenderer dest = group[0];
             List<Transform> bones = new List<Transform>();
             List<Matrix4x4> binds = new List<Matrix4x4>();
@@ -1678,6 +1702,11 @@ namespace KaleidoVR.EditorTools
                 for (int b = 0; b < boneMap.Length; b++)
                 {
                     Transform bone = sb[b];
+                    if (bone == null)
+                    {
+                        boneMap[b] = -1;
+                        continue;
+                    }
                     Matrix4x4 bind = (bp != null && b < bp.Length ? bp[b] : Matrix4x4.identity) * invLocal;
                     int found = FindBoneSlot(bones, binds, bone, bind);
                     if (found < 0)
@@ -1755,6 +1784,7 @@ namespace KaleidoVR.EditorTools
             dest.bones = bones.ToArray();
             dest.sharedMaterials = mats.ToArray();
             dest.localBounds = localBox;
+            dest.quality = SkinQuality.Auto;
 
             for (int g = 1; g < group.Count; g++)
             {
@@ -1860,8 +1890,9 @@ namespace KaleidoVR.EditorTools
                         for (int k = 0; k < n; k++)
                         {
                             BoneWeight1 w = src[offset + k];
-                            w.boneIndex = SafeMap(w.boneIndex, boneMap);
-                            if (w.weight <= 0f) continue;
+                            int mapped = SafeMap(w.boneIndex, boneMap);
+                            if (mapped < 0 || w.weight <= 0f) continue;
+                            w.boneIndex = mapped;
                             weights.Add(w);
                             written++;
                         }
@@ -1893,7 +1924,7 @@ namespace KaleidoVR.EditorTools
 
         static void AddMappedWeight(List<BoneWeight1> list, int bone, float weight)
         {
-            if (weight <= 0f) return;
+            if (bone < 0 || weight <= 0f) return;
             list.Add(new BoneWeight1 { boneIndex = bone, weight = weight });
         }
 
@@ -1996,8 +2027,7 @@ namespace KaleidoVR.EditorTools
 
         static int SafeMap(int index, int[] map)
         {
-            if (map == null || map.Length == 0) return 0;
-            if (index < 0 || index >= map.Length) return 0;
+            if (map == null || index < 0 || index >= map.Length) return -1;
             return map[index];
         }
 
