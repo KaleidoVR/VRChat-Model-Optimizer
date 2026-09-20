@@ -927,6 +927,7 @@ namespace KaleidoVR.EditorTools
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root, ComponentRefInfo refs)
         {
             if (renderer == null || IsExcluded(renderer, excluded) || IsSensitiveMesh(renderer)) return true;
+            if (IsEditorOnly(renderer.gameObject)) return true;
             if (IsAttachedExtra(renderer, root)) return true;
             if (refs != null && refs.Keeps(renderer)) return true;
             SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
@@ -1119,6 +1120,7 @@ namespace KaleidoVR.EditorTools
                     if (all[i] == null || all[i] == root.transform || excluded.Contains(all[i])) continue;
                     if (!IsEditorOnly(all[i].gameObject)) continue;
                     if (HasExternalWork(all[i].gameObject, true)) continue;
+                    if (HasNonTransformComponents(all[i].gameObject)) continue;
                     if (HasRequiredRef(all[i], root, refs, skinKeep)) continue;
                     result.objectsRemoved++;
                     result.lines.Add("Remove EditorOnly: " + all[i].name);
@@ -1134,6 +1136,7 @@ namespace KaleidoVR.EditorTools
                     Transform t = all[i];
                     if (t == null || t == root.transform || excluded.Contains(t)) continue;
                     if (HasExternalWork(t.gameObject, true)) continue;
+                    if (HasNonTransformComponents(t.gameObject)) continue;
                     if (t.gameObject.activeSelf) continue;
                     string path = AnimationUtility.CalculateTransformPath(t, root.transform);
                     if (anim.IsActiveAnimated(path)) continue;
@@ -1143,6 +1146,17 @@ namespace KaleidoVR.EditorTools
                     if (!dryRun) UnityEngine.Object.DestroyImmediate(t.gameObject);
                 }
             }
+        }
+
+        static bool HasNonTransformComponents(GameObject go)
+        {
+            if (go == null) return false;
+            Component[] parts = go.GetComponents<Component>();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i] != null && !(parts[i] is Transform)) return true;
+            }
+            return false;
         }
 
         static bool HasRequiredRef(Transform t, GameObject root, ComponentRefInfo refs, HashSet<Transform> skinKeep)
