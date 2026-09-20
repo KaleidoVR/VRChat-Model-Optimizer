@@ -944,28 +944,62 @@ namespace KaleidoVR.EditorTools
 
         static bool IsSkinnedToAvatarSkeleton(SkinnedMeshRenderer smr, GameObject root, HashSet<Transform> human)
         {
-            if (smr.rootBone != null && IsUnderAvatarSkeleton(smr.rootBone, root, human))
-                return true;
-            Transform[] bones = smr.bones;
-            if (bones == null) return true;
-            for (int i = 0; i < bones.Length; i++)
+            if (human == null || human.Count == 0 || smr == null) return false;
+            HashSet<Transform> used = WeightedBones(smr);
+            foreach (Transform bone in used)
             {
-                if (bones[i] != null && IsUnderAvatarSkeleton(bones[i], root, human))
-                    return true;
+                if (bone != null && human.Contains(bone)) return true;
             }
             return false;
         }
 
         static bool IsUnderAvatarSkeleton(Transform t, GameObject root, HashSet<Transform> human)
         {
-            if (human == null) return true;
-            Transform stop = root.transform;
+            if (human == null || human.Count == 0) return false;
+            Transform stop = root != null ? root.transform : null;
             while (t != null && t != stop)
             {
                 if (human.Contains(t)) return true;
                 t = t.parent;
             }
             return false;
+        }
+
+        static HashSet<Transform> WeightedBones(SkinnedMeshRenderer smr)
+        {
+            HashSet<Transform> used = new HashSet<Transform>();
+            if (smr == null) return used;
+            Transform[] bones = smr.bones;
+            if (bones == null || bones.Length == 0) return used;
+            bool[] mark = new bool[bones.Length];
+            if (!MarkUsedBones(smr.sharedMesh, mark))
+            {
+                for (int i = 0; i < bones.Length; i++)
+                    if (bones[i] != null) used.Add(bones[i]);
+                return used;
+            }
+            for (int i = 0; i < mark.Length; i++)
+            {
+                if (mark[i] && bones[i] != null) used.Add(bones[i]);
+            }
+            return used;
+        }
+
+        static bool SharesWeightedBones(SkinnedMeshRenderer a, SkinnedMeshRenderer b)
+        {
+            HashSet<Transform> usedA = WeightedBones(a);
+            HashSet<Transform> usedB = WeightedBones(b);
+            if (usedA.Count == 0 || usedB.Count == 0) return false;
+            return IsBoneSubset(usedA, usedB) || IsBoneSubset(usedB, usedA);
+        }
+
+        static bool IsBoneSubset(HashSet<Transform> a, HashSet<Transform> b)
+        {
+            foreach (Transform bone in a)
+            {
+                if (bone != null && !b.Contains(bone)) return false;
+            }
+            return true;
         }
 
         static HashSet<Transform> CollectHumanoidBones(GameObject root)
@@ -1632,18 +1666,66 @@ namespace KaleidoVR.EditorTools
 
             foreach (KeyValuePair<string, List<SkinnedMeshRenderer>> pair in groups)
             {
-                if (pair.Value.Count < 2) continue;
-                result.meshesMerged += pair.Value.Count - 1;
-                StringBuilder names = new StringBuilder();
-                for (int i = 0; i < pair.Value.Count; i++)
+                List<List<SkinnedMeshRenderer>> clusters = ClusterSharedSkeletons(pair.Value);
+                for (int c = 0; c < clusters.Count; c++)
                 {
-                    if (i > 0) names.Append(", ");
-                    names.Append(pair.Value[i].name);
+                    List<SkinnedMeshRenderer> cluster = clusters[c];
+                    if (cluster.Count < 2) continue;
+                    result.meshesMerged += cluster.Count - 1;
+                    StringBuilder names = new StringBuilder();
+                    for (int i = 0; i < cluster.Count; i++)
+                    {
+                        if (i > 0) names.Append(", ");
+                        names.Append(cluster[i].name);
+                    }
+                    result.lines.Add("Merge meshes: " + names);
+                    if (dryRun) continue;
+                    CombineSkinned(cluster, settings);
                 }
-                result.lines.Add("Merge meshes: " + names);
-                if (dryRun) continue;
-                CombineSkinned(pair.Value, settings);
             }
+        }
+
+        static List<List<SkinnedMeshRenderer>> ClusterSharedSkeletons(List<SkinnedMeshRenderer> list)
+        {
+            List<List<SkinnedMeshRenderer>> clusters = new List<List<SkinnedMeshRenderer>>();
+            if (list == null || list.Count == 0) return clusters;
+            int n = list.Count;
+            int[] parent = new int[n];
+            for (int i = 0; i < n; i++) parent[i] = i;
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = i + 1; j < n; j++)
+                {
+                    if (!SharesWeightedBones(list[i], list[j])) continue;
+                    int a = FindCluster(parent, i);
+                    int b = FindCluster(parent, j);
+                    if (a != b) parent[b] = a;
+                }
+            }
+            Dictionary<int, List<SkinnedMeshRenderer>> byRoot = new Dictionary<int, List<SkinnedMeshRenderer>>();
+            for (int i = 0; i < n; i++)
+            {
+                int root = FindCluster(parent, i);
+                List<SkinnedMeshRenderer> cluster;
+                if (!byRoot.TryGetValue(root, out cluster))
+                {
+                    cluster = new List<SkinnedMeshRenderer>();
+                    byRoot[root] = cluster;
+                    clusters.Add(cluster);
+                }
+                cluster.Add(list[i]);
+            }
+            return clusters;
+        }
+
+        static int FindCluster(int[] parent, int i)
+        {
+            while (parent[i] != i)
+            {
+                parent[i] = parent[parent[i]];
+                i = parent[i];
+            }
+            return i;
         }
 
         static int CountLiveBones(SkinnedMeshRenderer smr)
