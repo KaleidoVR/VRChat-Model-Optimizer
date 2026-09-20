@@ -1002,6 +1002,34 @@ namespace KaleidoVR.EditorTools
             return true;
         }
 
+        static HashSet<Transform> CollectSkinBoneKeep(GameObject root)
+        {
+            HashSet<Transform> keep = new HashSet<Transform>();
+            if (root == null) return keep;
+            Transform stop = root.transform;
+            SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int s = 0; s < skins.Length; s++)
+            {
+                SkinnedMeshRenderer smr = skins[s];
+                if (smr == null) continue;
+                KeepBoneChain(smr.rootBone, stop, keep);
+                Transform[] bones = smr.bones;
+                if (bones == null) continue;
+                for (int i = 0; i < bones.Length; i++)
+                    KeepBoneChain(bones[i], stop, keep);
+            }
+            return keep;
+        }
+
+        static void KeepBoneChain(Transform t, Transform stop, HashSet<Transform> keep)
+        {
+            while (t != null && t != stop)
+            {
+                if (!keep.Add(t)) return;
+                t = t.parent;
+            }
+        }
+
         static HashSet<Transform> CollectHumanoidBones(GameObject root)
         {
             Animator animator = root != null ? root.GetComponent<Animator>() : null;
@@ -1055,6 +1083,8 @@ namespace KaleidoVR.EditorTools
                 remove.Add(b);
             }
 
+            HashSet<Transform> skinKeep = CollectSkinBoneKeep(root);
+
             if (settings.removeUnusedComponents)
             {
                 for (int i = 0; i < remove.Count; i++)
@@ -1070,6 +1100,7 @@ namespace KaleidoVR.EditorTools
                     if (all[i] == null || all[i] == root.transform || excluded.Contains(all[i])) continue;
                     if (!IsEditorOnly(all[i].gameObject)) continue;
                     if (HasExternalWork(all[i].gameObject, true)) continue;
+                    if (HasRequiredRef(all[i], root, refs, skinKeep)) continue;
                     result.objectsRemoved++;
                     result.lines.Add("Remove EditorOnly: " + all[i].name);
                     if (!dryRun) UnityEngine.Object.DestroyImmediate(all[i].gameObject);
@@ -1087,7 +1118,7 @@ namespace KaleidoVR.EditorTools
                     if (t.gameObject.activeSelf) continue;
                     string path = AnimationUtility.CalculateTransformPath(t, root.transform);
                     if (anim.IsActiveAnimated(path)) continue;
-                    if (HasRequiredRef(t, root, refs)) continue;
+                    if (HasRequiredRef(t, root, refs, skinKeep)) continue;
                     result.objectsRemoved++;
                     result.lines.Add("Remove unused object: " + t.name);
                     if (!dryRun) UnityEngine.Object.DestroyImmediate(t.gameObject);
@@ -1095,10 +1126,12 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static bool HasRequiredRef(Transform t, GameObject root, ComponentRefInfo refs)
+        static bool HasRequiredRef(Transform t, GameObject root, ComponentRefInfo refs, HashSet<Transform> skinKeep)
         {
+            if (t == null) return false;
+            if (skinKeep != null && skinKeep.Contains(t)) return true;
             if (refs != null && refs.Keeps(t)) return true;
-            Animator animator = root.GetComponent<Animator>();
+            Animator animator = root != null ? root.GetComponent<Animator>() : null;
             if (animator != null && animator.isHuman)
             {
                 for (int i = 0; i < (int)HumanBodyBones.LastBone; i++)
@@ -1483,6 +1516,13 @@ namespace KaleidoVR.EditorTools
             string ns = t.Namespace ?? "";
             if (ns.StartsWith("UnityEngine", StringComparison.Ordinal) || ns.StartsWith("UnityEditor", StringComparison.Ordinal))
                 return false;
+            return true;
+        }
+
+        static bool ShouldHarvestComponentRefs(Component c)
+        {
+            if (c == null || c is Transform || c is Renderer || c is MeshFilter) return false;
+            if (c is Camera || c is Light || c is ParticleSystem) return false;
             return true;
         }
 
@@ -2666,7 +2706,7 @@ namespace KaleidoVR.EditorTools
                 for (int i = 0; i < parts.Length; i++)
                 {
                     Component c = parts[i];
-                    if (!ShouldScanForBlendShapeNames(c)) continue;
+                    if (!ShouldHarvestComponentRefs(c)) continue;
                     try
                     {
                         info.Harvest(c, visited);
