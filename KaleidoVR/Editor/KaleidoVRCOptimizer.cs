@@ -592,6 +592,7 @@ namespace KaleidoVR.EditorTools
         public int textureSizeHistoryIndex = -1;
         public int writeDefaultsAction;
         public int meshReadWriteAction;
+        public int standaloneOverrideAction;
 
         public static void EnsurePrefsMigrated()
         {
@@ -2513,6 +2514,12 @@ namespace KaleidoVR.EditorTools
             if (EditorGUI.EndChangeCheck()) window.ReadyToApplyMaxSizesOnly = false;
 
             KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
+
+            if (!quest)
+            {
+                GUILayout.Space(8);
+                DrawStandaloneOverrideRow(window);
+            }
 
             GUILayout.Space(8);
             DrawMaxSizesOnlyActions(window, quest);
@@ -4541,6 +4548,71 @@ namespace KaleidoVR.EditorTools
                 : "Confirm writes Read/Write Off for every model this avatar uses.");
         }
 
+        private static void DrawStandaloneOverrideRow(KaleidoVRCOptimizer window)
+        {
+            EnsureSizeStyles();
+            int onCount;
+            int offCount;
+            KaleidoVRCOptimizerLogic.CountStandaloneOverrides(window, out onCount, out offCount);
+            int total = onCount + offCount;
+            string status;
+            if (total == 0) status = "—";
+            else if (onCount > 0 && offCount > 0) status = "Mixed  (" + onCount + " on, " + offCount + " off)";
+            else if (onCount > 0) status = "On";
+            else status = "Off";
+            DrawStatRow("Override for Windows, Mac, Linux", status, false);
+            DrawWhy("Unity's platform override on each listed texture. Default max size is used while this is off. Confirm writes every listed texture now. You do not need Apply after that.");
+            if (total == 0) return;
+
+            bool alreadyOn = offCount == 0;
+            bool alreadyOff = onCount == 0;
+            bool pending = (window.standaloneOverrideAction == 1 && !alreadyOn) || (window.standaloneOverrideAction == 2 && !alreadyOff);
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            if (GUILayout.Toggle(window.standaloneOverrideAction == 1, "On", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.standaloneOverrideAction != 1)
+                window.standaloneOverrideAction = 1;
+            if (GUILayout.Toggle(window.standaloneOverrideAction == 2, "Off", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.standaloneOverrideAction != 2)
+                window.standaloneOverrideAction = 2;
+            if (GUILayout.Toggle(window.standaloneOverrideAction == 0, "Ignore", EditorStyles.miniButton, GUILayout.Height(18), GUILayout.Width(70)) && window.standaloneOverrideAction != 0)
+                window.standaloneOverrideAction = 0;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            if (!pending) return;
+
+            const float MidCol = 88f;
+            GUIStyle midCaption = new GUIStyle(sizeCaptionStyle) { alignment = TextAnchor.MiddleCenter };
+            midCaption.normal.textColor = sizeUpStyle.normal.textColor;
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            EditorGUILayout.BeginVertical(GUILayout.Width(MidCol), GUILayout.MaxWidth(MidCol), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Will apply", midCaption, GUILayout.Width(MidCol));
+            Color prev = GUI.backgroundColor;
+            GUI.backgroundColor = EditorGUIUtility.isProSkin
+                ? new Color(1f, 0.72f, 0.28f, 1f)
+                : new Color(1f, 0.78f, 0.40f, 1f);
+            if (GUILayout.Button("Confirm", GUILayout.Width(MidCol), GUILayout.Height(18)))
+            {
+                bool turnOn = window.standaloneOverrideAction == 1;
+                int written = KaleidoVRCOptimizerLogic.SetStandaloneOverride(window, turnOn);
+                window.standaloneOverrideAction = 0;
+                KaleidoVRCOptimizerLogic.RefreshListedTextureCurrents(window);
+                GUI.changed = false;
+                if (written > 0)
+                    EditorUtility.DisplayDialog("Override for Windows, Mac, Linux", (turnOn ? "On" : "Off") + " on " + written + " texture(s).", "OK");
+            }
+            GUI.backgroundColor = prev;
+            if (GUILayout.Button("Cancel", GUILayout.Width(MidCol), GUILayout.Height(18)))
+                window.standaloneOverrideAction = 0;
+            EditorGUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            DrawWhy(window.standaloneOverrideAction == 1
+                ? "Confirm ticks Override for Windows, Mac, Linux on every listed texture and copies the Default max size onto that platform."
+                : "Confirm clears Override for Windows, Mac, Linux on every listed texture so Unity uses the Default max size.");
+        }
+
         private static void DrawStreamingMipmapsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
         {
             int count = report.missingStreamingCount;
@@ -5410,6 +5482,7 @@ namespace KaleidoVR.EditorTools
             {
                 window.writeDefaultsAction = 0;
                 window.meshReadWriteAction = 0;
+                window.standaloneOverrideAction = 0;
             }
             window.KeepSingleAvatarTarget();
             KaleidoOptimizerReport report = new KaleidoOptimizerReport();
