@@ -163,6 +163,7 @@ namespace KaleidoVR.EditorTools
         public int textureCrunchQuality = 50;
         public bool avatarApplyOnUpload = false;
         public bool avatarMergeSkinnedMeshes = true;
+        public bool avatarMergeBasicMeshes = false;
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
         public bool avatarOptimizeBlendShapes = true;
@@ -339,6 +340,7 @@ namespace KaleidoVR.EditorTools
                 SetB("IncAvatar", true);
                 SetB("AvUp", false);
                 SetB("AvMerge", true);
+                SetB("AvBasic", false);
                 SetB("AvSlots", true);
                 SetB("AvShuffle", true);
                 SetB("AvShape", true);
@@ -490,6 +492,7 @@ namespace KaleidoVR.EditorTools
         public bool includeAvatar = true;
         public bool avatarApplyOnUpload = false;
         public bool avatarMergeSkinnedMeshes = true;
+        public bool avatarMergeBasicMeshes = false;
         public bool avatarMergeIdenticalSlots = true;
         public bool avatarShuffleSlots = true;
         public bool avatarOptimizeBlendShapes = true;
@@ -882,6 +885,7 @@ namespace KaleidoVR.EditorTools
                 includeAvatar = includeAvatar,
                 avatarApplyOnUpload = avatarApplyOnUpload,
                 avatarMergeSkinnedMeshes = avatarMergeSkinnedMeshes,
+                avatarMergeBasicMeshes = avatarMergeBasicMeshes,
                 avatarMergeIdenticalSlots = avatarMergeIdenticalSlots,
                 avatarShuffleSlots = avatarShuffleSlots,
                 avatarOptimizeBlendShapes = avatarOptimizeBlendShapes,
@@ -986,6 +990,7 @@ namespace KaleidoVR.EditorTools
             {
                 avatarApplyOnUpload = p.avatarApplyOnUpload;
                 avatarMergeSkinnedMeshes = p.avatarMergeSkinnedMeshes;
+                avatarMergeBasicMeshes = p.avatarMergeBasicMeshes;
                 avatarMergeIdenticalSlots = p.avatarMergeIdenticalSlots;
                 avatarShuffleSlots = p.avatarShuffleSlots;
                 avatarOptimizeBlendShapes = p.avatarOptimizeBlendShapes;
@@ -1106,6 +1111,7 @@ namespace KaleidoVR.EditorTools
             includeSpecial = GetBool("IncSpec", false);
             avatarApplyOnUpload = GetBool("AvUp", false);
             avatarMergeSkinnedMeshes = GetBool("AvMerge", true);
+            avatarMergeBasicMeshes = GetBool("AvBasic", false);
             avatarMergeIdenticalSlots = GetBool("AvSlots", true);
             avatarShuffleSlots = GetBool("AvShuffle", true);
             avatarOptimizeBlendShapes = GetBool("AvShape", true);
@@ -1217,6 +1223,7 @@ namespace KaleidoVR.EditorTools
             includeAvatar = true;
             avatarApplyOnUpload = false;
             avatarMergeSkinnedMeshes = true;
+            avatarMergeBasicMeshes = false;
             avatarMergeIdenticalSlots = true;
             avatarShuffleSlots = true;
             avatarOptimizeBlendShapes = true;
@@ -1251,6 +1258,7 @@ namespace KaleidoVR.EditorTools
             SetBool("IncSpec", includeSpecial);
             SetBool("AvUp", avatarApplyOnUpload);
             SetBool("AvMerge", avatarMergeSkinnedMeshes);
+            SetBool("AvBasic", avatarMergeBasicMeshes);
             SetBool("AvSlots", avatarMergeIdenticalSlots);
             SetBool("AvShuffle", avatarShuffleSlots);
             SetBool("AvShape", avatarOptimizeBlendShapes);

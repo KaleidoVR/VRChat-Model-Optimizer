@@ -22,6 +22,7 @@ namespace KaleidoVR.EditorTools
     {
         public bool applyOnUpload = false;
         public bool mergeSkinnedMeshes = true;
+        public bool mergeBasicMeshes = false;
         public bool mergeIdenticalSlots = true;
         public bool shuffleMaterialSlots = true;
         public bool optimizeBlendShapes = true;
@@ -142,6 +143,7 @@ namespace KaleidoVR.EditorTools
             {
                 applyOnUpload = EditorPrefs.GetBool(p + "AvUp", false),
                 mergeSkinnedMeshes = EditorPrefs.GetBool(p + "AvMerge", true),
+                mergeBasicMeshes = EditorPrefs.GetBool(p + "AvBasic", false),
                 mergeIdenticalSlots = EditorPrefs.GetBool(p + "AvSlots", true),
                 shuffleMaterialSlots = EditorPrefs.GetBool(p + "AvShuffle", true),
                 optimizeBlendShapes = EditorPrefs.GetBool(p + "AvShape", true),
@@ -166,6 +168,7 @@ namespace KaleidoVR.EditorTools
             {
                 applyOnUpload = window.avatarApplyOnUpload,
                 mergeSkinnedMeshes = window.avatarMergeSkinnedMeshes,
+                mergeBasicMeshes = window.avatarMergeBasicMeshes,
                 mergeIdenticalSlots = window.avatarMergeIdenticalSlots,
                 shuffleMaterialSlots = window.avatarShuffleSlots,
                 optimizeBlendShapes = window.avatarOptimizeBlendShapes,
@@ -411,6 +414,8 @@ namespace KaleidoVR.EditorTools
                 ReportProgress("Merging meshes…", 0.68f);
                 if (settings.mergeSkinnedMeshes)
                     MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs);
+                if (settings.mergeBasicMeshes)
+                    MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
@@ -1948,6 +1953,165 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        static void MergeBasicMeshes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
+        {
+            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            Dictionary<string, List<MeshRenderer>> groups = new Dictionary<string, List<MeshRenderer>>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer mr = renderers[i];
+                if (mr == null || ShouldLeaveRenderer(mr, excluded, root, refs)) continue;
+                if (refs != null && refs.Keeps(mr)) continue;
+                if (mr.GetComponent<SkinnedMeshRenderer>() != null) continue;
+                MeshFilter filter = mr.GetComponent<MeshFilter>();
+                Mesh mesh = filter != null ? filter.sharedMesh : null;
+                if (mesh == null || mesh.vertexCount == 0 || mesh.blendShapeCount > 0) continue;
+                if (refs != null && refs.KeepsAsset(mesh)) continue;
+                string key = anim.BasicTogetherKey(mr, root);
+                if (string.IsNullOrEmpty(key)) continue;
+                List<MeshRenderer> list;
+                if (!groups.TryGetValue(key, out list))
+                {
+                    list = new List<MeshRenderer>();
+                    groups[key] = list;
+                }
+                list.Add(mr);
+            }
+
+            foreach (KeyValuePair<string, List<MeshRenderer>> pair in groups)
+            {
+                if (pair.Value.Count < 2) continue;
+                result.meshesMerged += pair.Value.Count - 1;
+                StringBuilder names = new StringBuilder();
+                for (int i = 0; i < pair.Value.Count; i++)
+                {
+                    if (i > 0) names.Append(", ");
+                    names.Append(pair.Value[i].name);
+                }
+                result.lines.Add("Merge basic meshes: " + names);
+                if (dryRun) continue;
+                CombineBasic(pair.Value, settings);
+            }
+        }
+
+        static int CountMeshVerts(MeshRenderer mr)
+        {
+            if (mr == null) return 0;
+            MeshFilter filter = mr.GetComponent<MeshFilter>();
+            Mesh mesh = filter != null ? filter.sharedMesh : null;
+            return mesh != null ? mesh.vertexCount : 0;
+        }
+
+        static void CombineBasic(List<MeshRenderer> group, KaleidoAvatarPassSettings settings)
+        {
+            int destIndex = 0;
+            int destVerts = CountMeshVerts(group[0]);
+            for (int i = 1; i < group.Count; i++)
+            {
+                int n = CountMeshVerts(group[i]);
+                if (n <= destVerts) continue;
+                destVerts = n;
+                destIndex = i;
+            }
+            if (destIndex != 0)
+            {
+                MeshRenderer swap = group[0];
+                group[0] = group[destIndex];
+                group[destIndex] = swap;
+            }
+
+            MeshRenderer dest = group[0];
+            MeshFilter destFilter = dest.GetComponent<MeshFilter>();
+            if (destFilter == null) return;
+
+            List<Vector3> verts = new List<Vector3>();
+            List<Vector3> norms = new List<Vector3>();
+            List<Vector4> tans = new List<Vector4>();
+            List<Vector2>[] uvs = new List<Vector2>[8];
+            bool[] anyUv = new bool[8];
+            for (int c = 0; c < 8; c++) uvs[c] = new List<Vector2>();
+            List<Color32> colors = new List<Color32>();
+            bool anyColor = false;
+            List<Material> mats = new List<Material>();
+            List<int[]> subTris = new List<int[]>();
+
+            for (int g = 0; g < group.Count; g++)
+            {
+                MeshRenderer mr = group[g];
+                MeshFilter filter = mr.GetComponent<MeshFilter>();
+                Mesh mesh = filter != null ? filter.sharedMesh : null;
+                if (mesh == null) continue;
+                Matrix4x4 local = dest.transform.worldToLocalMatrix * mr.transform.localToWorldMatrix;
+
+                int vertBase = verts.Count;
+                Vector3[] mv = mesh.vertices;
+                Vector3[] mn = mesh.normals;
+                Vector4[] mt = mesh.tangents;
+                for (int i = 0; i < mv.Length; i++)
+                {
+                    verts.Add(local.MultiplyPoint3x4(mv[i]));
+                    norms.Add(mn != null && i < mn.Length ? local.MultiplyVector(mn[i]).normalized : Vector3.up);
+                    if (mt != null && i < mt.Length)
+                    {
+                        Vector3 tv = local.MultiplyVector(new Vector3(mt[i].x, mt[i].y, mt[i].z));
+                        tans.Add(new Vector4(tv.x, tv.y, tv.z, mt[i].w));
+                    }
+                    else tans.Add(new Vector4(1, 0, 0, 1));
+                }
+                AppendUvsAndColors(mesh, mv.Length, uvs, anyUv, colors, ref anyColor);
+
+                Material[] sm = mr.sharedMaterials;
+                for (int sub = 0; sub < mesh.subMeshCount; sub++)
+                {
+                    int[] tri = mesh.GetTriangles(sub);
+                    for (int t = 0; t < tri.Length; t++) tri[t] += vertBase;
+                    Material mat = sm != null && sub < sm.Length ? sm[sub] : null;
+                    int slot = -1;
+                    if (settings.mergeIdenticalSlots)
+                    {
+                        for (int m = 0; m < mats.Count; m++)
+                            if (mats[m] == mat) { slot = m; break; }
+                    }
+                    if (slot >= 0)
+                    {
+                        int[] old = subTris[slot];
+                        int[] merged = new int[old.Length + tri.Length];
+                        old.CopyTo(merged, 0);
+                        tri.CopyTo(merged, old.Length);
+                        subTris[slot] = merged;
+                    }
+                    else
+                    {
+                        mats.Add(mat);
+                        subTris.Add(tri);
+                    }
+                }
+            }
+
+            Mesh combined = new Mesh();
+            combined.name = dest.name + "_KaleidoBasic";
+            combined.indexFormat = verts.Count > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            combined.SetVertices(verts);
+            combined.SetNormals(norms);
+            combined.SetTangents(tans);
+            for (int c = 0; c < 8; c++)
+            {
+                if (anyUv[c]) combined.SetUVs(c, uvs[c]);
+            }
+            if (anyColor) combined.colors32 = colors.ToArray();
+            combined.subMeshCount = subTris.Count;
+            for (int i = 0; i < subTris.Count; i++) combined.SetTriangles(subTris[i], i);
+            combined.RecalculateBounds();
+            destFilter.sharedMesh = PersistMesh(combined);
+            dest.sharedMaterials = mats.ToArray();
+
+            for (int g = 1; g < group.Count; g++)
+            {
+                MeshRenderer mr = group[g];
+                if (mr != null) UnityEngine.Object.DestroyImmediate(mr);
+            }
+        }
+
         static bool MarkUsedBones(Mesh mesh, bool[] used)
         {
             if (mesh == null || used == null || used.Length == 0) return false;
@@ -3063,6 +3227,25 @@ namespace KaleidoVR.EditorTools
                 }
                 int layer = smr.gameObject.layer;
                 return "always|" + layer + "|" + (smr.updateWhenOffscreen ? "1" : "0");
+            }
+
+            public string BasicTogetherKey(MeshRenderer mr, GameObject root)
+            {
+                if (mr == null || root == null) return null;
+                string path = AnimationUtility.CalculateTransformPath(mr.transform, root.transform);
+                bool tog = enabled.Contains(path + "|" + typeof(MeshRenderer).FullName) || actives.Contains(path);
+                if (tog || matAnimated.Contains(path) || HasMaterialSwap(path)) return null;
+                if (IsTransformMoved(mr.transform, root.transform)) return null;
+                Transform t = mr.transform.parent;
+                while (t != null && t != root.transform)
+                {
+                    string p = AnimationUtility.CalculateTransformPath(t, root.transform);
+                    if (actives.Contains(p)) return null;
+                    t = t.parent;
+                }
+                Transform parent = mr.transform.parent;
+                string parentPath = parent != null ? AnimationUtility.CalculateTransformPath(parent, root.transform) : "";
+                return "basic|" + parentPath + "|" + mr.gameObject.layer + "|" + (int)mr.shadowCastingMode + "|" + (mr.receiveShadows ? "1" : "0");
             }
 
             public bool HasMaterialSwap(SkinnedMeshRenderer smr, GameObject root)
