@@ -1,5 +1,11 @@
 What's new
 
+1.0.69
+I added a cap for Action and Expression Menu icons. On Upload walks the assembled menus and only resizes icons that are actually on those controls. 256, 128, or 64. If none are larger than the pick, I skip that step. Copies stay on the upload clone. An icon that is also on a material stays on that material; the menu gets its own copy.
+Textures can write the same cap on the importer. That row starts off. I only list icons from the menus on the avatar in the scene, and I leave an icon that is also on a material alone. Menus that only show up after upload assembly are not in that list — use On Upload for those.
+UI — On Upload: Cap Action / Expression Menu icons sits under Menus, after Contacts. It starts on at 256 when Apply on upload is ticked.
+UI — Textures: Action / Expression Menu icons sits at the bottom of Max Size By Type. 256, 128, or 64. It starts off. A note under the type list says to use On Upload for menus that appear only after assembly.
+
 1.0.68
 I added Merge basic meshes on On Upload. It is off unless you turn it on. It combines always-visible MeshRenderer bits that share a parent — hair clips, glasses, that kind of thing. Extra renderer components come off; the objects stay. Toggles, transform animations, and anything another component still points at stay separate.
 UI — On Upload: Merge basic meshes sits under Meshes, after Merge skinned meshes. It starts off.
