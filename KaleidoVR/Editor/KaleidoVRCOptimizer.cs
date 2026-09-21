@@ -2495,6 +2495,7 @@ namespace KaleidoVR.EditorTools
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeEmission, ref window.applyEmissionSize, "Emission", "Suggested 256–512.", ref window.emissionQuest);
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeMatcap, ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Suggested 256–512.", ref window.matcapQuest);
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeOther, ref window.applyOtherSize, "Other / Unclassified", "Suggested 512.", ref window.otherQuest);
+                DrawTypeSizeRow(window, KaleidoOptionUndo.SizeMenuIcon, ref window.applyMenuIconSize, "Action / Expression Menu icons", "Off by default. Only textures assigned as Action or Expression Menu icons. 256, 128, or 64. Prefer On Upload — that caps the assembled menus and does not write the project. Apply here writes the importer. An icon that is also on a material is left alone.", ref window.menuIconQuest, MenuIconSizes, MenuIconSizeLabels);
             }
             else
             {
@@ -2506,7 +2507,9 @@ namespace KaleidoVR.EditorTools
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeEmission, ref window.applyEmissionSize, "Emission", "Glow maps. Suggested 512–1024.", ref window.emissionPc);
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeMatcap, ref window.applyMatcapSize, "Matcap / Ramp / Toon", "Tiny lookup textures. Suggested 256–512.", ref window.matcapPc);
                 DrawTypeSizeRow(window, KaleidoOptionUndo.SizeOther, ref window.applyOtherSize, "Other / Unclassified", "Anything that did not match a suffix. Suggested 512–1024.", ref window.otherPc);
+                DrawTypeSizeRow(window, KaleidoOptionUndo.SizeMenuIcon, ref window.applyMenuIconSize, "Action / Expression Menu icons", "Off by default. Only textures assigned as Action or Expression Menu icons. 256, 128, or 64. Prefer On Upload — that caps the assembled menus and does not write the project. Apply here writes the importer. An icon that is also on a material is left alone.", ref window.menuIconPc, MenuIconSizes, MenuIconSizeLabels);
             }
+            EditorGUILayout.HelpBox("This list only sees menus on the avatar in the scene. Menus that appear only after upload assembly are not here. Use On Upload to cap those without writing the project.", MessageType.Info);
             if (EditorGUI.EndChangeCheck()) window.ReadyToApplyMaxSizesOnly = false;
 
             KaleidoVRCOptimizerLogic.SyncTextureRowDefaults(window);
@@ -3234,18 +3237,24 @@ namespace KaleidoVR.EditorTools
                 case KaleidoTextureKind.Mask: return "Mask";
                 case KaleidoTextureKind.Emission: return "Emission";
                 case KaleidoTextureKind.Matcap: return "Matcap";
+                case KaleidoTextureKind.MenuIcon: return "Menu icon";
                 default: return "Other";
             }
         }
 
         private static void DrawTypeSizeRow(KaleidoVRCOptimizer window, string optionId, ref bool apply, string title, string why, ref int size)
         {
+            DrawTypeSizeRow(window, optionId, ref apply, title, why, ref size, TextureSizes, TextureSizeLabels);
+        }
+
+        private static void DrawTypeSizeRow(KaleidoVRCOptimizer window, string optionId, ref bool apply, string title, string why, ref int size, int[] sizes, string[] labels)
+        {
             apply = DrawToggle(window, optionId, apply, title, why);
             EditorGUI.BeginDisabledGroup(!apply);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(18);
             GUILayout.Label("Set", GUILayout.Width(28));
-            size = SizePopup(size);
+            size = SizePopup(size, sizes, labels);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
             EditorGUI.EndDisabledGroup();
@@ -3293,6 +3302,18 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Contacts", EditorStyles.boldLabel);
             window.avatarOptimizeContacts = DrawToggle(window.avatarOptimizeContacts, "Remove unused contacts", "Removes contact senders and receivers that are disabled and never turn on. Enabled senders stay so other avatars can still hit them. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay, and so does anything another component still points at.");
+
+            GUILayout.Space(8);
+            GUILayout.Label("Menus", EditorStyles.boldLabel);
+            window.avatarCapMenuIcons = DrawToggle(window.avatarCapMenuIcons, "Cap Action / Expression Menu icons", "On by default. Walks the assembled Action and Expression Menus and only resizes icons that are actually on those controls. 256, 128, or 64. Skips this step if none are larger than the pick. Writes copies on the upload clone only. An icon that is also on a material stays on that material; the menu gets its own copy.");
+            EditorGUI.BeginDisabledGroup(!window.avatarCapMenuIcons);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(18);
+            GUILayout.Label("Set", GUILayout.Width(28));
+            window.avatarMenuIconSize = SizePopup(window.avatarMenuIconSize, MenuIconSizes, MenuIconSizeLabels);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.EndDisabledGroup();
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
