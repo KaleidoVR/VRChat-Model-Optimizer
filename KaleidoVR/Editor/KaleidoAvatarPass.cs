@@ -35,6 +35,8 @@ namespace KaleidoVR.EditorTools
         public bool optimizeContacts = true;
         public bool optimizeFxLayer = false;
         public bool enableMeshReadWrite = true;
+        public bool capMenuIcons = true;
+        public int menuIconSize = 256;
     }
 
     public sealed class KaleidoAvatarPassResult
@@ -156,7 +158,9 @@ namespace KaleidoVR.EditorTools
                 optimizeContacts = EditorPrefs.GetBool(p + "AvContact", true),
                 optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false),
                 enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
-                    && EditorPrefs.GetInt(p + "Workspace", 0) == 1
+                    && EditorPrefs.GetInt(p + "Workspace", 0) == 1,
+                capMenuIcons = EditorPrefs.GetBool(p + "AvMenuIcon", true),
+                menuIconSize = KaleidoVRCOptimizer.ClampMenuIconSize(EditorPrefs.GetInt(p + "AvMenuIconSize", 256))
             };
             return settings;
         }
@@ -180,7 +184,9 @@ namespace KaleidoVR.EditorTools
                 optimizePhysBones = window.avatarOptimizePhysBones,
                 optimizeContacts = window.avatarOptimizeContacts,
                 optimizeFxLayer = window.avatarOptimizeFxLayer,
-                enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite
+                enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite,
+                capMenuIcons = window.avatarCapMenuIcons,
+                menuIconSize = KaleidoVRCOptimizer.ClampMenuIconSize(window.avatarMenuIconSize)
             };
             return settings;
         }
@@ -429,6 +435,10 @@ namespace KaleidoVR.EditorTools
                 if (settings.optimizeFxLayer)
                     OptimizeFx(root, settings, excluded, dryRun, result);
 
+                ReportProgress("Capping menu icons…", 0.95f);
+                if (settings.capMenuIcons)
+                    CapMenuIcons(root, settings, dryRun, result);
+
                 ReportProgress("Saving generated meshes…", 0.98f);
                 if (persistGenerated)
                 {
@@ -555,7 +565,17 @@ namespace KaleidoVR.EditorTools
         {
             Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
             if (desc == null) return false;
-            return FieldUsesGenerated(desc, "baseAnimationLayers") || FieldUsesGenerated(desc, "specialAnimationLayers");
+            if (FieldUsesGenerated(desc, "baseAnimationLayers") || FieldUsesGenerated(desc, "specialAnimationLayers"))
+                return true;
+            UnityEngine.Object menu = FindExpressionsMenu(root);
+            if (menu != null && AssetPathIsGenerated(menu)) return true;
+            HashSet<Texture2D> icons = new HashSet<Texture2D>();
+            HarvestMenuTree(menu, icons, null, new HashSet<int>());
+            foreach (Texture2D icon in icons)
+            {
+                if (AssetPathIsGenerated(icon)) return true;
+            }
+            return false;
         }
 
         static bool FieldUsesGenerated(Component desc, string fieldName)
@@ -740,6 +760,235 @@ namespace KaleidoVR.EditorTools
             if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(inst)))
                 throw new InvalidOperationException("Could not save FX controller: " + dest);
             return inst;
+        }
+
+        public static void CollectExpressionMenuIcons(GameObject root, HashSet<Texture2D> icons)
+        {
+            if (icons == null) return;
+            HarvestMenuTree(FindExpressionsMenu(root), icons, null, new HashSet<int>());
+        }
+
+        static UnityEngine.Object FindExpressionsMenu(GameObject root)
+        {
+            if (root == null) return null;
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return null;
+            FieldInfo menu = desc.GetType().GetField("expressionsMenu");
+            if (menu == null) return null;
+            return menu.GetValue(desc) as UnityEngine.Object;
+        }
+
+        static void HarvestMenuTree(UnityEngine.Object obj, HashSet<Texture2D> icons, List<UnityEngine.Object> menus, HashSet<int> visited)
+        {
+            if (obj == null || visited == null) return;
+            if (!visited.Add(obj.GetInstanceID())) return;
+            if (menus != null && obj is ScriptableObject) menus.Add(obj);
+
+            List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
+            SerializedObject so = new SerializedObject(obj);
+            SerializedProperty p = so.GetIterator();
+            while (p.Next(true))
+            {
+                if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
+                UnityEngine.Object next = p.objectReferenceValue;
+                if (next == null || next is MonoScript) continue;
+                Texture2D tex = next as Texture2D;
+                if (tex != null)
+                {
+                    if (icons != null && p.name == "icon") icons.Add(tex);
+                    continue;
+                }
+                if (next is ScriptableObject) nested.Add(next);
+            }
+            for (int i = 0; i < nested.Count; i++)
+                HarvestMenuTree(nested[i], icons, menus, visited);
+        }
+
+        static void CapMenuIcons(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || settings == null || result == null || !settings.capMenuIcons) return;
+            int size = KaleidoVRCOptimizer.ClampMenuIconSize(settings.menuIconSize);
+
+            HashSet<Texture2D> icons = new HashSet<Texture2D>();
+            CollectExpressionMenuIcons(root, icons);
+            if (icons.Count == 0) return;
+
+            List<Texture2D> oversized = new List<Texture2D>();
+            foreach (Texture2D tex in icons)
+            {
+                if (tex == null) continue;
+                if (Math.Max(tex.width, tex.height) > size) oversized.Add(tex);
+            }
+            if (oversized.Count == 0)
+            {
+                result.lines.Add("Action / Expression Menu icons: none larger than " + size + ".");
+                return;
+            }
+
+            result.lines.Add("Action / Expression Menu icons: resized " + oversized.Count + " icon(s) to " + size + ".");
+            if (dryRun) return;
+
+            Dictionary<Texture2D, Texture2D> copies = new Dictionary<Texture2D, Texture2D>();
+            for (int i = 0; i < oversized.Count; i++)
+            {
+                Texture2D src = oversized[i];
+                Texture2D copy = ResizeTextureCopy(src, size);
+                if (copy == null) continue;
+                copies[src] = PersistTexture(copy);
+            }
+            if (copies.Count == 0) return;
+
+            RewriteExpressionMenuIcons(root, copies);
+        }
+
+        static Texture2D ResizeTextureCopy(Texture2D src, int maxSize)
+        {
+            if (src == null || maxSize <= 0) return null;
+            int w = src.width;
+            int h = src.height;
+            int longest = Math.Max(w, h);
+            if (longest <= maxSize) return null;
+            float scale = (float)maxSize / longest;
+            int nw = Mathf.Max(1, Mathf.RoundToInt(w * scale));
+            int nh = Mathf.Max(1, Mathf.RoundToInt(h * scale));
+
+            RenderTexture rt = RenderTexture.GetTemporary(nw, nh, 0, RenderTextureFormat.ARGB32);
+            RenderTexture prev = RenderTexture.active;
+            try
+            {
+                Graphics.Blit(src, rt);
+                RenderTexture.active = rt;
+                Texture2D copy = new Texture2D(nw, nh, TextureFormat.RGBA32, false);
+                copy.ReadPixels(new Rect(0, 0, nw, nh), 0, 0);
+                copy.Apply();
+                copy.name = src.name + "_" + maxSize;
+                copy.hideFlags = persistGenerated ? HideFlags.None : HideFlags.HideAndDontSave;
+                return copy;
+            }
+            finally
+            {
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+            }
+        }
+
+        static Texture2D PersistTexture(Texture2D tex)
+        {
+            if (tex == null) return null;
+            tex.hideFlags = persistGenerated ? HideFlags.None : HideFlags.HideAndDontSave;
+            if (!persistGenerated) return tex;
+            if (!string.IsNullOrEmpty(AssetDatabase.GetAssetPath(tex))) return tex;
+            string path = AssetDatabase.GenerateUniqueAssetPath(EnsureGeneratedFolder() + "/" + SafeAssetName(tex.name) + ".asset");
+            AssetDatabase.CreateAsset(tex, path);
+            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(tex)))
+                throw new InvalidOperationException("Could not save menu icon: " + path);
+            return tex;
+        }
+
+        static UnityEngine.Object PersistMenu(UnityEngine.Object src)
+        {
+            if (src == null) return null;
+            if (!persistGenerated)
+            {
+                UnityEngine.Object tmp = UnityEngine.Object.Instantiate(src);
+                tmp.name = src.name + "_KaleidoMenu";
+                tmp.hideFlags = HideFlags.HideAndDontSave;
+                return tmp;
+            }
+
+            string folder = EnsureGeneratedFolder();
+            string dest = AssetDatabase.GenerateUniqueAssetPath(folder + "/" + SafeAssetName(src.name) + "_KaleidoMenu.asset");
+            string srcPath = AssetDatabase.GetAssetPath(src);
+            if (!string.IsNullOrEmpty(srcPath))
+            {
+                if (!AssetDatabase.CopyAsset(srcPath, dest))
+                    throw new InvalidOperationException("Could not copy menu: " + src.name);
+                UnityEngine.Object copy = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(dest);
+                if (copy == null)
+                    throw new InvalidOperationException("Copied menu did not load: " + dest);
+                return copy;
+            }
+
+            UnityEngine.Object inst = UnityEngine.Object.Instantiate(src);
+            inst.name = src.name + "_KaleidoMenu";
+            inst.hideFlags = HideFlags.None;
+            AssetDatabase.CreateAsset(inst, dest);
+            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(inst)))
+                throw new InvalidOperationException("Could not save menu: " + dest);
+            return inst;
+        }
+
+        static bool MustCopyMenu(UnityEngine.Object obj)
+        {
+            if (obj == null) return false;
+            string path = AssetDatabase.GetAssetPath(obj);
+            if (string.IsNullOrEmpty(path)) return false;
+            return !path.Replace('\\', '/').StartsWith(GeneratedFolderPath, StringComparison.Ordinal);
+        }
+
+        static void RewriteExpressionMenuIcons(GameObject root, Dictionary<Texture2D, Texture2D> iconCopies)
+        {
+            if (root == null || iconCopies == null || iconCopies.Count == 0) return;
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return;
+            FieldInfo menuField = desc.GetType().GetField("expressionsMenu");
+            if (menuField == null) return;
+            UnityEngine.Object rootMenu = menuField.GetValue(desc) as UnityEngine.Object;
+            if (rootMenu == null) return;
+
+            List<UnityEngine.Object> menus = new List<UnityEngine.Object>();
+            HarvestMenuTree(rootMenu, null, menus, new HashSet<int>());
+            if (menus.Count == 0) return;
+
+            Dictionary<UnityEngine.Object, UnityEngine.Object> menuMap = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
+            for (int i = 0; i < menus.Count; i++)
+            {
+                UnityEngine.Object menu = menus[i];
+                if (menu == null) continue;
+                menuMap[menu] = MustCopyMenu(menu) ? PersistMenu(menu) : menu;
+            }
+
+            foreach (KeyValuePair<UnityEngine.Object, UnityEngine.Object> pair in menuMap)
+            {
+                if (pair.Value != null) RemapMenuRefs(pair.Value, iconCopies, menuMap);
+            }
+
+            UnityEngine.Object newRoot;
+            if (menuMap.TryGetValue(rootMenu, out newRoot) && newRoot != null && newRoot != rootMenu)
+                menuField.SetValue(desc, newRoot);
+        }
+
+        static void RemapMenuRefs(UnityEngine.Object menu, Dictionary<Texture2D, Texture2D> iconCopies, Dictionary<UnityEngine.Object, UnityEngine.Object> menuMap)
+        {
+            if (menu == null) return;
+            SerializedObject so = new SerializedObject(menu);
+            SerializedProperty p = so.GetIterator();
+            bool changed = false;
+            while (p.Next(true))
+            {
+                if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
+                UnityEngine.Object next = p.objectReferenceValue;
+                if (next == null) continue;
+
+                Texture2D tex = next as Texture2D;
+                Texture2D mappedIcon;
+                if (tex != null && p.name == "icon" && iconCopies != null && iconCopies.TryGetValue(tex, out mappedIcon) && mappedIcon != null)
+                {
+                    p.objectReferenceValue = mappedIcon;
+                    changed = true;
+                    continue;
+                }
+
+                UnityEngine.Object mappedMenu;
+                if (next is ScriptableObject && menuMap != null && menuMap.TryGetValue(next, out mappedMenu) && mappedMenu != null && mappedMenu != next)
+                {
+                    p.objectReferenceValue = mappedMenu;
+                    changed = true;
+                }
+            }
+            if (!changed) return;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(menu);
         }
 
         static void AssertMeshesSaved(GameObject root)

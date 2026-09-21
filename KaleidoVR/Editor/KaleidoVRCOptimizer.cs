@@ -60,7 +60,8 @@ namespace KaleidoVR.EditorTools
         Mask = 2,
         Emission = 3,
         Matcap = 4,
-        Other = 5
+        Other = 5,
+        MenuIcon = 6
     }
 
     [Serializable]
@@ -94,6 +95,9 @@ namespace KaleidoVR.EditorTools
         public bool applyOtherSize = false;
         public int otherPc = 1024;
         public int otherQuest = 512;
+        public bool applyMenuIconSize = false;
+        public int menuIconPc = 256;
+        public int menuIconQuest = 256;
         public bool applyPcTexFormat = false;
         public KaleidoPcTexFormat pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
         public bool applyAndroidTexFormat = false;
@@ -176,6 +180,8 @@ namespace KaleidoVR.EditorTools
         public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
         public bool avatarEnableMeshReadWrite = true;
+        public bool avatarCapMenuIcons = true;
+        public int avatarMenuIconSize = 256;
     }
 
     [Serializable]
@@ -203,7 +209,7 @@ namespace KaleidoVR.EditorTools
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
         public const string FALLBACK_ICON_PATH = "Assets/KaleidoVR/Editor/Icons/Kali_Logo.png";
         public const string PrefsPrefix = "KVR_VrcOpt_";
-        public const int PrefsSchema = 11;
+        public const int PrefsSchema = 12;
 
         [InitializeOnLoad]
         static class PrefsMigrate
@@ -274,6 +280,15 @@ namespace KaleidoVR.EditorTools
 
                 if (schema < 11)
                     SetB("AvContact", true);
+
+                if (schema < 12)
+                {
+                    SetB("AvMenuIcon", true);
+                    SetI("AvMenuIconSize", 256);
+                    SetB("ISize", false);
+                    SetI("IPc", 256);
+                    SetI("IQ", 256);
+                }
 
                 SetI("Schema", PrefsSchema);
             }
@@ -353,6 +368,8 @@ namespace KaleidoVR.EditorTools
                 SetB("AvContact", true);
                 SetB("AvFx", false);
                 SetB("AvMeshRW", true);
+                SetB("AvMenuIcon", true);
+                SetI("AvMenuIconSize", 256);
             }
 
             static bool Has(string key)
@@ -420,6 +437,9 @@ namespace KaleidoVR.EditorTools
         public bool applyOtherSize = false;
         public int otherPc = 1024;
         public int otherQuest = 512;
+        public bool applyMenuIconSize = false;
+        public int menuIconPc = 256;
+        public int menuIconQuest = 256;
 
         public bool optimizeTextures = true;
         public bool applyPcTexFormat = false;
@@ -505,6 +525,8 @@ namespace KaleidoVR.EditorTools
         public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
         public bool avatarEnableMeshReadWrite = true;
+        public bool avatarCapMenuIcons = true;
+        public int avatarMenuIconSize = 256;
         public readonly List<string> onUploadPreviewLines = new List<string>();
 
         public KaleidoOptimizerReport lastReport;
@@ -574,6 +596,12 @@ namespace KaleidoVR.EditorTools
         public static void EnsurePrefsMigrated()
         {
             PrefsMigrate.Run();
+        }
+
+        public static int ClampMenuIconSize(int size)
+        {
+            if (size == 64 || size == 128) return size;
+            return 256;
         }
 
         [MenuItem("KaleidoVR/VRChat Model Optimizer", false, 101)]
@@ -700,7 +728,7 @@ namespace KaleidoVR.EditorTools
             ApplyAvatarTabDefaults(index);
 
             optimizeTextures = true;
-            applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = false;
+            applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = applyMenuIconSize = false;
             applyPcTexFormat = false;
             applyAndroidTexFormat = false;
             pcTexFormat = KaleidoPcTexFormat.AutoBc7Dxt1;
@@ -783,6 +811,7 @@ namespace KaleidoVR.EditorTools
             {
                 SetTypeSizes(1024, 1024, 1024, 1024, 512, 512, 512, 512, 256, 256, 512, 512);
                 applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
+                applyMenuIconSize = false;
                 applySkinWeights = true;
                 skinWeights = KaleidoSkinWeightChoice.FourBones;
                 rendererDisableShadows = true;
@@ -798,6 +827,7 @@ namespace KaleidoVR.EditorTools
                 {
                     avatarRemoveUnusedGameObjects = true;
                     applyAlbedoSize = applyNormalSize = applyMaskSize = applyEmissionSize = applyMatcapSize = applyOtherSize = true;
+                    applyMenuIconSize = false;
                     meshOptimizeAnimation = true;
                     audioApplyVorbis = true;
                     audioLoadInBackground = true;
@@ -845,6 +875,7 @@ namespace KaleidoVR.EditorTools
                 applyEmissionSize = applyEmissionSize, emissionPc = emissionPc, emissionQuest = emissionQuest,
                 applyMatcapSize = applyMatcapSize, matcapPc = matcapPc, matcapQuest = matcapQuest,
                 applyOtherSize = applyOtherSize, otherPc = otherPc, otherQuest = otherQuest,
+                applyMenuIconSize = applyMenuIconSize, menuIconPc = menuIconPc, menuIconQuest = menuIconQuest,
                 applyPcTexFormat = applyPcTexFormat, pcTexFormat = pcTexFormat,
                 applyAndroidTexFormat = applyAndroidTexFormat, androidTexFormat = androidTexFormat,
                 textureEnableReadWrite = textureEnableReadWrite,
@@ -897,7 +928,9 @@ namespace KaleidoVR.EditorTools
                 avatarOptimizePhysBones = avatarOptimizePhysBones,
                 avatarOptimizeContacts = avatarOptimizeContacts,
                 avatarOptimizeFxLayer = avatarOptimizeFxLayer,
-                avatarEnableMeshReadWrite = avatarEnableMeshReadWrite
+                avatarEnableMeshReadWrite = avatarEnableMeshReadWrite,
+                avatarCapMenuIcons = avatarCapMenuIcons,
+                avatarMenuIconSize = avatarMenuIconSize
             };
         }
 
@@ -929,6 +962,7 @@ namespace KaleidoVR.EditorTools
                 applyEmissionSize = p.applyEmissionSize; emissionPc = p.emissionPc; emissionQuest = p.emissionQuest;
                 applyMatcapSize = p.applyMatcapSize; matcapPc = p.matcapPc; matcapQuest = p.matcapQuest;
                 applyOtherSize = p.applyOtherSize; otherPc = p.otherPc; otherQuest = p.otherQuest;
+                applyMenuIconSize = p.applyMenuIconSize; menuIconPc = ClampMenuIconSize(p.menuIconPc); menuIconQuest = ClampMenuIconSize(p.menuIconQuest);
                 textureEnableReadWrite = p.textureEnableReadWrite;
                 textureDisableReadWrite = p.textureDisableReadWrite;
                 if (textureEnableReadWrite) textureDisableReadWrite = false;
@@ -1003,6 +1037,8 @@ namespace KaleidoVR.EditorTools
                 avatarOptimizeContacts = p.avatarOptimizeContacts;
                 avatarOptimizeFxLayer = p.avatarOptimizeFxLayer;
                 avatarEnableMeshReadWrite = p.avatarEnableMeshReadWrite;
+                avatarCapMenuIcons = p.avatarCapMenuIcons;
+                avatarMenuIconSize = ClampMenuIconSize(p.avatarMenuIconSize);
             }
             if (spec)
             {
@@ -1124,6 +1160,8 @@ namespace KaleidoVR.EditorTools
             avatarOptimizeContacts = GetBool("AvContact", true);
             avatarOptimizeFxLayer = GetBool("AvFx", false);
             avatarEnableMeshReadWrite = GetBool("AvMeshRW", true);
+            avatarCapMenuIcons = GetBool("AvMenuIcon", true);
+            avatarMenuIconSize = ClampMenuIconSize(GetInt("AvMenuIconSize", 256));
 
             optimizeTextures = GetBool("OptTex", true);
             applyAlbedoSize = GetBool("ASize", false);
@@ -1138,6 +1176,8 @@ namespace KaleidoVR.EditorTools
             matcapPc = GetInt("CPc", 512); matcapQuest = GetInt("CQ", 256);
             applyOtherSize = GetBool("OSize", false);
             otherPc = GetInt("OPc", 1024); otherQuest = GetInt("OQ", 512);
+            applyMenuIconSize = GetBool("ISize", false);
+            menuIconPc = ClampMenuIconSize(GetInt("IPc", 256)); menuIconQuest = ClampMenuIconSize(GetInt("IQ", 256));
             applyPcTexFormat = GetBool("PcFmtOn", false);
             applyAndroidTexFormat = GetBool("AndFmtOn", false);
             pcTexFormat = (KaleidoPcTexFormat)GetInt("PcFmt", (int)KaleidoPcTexFormat.AutoBc7Dxt1);
@@ -1236,6 +1276,8 @@ namespace KaleidoVR.EditorTools
             avatarOptimizeContacts = true;
             avatarOptimizeFxLayer = false;
             avatarEnableMeshReadWrite = true;
+            avatarCapMenuIcons = true;
+            avatarMenuIconSize = 256;
         }
 
         public void SaveEditorPreferences()
@@ -1271,6 +1313,8 @@ namespace KaleidoVR.EditorTools
             SetBool("AvContact", avatarOptimizeContacts);
             SetBool("AvFx", avatarOptimizeFxLayer);
             SetBool("AvMeshRW", avatarEnableMeshReadWrite);
+            SetBool("AvMenuIcon", avatarCapMenuIcons);
+            SetInt("AvMenuIconSize", ClampMenuIconSize(avatarMenuIconSize));
 
             SetBool("OptTex", optimizeTextures);
             SetBool("ASize", applyAlbedoSize); SetInt("APc", albedoPc); SetInt("AQ", albedoQuest);
@@ -1279,6 +1323,7 @@ namespace KaleidoVR.EditorTools
             SetBool("ESize", applyEmissionSize); SetInt("EPc", emissionPc); SetInt("EQ", emissionQuest);
             SetBool("CSize", applyMatcapSize); SetInt("CPc", matcapPc); SetInt("CQ", matcapQuest);
             SetBool("OSize", applyOtherSize); SetInt("OPc", otherPc); SetInt("OQ", otherQuest);
+            SetBool("ISize", applyMenuIconSize); SetInt("IPc", ClampMenuIconSize(menuIconPc)); SetInt("IQ", ClampMenuIconSize(menuIconQuest));
             SetBool("PcFmtOn", applyPcTexFormat);
             SetInt("PcFmt", (int)pcTexFormat);
             SetBool("AndFmtOn", applyAndroidTexFormat);
@@ -1612,6 +1657,8 @@ namespace KaleidoVR.EditorTools
     {
         private static readonly int[] TextureSizes = { 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
         private static readonly string[] TextureSizeLabels = { "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
+        private static readonly int[] MenuIconSizes = { 256, 128, 64 };
+        private static readonly string[] MenuIconSizeLabels = { "256", "128", "64" };
         private static readonly string[] TextureSortLabels =
         {
             "Largest resolution first",
@@ -2955,7 +3002,9 @@ namespace KaleidoVR.EditorTools
         private static void HandleTextureSizePopup(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
         {
             int selected = questPlatform ? usage.questSize : usage.pcSize;
-            int picked = SizePopup(selected);
+            int picked = usage.kind == KaleidoTextureKind.MenuIcon
+                ? SizePopup(selected, MenuIconSizes, MenuIconSizeLabels)
+                : SizePopup(selected);
             if (picked == selected) return;
             window.ReadyToApplyMaxSizesOnly = false;
 
@@ -4044,24 +4093,31 @@ namespace KaleidoVR.EditorTools
 
         private static int SizePopup(int current)
         {
-            int index = 5;
+            return SizePopup(current, TextureSizes, TextureSizeLabels);
+        }
+
+        private static int SizePopup(int current, int[] sizes, string[] labels)
+        {
+            if (sizes == null || sizes.Length == 0 || labels == null || labels.Length != sizes.Length)
+                return SizePopup(current, TextureSizes, TextureSizeLabels);
+            int index = 0;
             int nearestDelta = int.MaxValue;
-            for (int i = 0; i < TextureSizes.Length; i++)
+            for (int i = 0; i < sizes.Length; i++)
             {
-                if (TextureSizes[i] == current)
+                if (sizes[i] == current)
                 {
                     index = i;
                     break;
                 }
-                int delta = Math.Abs(TextureSizes[i] - current);
+                int delta = Math.Abs(sizes[i] - current);
                 if (current > 0 && delta < nearestDelta)
                 {
                     nearestDelta = delta;
                     index = i;
                 }
             }
-            int picked = EditorGUILayout.Popup(index, TextureSizeLabels, GUILayout.Width(70));
-            return TextureSizes[picked];
+            int picked = EditorGUILayout.Popup(index, labels, GUILayout.Width(70));
+            return sizes[picked];
         }
 
         private static void DrawStats(KaleidoVRCOptimizer window)
@@ -6006,6 +6062,7 @@ namespace KaleidoVR.EditorTools
             {
                 KaleidoTextureUsage usage = window.textureUsages[i];
                 if (usage == null) continue;
+                if (usage.kind == KaleidoTextureKind.MenuIcon && TextureHasMaterialLink(usage)) continue;
                 int current;
                 int planned;
                 if (!TryGetPlannedMaxSize(window, usage, questPlatform, out current, out planned)) continue;
@@ -6134,6 +6191,12 @@ namespace KaleidoVR.EditorTools
                 }
             }
 
+            if (roots != null)
+            {
+                for (int r = 0; r < roots.Count; r++)
+                    CollectMenuIconTextures(window, map, previous, roots[r]);
+            }
+
             for (int i = 0; i < window.textureUsages.Count; i++)
                 PromoteMainSlotKind(window.textureUsages[i]);
 
@@ -6147,9 +6210,47 @@ namespace KaleidoVR.EditorTools
             });
         }
 
+        private static void CollectMenuIconTextures(
+            KaleidoVRCOptimizer window,
+            Dictionary<string, KaleidoTextureUsage> map,
+            Dictionary<string, KaleidoTextureUsage> previous,
+            GameObject root)
+        {
+            if (root == null) return;
+            HashSet<Texture2D> icons = new HashSet<Texture2D>();
+            KaleidoAvatarPass.CollectExpressionMenuIcons(root, icons);
+            foreach (Texture2D icon in icons)
+            {
+                if (icon == null) continue;
+                string path = KaleidoVRCOptimizerHelpers.NormalizeAssetPath(AssetDatabase.GetAssetPath(icon));
+                if (string.IsNullOrEmpty(path) || KaleidoVRCOptimizerHelpers.ShouldIgnoreAsset(path)) continue;
+                KaleidoTextureUsage existing;
+                if (map.TryGetValue(path, out existing))
+                {
+                    if (existing != null && !TextureHasMaterialLink(existing))
+                        existing.kind = KaleidoTextureKind.MenuIcon;
+                    continue;
+                }
+                KaleidoTextureUsage usage = GetOrAddTextureUsage(window, map, previous, icon);
+                if (usage != null) usage.kind = KaleidoTextureKind.MenuIcon;
+            }
+        }
+
+        private static bool TextureHasMaterialLink(KaleidoTextureUsage usage)
+        {
+            if (usage == null || usage.links == null) return false;
+            for (int i = 0; i < usage.links.Count; i++)
+            {
+                KaleidoTextureLink link = usage.links[i];
+                if (link != null && link.material != null) return true;
+            }
+            return false;
+        }
+
         private static void PromoteMainSlotKind(KaleidoTextureUsage usage)
         {
-            if (usage == null || usage.kind != KaleidoTextureKind.Other || usage.links == null) return;
+            if (usage == null || usage.kind == KaleidoTextureKind.MenuIcon) return;
+            if (usage.kind != KaleidoTextureKind.Other || usage.links == null) return;
             bool mainSlot = false;
             for (int i = 0; i < usage.links.Count; i++)
             {
@@ -7039,6 +7140,8 @@ namespace KaleidoVR.EditorTools
             int pcSize;
             int questSize;
             GetTypeSizes(window, kind, out applySize, out pcSize, out questSize);
+            if (kind == KaleidoTextureKind.MenuIcon && TextureHasMaterialLink(row))
+                applySize = false;
             if (row != null)
             {
                 pcSize = GetPlannedRowSize(window, row, false);
@@ -7260,6 +7363,11 @@ namespace KaleidoVR.EditorTools
                     apply = window.applyEmissionSize; pc = window.emissionPc; quest = window.emissionQuest; return;
                 case KaleidoTextureKind.Matcap:
                     apply = window.applyMatcapSize; pc = window.matcapPc; quest = window.matcapQuest; return;
+                case KaleidoTextureKind.MenuIcon:
+                    apply = window.applyMenuIconSize;
+                    pc = KaleidoVRCOptimizer.ClampMenuIconSize(window.menuIconPc);
+                    quest = KaleidoVRCOptimizer.ClampMenuIconSize(window.menuIconQuest);
+                    return;
                 default:
                     apply = window.applyOtherSize; pc = window.otherPc; quest = window.otherQuest; return;
             }

@@ -23,6 +23,7 @@ namespace KaleidoVR.EditorTools
         public const string SizeEmission = "applyEmissionSize";
         public const string SizeMatcap = "applyMatcapSize";
         public const string SizeOther = "applyOtherSize";
+        public const string SizeMenuIcon = "applyMenuIconSize";
         public const string AndroidFormat = "applyAndroidTexFormat";
         public const string PcFormat = "applyPcTexFormat";
         public const string HigherQualityNormals = "higherQualityNormalMaps";
@@ -81,6 +82,7 @@ namespace KaleidoVR.EditorTools
                 case KaleidoTextureKind.Mask: return SizeMask;
                 case KaleidoTextureKind.Emission: return SizeEmission;
                 case KaleidoTextureKind.Matcap: return SizeMatcap;
+                case KaleidoTextureKind.MenuIcon: return SizeMenuIcon;
                 default: return SizeOther;
             }
         }
