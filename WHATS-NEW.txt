@@ -1,5 +1,9 @@
 What's new
 
+1.0.68
+I added Merge basic meshes on On Upload. It is off unless you turn it on. It combines always-visible MeshRenderer bits that share a parent — hair clips, glasses, that kind of thing. Extra renderer components come off; the objects stay. Toggles, transform animations, and anything another component still points at stay separate.
+UI — On Upload: Merge basic meshes sits under Meshes, after Merge skinned meshes. It starts off.
+
 1.0.67
 I fixed On Upload stuffing extras onto the body when they still have their own bones. You would change the pants and the tail or the straps would jump. Those stay on their own bones now. I do not dump leftover weights onto Chest.
 If another upload pass is still on the copy, I wait. I do not take those components off. EditorOnly objects that still have something on them stay. PhysBones on those leftovers stay too.

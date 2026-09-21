@@ -197,7 +197,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.67";
+        public static readonly string VERSION = "1.0.68";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
