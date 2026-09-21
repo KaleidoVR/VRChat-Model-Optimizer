@@ -1,5 +1,11 @@
 What's new
 
+1.0.70
+I stopped ticking Override for Windows, Mac, Linux when you cap texture max size. Maps that need to stay sharp were getting blotched and blurred — a freckles texture was the one that showed it. Max size writes the Default size only now. If a texture already had that override on, I still update that platform size.
+On Textures, On / Off / Ignore and Confirm sets that Unity override on every listed texture. Confirm writes now. You do not need Apply after that. It is all on or all off for the whole model. I may add per-texture control later. For now it stays your choice, and it starts off so those maps stay sharp.
+Scan no longer leaves that extra assemble window open after it builds the On Upload copy.
+UI — Textures (PC): Override for Windows, Mac, Linux sits under Max Size By Type, above Max Sizes Only. On / Off / Ignore, then Confirm.
+
 1.0.69
 I added a cap for Action and Expression Menu icons. On Upload walks the assembled menus and only resizes icons that are actually on those controls. 256, 128, or 64. If none are larger than the pick, I skip that step. Copies stay on the upload clone. An icon that is also on a material stays on that material; the menu gets its own copy.
 Textures can write the same cap on the importer. That row starts off. I only list icons from the menus on the avatar in the scene, and I leave an icon that is also on a material alone. Menus that only show up after upload assembly are not in that list — use On Upload for those.
