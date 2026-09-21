@@ -5905,10 +5905,12 @@ namespace KaleidoVR.EditorTools
                 {
                     importer.maxTextureSize = size;
                     TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
-                    standalone.overridden = true;
-                    standalone.name = "Standalone";
-                    standalone.maxTextureSize = size;
-                    importer.SetPlatformTextureSettings(standalone);
+                    if (standalone != null && standalone.overridden)
+                    {
+                        standalone.name = "Standalone";
+                        standalone.maxTextureSize = size;
+                        importer.SetPlatformTextureSettings(standalone);
+                    }
                 }
 
                 EditorUtility.SetDirty(importer);
@@ -6119,14 +6121,93 @@ namespace KaleidoVR.EditorTools
             }
 
             TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
-            bool dirty = importer.maxTextureSize != size || !standalone.overridden || standalone.maxTextureSize != size;
+            bool dirty = importer.maxTextureSize != size;
+            if (standalone != null && standalone.overridden && standalone.maxTextureSize != size) dirty = true;
             if (!dirty) return false;
             importer.maxTextureSize = size;
-            standalone.overridden = true;
-            standalone.name = "Standalone";
-            standalone.maxTextureSize = size;
-            importer.SetPlatformTextureSettings(standalone);
+            if (standalone != null && standalone.overridden)
+            {
+                standalone.name = "Standalone";
+                standalone.maxTextureSize = size;
+                importer.SetPlatformTextureSettings(standalone);
+            }
             return true;
+        }
+
+        public static void CountStandaloneOverrides(KaleidoVRCOptimizer window, out int onCount, out int offCount)
+        {
+            onCount = 0;
+            offCount = 0;
+            if (window == null || window.textureUsages == null) return;
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null || string.IsNullOrEmpty(usage.path) || !seen.Add(usage.path)) continue;
+                TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                if (importer == null) continue;
+                TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
+                if (standalone != null && standalone.overridden) onCount++;
+                else offCount++;
+            }
+        }
+
+        public static int SetStandaloneOverride(KaleidoVRCOptimizer window, bool on)
+        {
+            if (window == null || window.textureUsages == null) return 0;
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<TextureImporter> importers = new List<TextureImporter>();
+            for (int i = 0; i < window.textureUsages.Count; i++)
+            {
+                KaleidoTextureUsage usage = window.textureUsages[i];
+                if (usage == null || string.IsNullOrEmpty(usage.path) || !seen.Add(usage.path)) continue;
+                TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                if (importer == null) continue;
+                TextureImporterPlatformSettings standalone = importer.GetPlatformTextureSettings("Standalone");
+                if (standalone == null) continue;
+                if (on)
+                {
+                    if (standalone.overridden && standalone.maxTextureSize == importer.maxTextureSize) continue;
+                    KaleidoOptionUndo.Capture(
+                        KaleidoOptionUndo.StandaloneOverride,
+                        "texture",
+                        usage.path,
+                        "",
+                        "",
+                        "pc",
+                        KaleidoOptionUndo.Join(
+                            KaleidoOptionUndo.Int("platOver", standalone.overridden ? 1 : 0),
+                            KaleidoOptionUndo.Int("platMax", standalone.maxTextureSize)));
+                    standalone.overridden = true;
+                    standalone.name = "Standalone";
+                    standalone.maxTextureSize = importer.maxTextureSize;
+                    importer.SetPlatformTextureSettings(standalone);
+                }
+                else
+                {
+                    if (!standalone.overridden) continue;
+                    KaleidoOptionUndo.Capture(
+                        KaleidoOptionUndo.StandaloneOverride,
+                        "texture",
+                        usage.path,
+                        "",
+                        "",
+                        "pc",
+                        KaleidoOptionUndo.Join(
+                            KaleidoOptionUndo.Int("platOver", 1),
+                            KaleidoOptionUndo.Int("platMax", standalone.maxTextureSize)));
+                    standalone.overridden = false;
+                    standalone.name = "Standalone";
+                    importer.SetPlatformTextureSettings(standalone);
+                }
+                EditorUtility.SetDirty(importer);
+                importers.Add(importer);
+            }
+            if (importers.Count == 0) return 0;
+            KaleidoOptionUndo.Save();
+            for (int i = 0; i < importers.Count; i++)
+                importers[i].SaveAndReimport();
+            return importers.Count;
         }
 
         public static void RefreshListedTextureCurrents(KaleidoVRCOptimizer window)
@@ -7414,9 +7495,10 @@ namespace KaleidoVR.EditorTools
             if (!applySize && !applyFormat && !disableCrunch) return false;
 
             TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings(platform);
-            bool sizeChanges = applySize && (!settings.overridden || settings.maxTextureSize != maxSize);
+            bool sizeChanges = applySize && settings.overridden && settings.maxTextureSize != maxSize;
             bool formatChanges = applyFormat && (!settings.overridden || settings.format != format || settings.textureCompression != compression);
             bool crunchChanges = disableCrunch && settings.crunchedCompression;
+            if (applySize && applyFormat && !settings.overridden) sizeChanges = true;
             if (!sizeChanges && !formatChanges && !crunchChanges) return false;
 
             string label = platform == "Android" ? "Quest" : "PC";
@@ -7453,7 +7535,7 @@ namespace KaleidoVR.EditorTools
                     KaleidoOptionUndo.Int("platCrunch", 1)));
             }
 
-            settings.overridden = true;
+            settings.overridden = settings.overridden || formatChanges || crunchChanges;
             settings.name = platform;
             if (applySize) settings.maxTextureSize = maxSize;
             if (applyFormat)

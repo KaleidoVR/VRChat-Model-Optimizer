@@ -24,6 +24,7 @@ namespace KaleidoVR.EditorTools
         public const string SizeMatcap = "applyMatcapSize";
         public const string SizeOther = "applyOtherSize";
         public const string SizeMenuIcon = "applyMenuIconSize";
+        public const string StandaloneOverride = "standaloneOverride";
         public const string AndroidFormat = "applyAndroidTexFormat";
         public const string PcFormat = "applyPcTexFormat";
         public const string HigherQualityNormals = "higherQualityNormalMaps";
