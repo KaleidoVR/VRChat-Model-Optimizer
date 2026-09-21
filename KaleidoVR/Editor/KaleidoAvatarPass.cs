@@ -303,6 +303,7 @@ namespace KaleidoVR.EditorTools
                 new[] { typeof(GameObject) },
                 null);
             if (process == null) return false;
+            HashSet<int> before = SnapshotAssembleUiWindows();
             try
             {
                 process.Invoke(null, new object[] { clone });
@@ -312,6 +313,46 @@ namespace KaleidoVR.EditorTools
             {
                 throw ex.InnerException ?? ex;
             }
+            finally
+            {
+                CloseNewAssembleUiWindows(before);
+                EditorApplication.delayCall += () => CloseNewAssembleUiWindows(before);
+            }
+        }
+
+        static HashSet<int> SnapshotAssembleUiWindows()
+        {
+            HashSet<int> ids = new HashSet<int>();
+            EditorWindow[] windows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+            if (windows == null) return ids;
+            for (int i = 0; i < windows.Length; i++)
+            {
+                EditorWindow w = windows[i];
+                if (w != null && IsAssembleUiWindow(w)) ids.Add(w.GetInstanceID());
+            }
+            return ids;
+        }
+
+        static void CloseNewAssembleUiWindows(HashSet<int> before)
+        {
+            EditorWindow[] windows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+            if (windows == null) return;
+            for (int i = 0; i < windows.Length; i++)
+            {
+                EditorWindow w = windows[i];
+                if (w == null || !IsAssembleUiWindow(w)) continue;
+                if (before != null && before.Contains(w.GetInstanceID())) continue;
+                w.Close();
+            }
+        }
+
+        static bool IsAssembleUiWindow(EditorWindow window)
+        {
+            if (window == null) return false;
+            Type t = window.GetType();
+            string full = t != null ? t.FullName : "";
+            if (string.IsNullOrEmpty(full)) return false;
+            return full.StartsWith("nadena.dev.ndmf", StringComparison.Ordinal);
         }
 
         static Type FindTypeInLoadedAssemblies(string fullName)
