@@ -3293,7 +3293,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
             window.avatarOptimizeBlendShapes = DrawToggle(window.avatarOptimizeBlendShapes, "Remove unused blend shapes", "Upload-only. Drops unused shapes that are at zero weight. Visemes, Eye Look blink / look-up / look-down, wink / blink names, shapes named by other components on this avatar, and any shape that still has weight stay. Eye Look indices are rewritten to the new mesh.");
-            window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Off by default. Combines shapes that every clip always drives in the same ratio. Can change expressions. Leave off unless you want that rewrite.");
+            window.avatarMergeSameRatioShapes = DrawToggle(window.avatarMergeSameRatioShapes, "Merge same-ratio blend shapes", "Off by default. Combines shapes that every clip always drives in the same ratio. Can change expressions, and it affects Face Tracking negatively. Leave off unless you want that rewrite.");
             window.avatarMmdCompatibility = DrawToggle(window.avatarMmdCompatibility, "MMD world compatibility", "Keeps MMD viseme / face shapes and the first three FX layers.");
 
             GUILayout.Space(8);
