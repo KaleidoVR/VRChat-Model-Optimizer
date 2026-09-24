@@ -38,6 +38,7 @@ namespace KaleidoVR.EditorTools
         public bool writeDefaultsOn = true;
         public bool fillEmptyStates = false;
         public AnimationClip emptyClip;
+        public bool disableUpdateWhenOffscreen = false;
         public bool enableMeshReadWrite = true;
         public bool capMenuIcons = true;
         public int menuIconSize = 256;
@@ -165,6 +166,7 @@ namespace KaleidoVR.EditorTools
                 writeDefaultsOn = EditorPrefs.GetBool(p + "AvWDOn", true),
                 fillEmptyStates = EditorPrefs.GetBool(p + "AvEmpty", false),
                 emptyClip = LoadEmptyClip(EditorPrefs.GetString(p + "AvEmptyGuid", "")),
+                disableUpdateWhenOffscreen = EditorPrefs.GetBool(p + "AvUwo", false),
                 enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
                     && EditorPrefs.GetInt(p + "Workspace", 0) == 1,
                 capMenuIcons = EditorPrefs.GetBool(p + "AvMenuIcon", true),
@@ -196,6 +198,7 @@ namespace KaleidoVR.EditorTools
                 writeDefaultsOn = window.avatarWriteDefaultsOn,
                 fillEmptyStates = window.avatarFillEmptyStates,
                 emptyClip = window.avatarEmptyClip,
+                disableUpdateWhenOffscreen = window.avatarDisableUpdateWhenOffscreen,
                 enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite,
                 capMenuIcons = window.avatarCapMenuIcons,
                 menuIconSize = KaleidoVRCOptimizer.ClampMenuIconSize(window.avatarMenuIconSize)
@@ -475,6 +478,10 @@ namespace KaleidoVR.EditorTools
                     MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs);
                 if (settings.mergeBasicMeshes)
                     MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs);
+
+                ReportProgress("Disabling Update When Offscreen…", 0.74f);
+                if (settings.disableUpdateWhenOffscreen)
+                    DisableUpdateWhenOffscreen(root, excluded, dryRun, result);
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
@@ -2919,6 +2926,22 @@ namespace KaleidoVR.EditorTools
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestParameterStrings(nested[i], names, visited);
+        }
+
+        static void DisableUpdateWhenOffscreen(GameObject root, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || result == null) return;
+            SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            int changed = 0;
+            for (int i = 0; i < skins.Length; i++)
+            {
+                SkinnedMeshRenderer smr = skins[i];
+                if (smr == null || IsExcluded(smr, excluded) || !smr.updateWhenOffscreen) continue;
+                changed++;
+                if (!dryRun) smr.updateWhenOffscreen = false;
+            }
+            if (changed > 0)
+                result.lines.Add("Update When Offscreen off on " + changed + " skinned mesh(es).");
         }
 
         static AnimationClip LoadEmptyClip(string guid)

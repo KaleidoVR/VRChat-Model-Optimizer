@@ -183,6 +183,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarWriteDefaultsOn = true;
         public bool avatarFillEmptyStates = false;
         public string avatarEmptyClipGuid = "";
+        public bool avatarDisableUpdateWhenOffscreen = false;
         public bool avatarEnableMeshReadWrite = true;
         public bool avatarCapMenuIcons = true;
         public int avatarMenuIconSize = 256;
@@ -532,6 +533,7 @@ namespace KaleidoVR.EditorTools
         public bool avatarWriteDefaultsOn = true;
         public bool avatarFillEmptyStates = false;
         public AnimationClip avatarEmptyClip;
+        public bool avatarDisableUpdateWhenOffscreen = false;
         public bool avatarEnableMeshReadWrite = true;
         public bool avatarCapMenuIcons = true;
         public int avatarMenuIconSize = 256;
@@ -957,6 +959,7 @@ namespace KaleidoVR.EditorTools
                 avatarWriteDefaultsOn = avatarWriteDefaultsOn,
                 avatarFillEmptyStates = avatarFillEmptyStates,
                 avatarEmptyClipGuid = ClipGuid(avatarEmptyClip),
+                avatarDisableUpdateWhenOffscreen = avatarDisableUpdateWhenOffscreen,
                 avatarEnableMeshReadWrite = avatarEnableMeshReadWrite,
                 avatarCapMenuIcons = avatarCapMenuIcons,
                 avatarMenuIconSize = avatarMenuIconSize
@@ -1069,6 +1072,7 @@ namespace KaleidoVR.EditorTools
                 avatarWriteDefaultsOn = p.avatarWriteDefaultsOn;
                 avatarFillEmptyStates = p.avatarFillEmptyStates;
                 avatarEmptyClip = LoadClip(p.avatarEmptyClipGuid);
+                avatarDisableUpdateWhenOffscreen = p.avatarDisableUpdateWhenOffscreen;
                 avatarEnableMeshReadWrite = p.avatarEnableMeshReadWrite;
                 avatarCapMenuIcons = p.avatarCapMenuIcons;
                 avatarMenuIconSize = ClampMenuIconSize(p.avatarMenuIconSize);
@@ -1196,6 +1200,7 @@ namespace KaleidoVR.EditorTools
             avatarWriteDefaultsOn = GetBool("AvWDOn", true);
             avatarFillEmptyStates = GetBool("AvEmpty", false);
             avatarEmptyClip = LoadClip(EditorPrefs.GetString(PrefsPrefix + "AvEmptyGuid", ""));
+            avatarDisableUpdateWhenOffscreen = GetBool("AvUwo", false);
             avatarEnableMeshReadWrite = GetBool("AvMeshRW", true);
             avatarCapMenuIcons = GetBool("AvMenuIcon", true);
             avatarMenuIconSize = ClampMenuIconSize(GetInt("AvMenuIconSize", 256));
@@ -1315,6 +1320,7 @@ namespace KaleidoVR.EditorTools
             avatarWriteDefaults = false;
             avatarWriteDefaultsOn = true;
             avatarFillEmptyStates = false;
+            avatarDisableUpdateWhenOffscreen = false;
             avatarEnableMeshReadWrite = true;
             avatarCapMenuIcons = true;
             avatarMenuIconSize = 256;
@@ -1356,6 +1362,7 @@ namespace KaleidoVR.EditorTools
             SetBool("AvWDOn", avatarWriteDefaultsOn);
             SetBool("AvEmpty", avatarFillEmptyStates);
             EditorPrefs.SetString(PrefsPrefix + "AvEmptyGuid", ClipGuid(avatarEmptyClip));
+            SetBool("AvUwo", avatarDisableUpdateWhenOffscreen);
             SetBool("AvMeshRW", avatarEnableMeshReadWrite);
             SetBool("AvMenuIcon", avatarCapMenuIcons);
             SetInt("AvMenuIconSize", ClampMenuIconSize(avatarMenuIconSize));
@@ -3332,6 +3339,7 @@ namespace KaleidoVR.EditorTools
             window.avatarMergeBasicMeshes = DrawToggle(window.avatarMergeBasicMeshes, "Merge basic meshes", "Off by default. Combines always-visible MeshRenderer pieces that share a parent, layer, and shadow settings — hair clips, glasses, and other static bits. The extra renderer components are removed; the objects stay. Toggles, transform animations, material-swap animations, EditorOnly, contact-system names, and any mesh another component still points at stay separate.");
             window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone, and so is a mesh another component still uses.");
             window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders. Meshes other components still use are left as-is.");
+            window.avatarDisableUpdateWhenOffscreen = DrawToggle(window.avatarDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Off by default.");
 
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
