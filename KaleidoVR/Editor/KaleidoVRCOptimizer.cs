@@ -3339,7 +3339,7 @@ namespace KaleidoVR.EditorTools
             window.avatarMergeBasicMeshes = DrawToggle(window.avatarMergeBasicMeshes, "Merge basic meshes", "Off by default. Combines always-visible MeshRenderer pieces that share a parent, layer, and shadow settings — hair clips, glasses, and other static bits. The extra renderer components are removed; the objects stay. Toggles, transform animations, material-swap animations, EditorOnly, contact-system names, and any mesh another component still points at stay separate.");
             window.avatarMergeIdenticalSlots = DrawToggle(window.avatarMergeIdenticalSlots, "Merge identical material slots", "Joins submeshes that use the same material. Slots driven by material-swap animations are left alone, and so is a mesh another component still uses.");
             window.avatarShuffleSlots = DrawToggle(window.avatarShuffleSlots, "Allow shuffling material slots", "Reorders slots so identical materials sit together and can merge. Slot order is not used by typical avatar shaders. Meshes other components still use are left as-is.");
-            window.avatarDisableUpdateWhenOffscreen = DrawToggle(window.avatarDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Off by default.");
+            window.avatarDisableUpdateWhenOffscreen = DrawToggle(window.avatarDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Off by default. Turns this off on skinned meshes on the upload copy. Scene (PC) can write the same flag on the project.");
 
             GUILayout.Space(8);
             GUILayout.Label("Blend Shapes", EditorStyles.boldLabel);
@@ -3511,7 +3511,7 @@ namespace KaleidoVR.EditorTools
             GUILayout.Label("Renderers", EditorStyles.boldLabel);
             window.optimizeRenderers = DrawToggle(window.optimizeRenderers, "Process skinned / mesh renderers", "Master switch for this section.");
             EditorGUI.BeginDisabledGroup(!window.optimizeRenderers);
-            window.rendererDisableUpdateWhenOffscreen = DrawToggle(window, KaleidoOptionUndo.DisableUpdateOffscreen, window.rendererDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Big CPU win. Unity keeps animating skinned meshes that are culled if this stays on. Turn off only for meshes that must stay posed while hidden.");
+            window.rendererDisableUpdateWhenOffscreen = DrawToggle(window, KaleidoOptionUndo.DisableUpdateOffscreen, window.rendererDisableUpdateWhenOffscreen, "Disable Update When Offscreen", "Big CPU win. Unity keeps animating skinned meshes that are culled if this stays on. Turn off only for meshes that must stay posed while hidden. On Upload can turn this off on the upload copy. Apply here writes the project.");
             window.rendererDisableReceiveShadows = DrawToggle(window, KaleidoOptionUndo.DisableReceiveShadows, window.rendererDisableReceiveShadows, "Disable receive shadows", "Avatars often skip receiving world shadows. Uncheck if you want contact shadows on the body.");
             window.rendererDisableProbes = DrawToggle(window, KaleidoOptionUndo.DisableProbes, window.rendererDisableProbes, "Disable light / reflection probes", "Stops per-renderer probe sampling. Worlds still light the avatar through VRChat's lighting; this cuts extra probe work.");
             window.rendererDisableMotionVectors = DrawToggle(window, KaleidoOptionUndo.DisableMotionVectors, window.rendererDisableMotionVectors, "Disable motion vectors", "VRChat does not use camera motion blur on avatars. Safe to force off.");

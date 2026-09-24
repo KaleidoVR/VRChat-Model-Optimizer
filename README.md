@@ -107,7 +107,7 @@ Process model importers is the master switch for this tab.
 
 Off until you tick Apply on upload. Skipped in Play Mode. Runs last, after other upload passes finish, and only once on that copy. Unsaved meshes already skinned to this avatar can be copied into Generated. Extras that still have their own armature stay.
 
-**Meshes:** Quest Enable mesh Read/Write (readable copies on the clone; the FBX stays as it is). Merge skinned meshes that animate together. Merge identical material slots. Allow shuffling material slots.
+**Meshes:** Quest Enable mesh Read/Write (readable copies on the clone; the FBX stays as it is). Merge skinned meshes that animate together. Merge identical material slots. Allow shuffling material slots. Disable Update When Offscreen (off). That one also stays on Scene for a project write.
 
 **Blend shapes:** Remove unused blend shapes. Merge same-ratio blend shapes (off). MMD world compatibility.
 
