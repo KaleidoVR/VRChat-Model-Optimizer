@@ -474,7 +474,7 @@ namespace KaleidoVR.EditorTools
         public static int SetEmptyMotions(List<GameObject> roots)
         {
             if (roots == null) return 0;
-            AnimationClip clip = GetOrCreateEmptyMotion();
+            AnimationClip clip = SharedEmptyMotion();
             if (clip == null) return 0;
 
             HashSet<AnimatorController> controllers = new HashSet<AnimatorController>();
@@ -486,12 +486,12 @@ namespace KaleidoVR.EditorTools
 
             int changed = 0;
             foreach (AnimatorController controller in controllers)
-                changed += ApplyEmptyMotions(controller, clip);
+                changed += ApplyEmptyMotions(controller, clip, true);
             if (changed > 0) AssetDatabase.SaveAssets();
             return changed;
         }
 
-        static AnimationClip GetOrCreateEmptyMotion()
+        public static AnimationClip SharedEmptyMotion()
         {
             string[] guids = AssetDatabase.FindAssets(EmptyMotionName + " t:AnimationClip");
             if (guids != null)
@@ -525,7 +525,7 @@ namespace KaleidoVR.EditorTools
             return AssetDatabase.LoadAssetAtPath<AnimationClip>(assetPath);
         }
 
-        static int ApplyEmptyMotions(AnimatorController controller, AnimationClip clip)
+        static int ApplyEmptyMotions(AnimatorController controller, AnimationClip clip, bool recordUndo)
         {
             if (controller == null || controller.layers == null || clip == null) return 0;
             int changed = 0;
@@ -533,13 +533,13 @@ namespace KaleidoVR.EditorTools
             {
                 AnimatorControllerLayer layer = controller.layers[i];
                 if (layer == null || layer.stateMachine == null) continue;
-                changed += ApplyEmptyMotions(layer.stateMachine, clip);
+                changed += ApplyEmptyMotions(layer.stateMachine, clip, recordUndo);
             }
             if (changed > 0) EditorUtility.SetDirty(controller);
             return changed;
         }
 
-        static int ApplyEmptyMotions(AnimatorStateMachine machine, AnimationClip clip)
+        static int ApplyEmptyMotions(AnimatorStateMachine machine, AnimationClip clip, bool recordUndo)
         {
             if (machine == null) return 0;
             int changed = 0;
@@ -549,7 +549,7 @@ namespace KaleidoVR.EditorTools
                 {
                     AnimatorState state = machine.states[i].state;
                     if (state == null || state.motion != null) continue;
-                    Undo.RecordObject(state, "Fill Empty Motion");
+                    if (recordUndo) Undo.RecordObject(state, "Fill Empty Motion");
                     state.motion = clip;
                     EditorUtility.SetDirty(state);
                     changed++;
@@ -557,7 +557,7 @@ namespace KaleidoVR.EditorTools
             }
             if (machine.stateMachines == null) return changed;
             for (int i = 0; i < machine.stateMachines.Length; i++)
-                changed += ApplyEmptyMotions(machine.stateMachines[i].stateMachine, clip);
+                changed += ApplyEmptyMotions(machine.stateMachines[i].stateMachine, clip, recordUndo);
             return changed;
         }
 
@@ -573,7 +573,7 @@ namespace KaleidoVR.EditorTools
 
             int changed = 0;
             foreach (AnimatorController controller in controllers)
-                changed += ApplyWriteDefaults(controller, on);
+                changed += ApplyWriteDefaults(controller, on, true);
             if (changed > 0) AssetDatabase.SaveAssets();
             return changed;
         }
@@ -587,7 +587,17 @@ namespace KaleidoVR.EditorTools
             CollectDescriptorControllers(root, controllers);
         }
 
-        static int ApplyWriteDefaults(AnimatorController controller, bool on)
+        public static int WriteDefaultsOnController(AnimatorController controller, bool on, bool recordUndo)
+        {
+            return ApplyWriteDefaults(controller, on, recordUndo);
+        }
+
+        public static int EmptyMotionsOnController(AnimatorController controller, AnimationClip clip, bool recordUndo)
+        {
+            return ApplyEmptyMotions(controller, clip, recordUndo);
+        }
+
+        static int ApplyWriteDefaults(AnimatorController controller, bool on, bool recordUndo)
         {
             if (controller == null || controller.layers == null) return 0;
             int changed = 0;
@@ -595,13 +605,13 @@ namespace KaleidoVR.EditorTools
             {
                 AnimatorControllerLayer layer = controller.layers[i];
                 if (layer == null || layer.stateMachine == null) continue;
-                changed += ApplyWriteDefaults(layer.stateMachine, on);
+                changed += ApplyWriteDefaults(layer.stateMachine, on, recordUndo);
             }
             if (changed > 0) EditorUtility.SetDirty(controller);
             return changed;
         }
 
-        static int ApplyWriteDefaults(AnimatorStateMachine machine, bool on)
+        static int ApplyWriteDefaults(AnimatorStateMachine machine, bool on, bool recordUndo)
         {
             if (machine == null) return 0;
             int changed = 0;
@@ -611,7 +621,7 @@ namespace KaleidoVR.EditorTools
                 {
                     AnimatorState state = machine.states[i].state;
                     if (state == null || state.writeDefaultValues == on) continue;
-                    Undo.RecordObject(state, "Set Write Defaults");
+                    if (recordUndo) Undo.RecordObject(state, "Set Write Defaults");
                     state.writeDefaultValues = on;
                     EditorUtility.SetDirty(state);
                     changed++;
@@ -619,7 +629,7 @@ namespace KaleidoVR.EditorTools
             }
             if (machine.stateMachines == null) return changed;
             for (int i = 0; i < machine.stateMachines.Length; i++)
-                changed += ApplyWriteDefaults(machine.stateMachines[i].stateMachine, on);
+                changed += ApplyWriteDefaults(machine.stateMachines[i].stateMachine, on, recordUndo);
             return changed;
         }
 

@@ -34,6 +34,10 @@ namespace KaleidoVR.EditorTools
         public bool optimizePhysBones = true;
         public bool optimizeContacts = true;
         public bool optimizeFxLayer = false;
+        public bool writeDefaults = false;
+        public bool writeDefaultsOn = true;
+        public bool fillEmptyStates = false;
+        public AnimationClip emptyClip;
         public bool enableMeshReadWrite = true;
         public bool capMenuIcons = true;
         public int menuIconSize = 256;
@@ -157,6 +161,10 @@ namespace KaleidoVR.EditorTools
                 optimizePhysBones = EditorPrefs.GetBool(p + "AvPb", true),
                 optimizeContacts = EditorPrefs.GetBool(p + "AvContact", true),
                 optimizeFxLayer = EditorPrefs.GetBool(p + "AvFx", false),
+                writeDefaults = EditorPrefs.GetBool(p + "AvWD", false),
+                writeDefaultsOn = EditorPrefs.GetBool(p + "AvWDOn", true),
+                fillEmptyStates = EditorPrefs.GetBool(p + "AvEmpty", false),
+                emptyClip = LoadEmptyClip(EditorPrefs.GetString(p + "AvEmptyGuid", "")),
                 enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
                     && EditorPrefs.GetInt(p + "Workspace", 0) == 1,
                 capMenuIcons = EditorPrefs.GetBool(p + "AvMenuIcon", true),
@@ -184,6 +192,10 @@ namespace KaleidoVR.EditorTools
                 optimizePhysBones = window.avatarOptimizePhysBones,
                 optimizeContacts = window.avatarOptimizeContacts,
                 optimizeFxLayer = window.avatarOptimizeFxLayer,
+                writeDefaults = window.avatarWriteDefaults,
+                writeDefaultsOn = window.avatarWriteDefaultsOn,
+                fillEmptyStates = window.avatarFillEmptyStates,
+                emptyClip = window.avatarEmptyClip,
                 enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite,
                 capMenuIcons = window.avatarCapMenuIcons,
                 menuIconSize = KaleidoVRCOptimizer.ClampMenuIconSize(window.avatarMenuIconSize)
@@ -472,11 +484,15 @@ namespace KaleidoVR.EditorTools
                 if (settings.optimizeContacts)
                     SweepContacts(root, anim, excluded, dryRun, result, refs);
 
-                ReportProgress("Optimizing FX…", 0.92f);
+                ReportProgress("Optimizing FX…", 0.90f);
                 if (settings.optimizeFxLayer)
                     OptimizeFx(root, settings, excluded, dryRun, result);
 
-                ReportProgress("Capping menu icons…", 0.95f);
+                ReportProgress("Writing animator states…", 0.93f);
+                if (settings.writeDefaults || settings.fillEmptyStates)
+                    ApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
+
+                ReportProgress("Capping menu icons…", 0.96f);
                 if (settings.capMenuIcons)
                     CapMenuIcons(root, settings, dryRun, result);
 
@@ -2903,6 +2919,678 @@ namespace KaleidoVR.EditorTools
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestParameterStrings(nested[i], names, visited);
+        }
+
+        static AnimationClip LoadEmptyClip(string guid)
+        {
+            if (string.IsNullOrEmpty(guid)) return null;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path)) return null;
+            return AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+        }
+
+        static void ApplyAnimatorStateOptions(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || settings == null || result == null) return;
+            bool writeDefaults = settings.writeDefaults;
+            bool fillEmpty = settings.fillEmptyStates;
+            if (!writeDefaults && !fillEmpty) return;
+
+            AnimationClip clip = null;
+            if (fillEmpty)
+            {
+                clip = settings.emptyClip != null ? settings.emptyClip : KaleidoVRCOptimizerEval.SharedEmptyMotion();
+                if (clip == null)
+                {
+                    result.lines.Add("Empty animator states skipped: no clip.");
+                    fillEmpty = false;
+                }
+            }
+            if (!writeDefaults && !fillEmpty) return;
+
+            HashSet<AnimatorController> controllers = new HashSet<AnimatorController>();
+            CollectStateControllers(root, excluded, controllers);
+            Dictionary<AnimatorController, ControllerRole> roles = CollectControllerRoles(root);
+            AnimatorController fxController = null;
+            foreach (KeyValuePair<AnimatorController, ControllerRole> pair in roles)
+            {
+                if (pair.Value != null && pair.Value.fx) fxController = pair.Key;
+            }
+            HashSet<AnimatorController> otherControllers = new HashSet<AnimatorController>(controllers);
+            if (fxController != null) otherControllers.Remove(fxController);
+
+            Dictionary<AnimatorController, AnimatorController> copies = new Dictionary<AnimatorController, AnimatorController>();
+            int defaultsWritten = 0;
+            int emptiesFilled = 0;
+            int restPoseCurves = 0;
+            foreach (AnimatorController controller in controllers)
+            {
+                if (controller == null) continue;
+                ControllerRole role;
+                roles.TryGetValue(controller, out role);
+                bool additiveController = role != null && role.additive;
+                bool fx = role != null && role.fx;
+                int defaultsHere = writeDefaults ? CountWriteDefaultChanges(controller, settings.writeDefaultsOn, additiveController) : 0;
+                int emptiesHere = fillEmpty ? CountEmptyMotions(controller) : 0;
+                int restHere = 0;
+                if (writeDefaults && !settings.writeDefaultsOn && fx)
+                    restHere = CountRestPoseCurves(root, controller, otherControllers);
+                if (defaultsHere == 0 && emptiesHere == 0 && restHere == 0) continue;
+                if (dryRun || (!persistGenerated && !ControllerIsEditableCopy(controller)))
+                {
+                    defaultsWritten += defaultsHere;
+                    emptiesFilled += emptiesHere;
+                    restPoseCurves += restHere;
+                    continue;
+                }
+
+                AnimatorController editable = ControllerIsEditableCopy(controller) ? controller : PersistController(controller);
+                if (editable == null) editable = controller;
+                if (editable != controller) copies[controller] = editable;
+                AnimationClip restPose = null;
+                if (restHere > 0)
+                    restPose = BuildRestPoseClip(root, editable, otherControllers);
+                if (writeDefaults)
+                    defaultsWritten += ApplyLayerWriteDefaults(editable, settings.writeDefaultsOn, additiveController);
+                if (restPose != null)
+                {
+                    InsertRestPoseLayer(editable, restPose);
+                    restPoseCurves += restHere;
+                }
+                if (fillEmpty)
+                    emptiesFilled += KaleidoVRCOptimizerEval.EmptyMotionsOnController(editable, clip, false);
+            }
+
+            if (!dryRun && copies.Count > 0)
+                RetargetStateControllers(root, excluded, copies);
+
+            if (defaultsWritten > 0)
+                result.lines.Add("Write Defaults " + (settings.writeDefaultsOn ? "On" : "Off") + " on " + defaultsWritten + " animator state(s). Direct blend trees and additive layers stay on.");
+            if (restPoseCurves > 0)
+                result.lines.Add("Rest pose layer on FX for " + restPoseCurves + " property(s).");
+            if (emptiesFilled > 0)
+                result.lines.Add((settings.emptyClip != null ? "Custom empty clip" : "Shared empty clip") + " on " + emptiesFilled + " animator state(s).");
+        }
+
+        sealed class ControllerRole
+        {
+            public bool fx;
+            public bool additive;
+        }
+
+        static void CollectStateControllers(GameObject root, HashSet<Transform> excluded, HashSet<AnimatorController> controllers)
+        {
+            if (root == null || controllers == null) return;
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                Animator animator = animators[i];
+                if (animator == null || IsExcluded(animator, excluded)) continue;
+                AnimatorController ac = UnwrapController(animator.runtimeAnimatorController);
+                if (ac != null) controllers.Add(ac);
+            }
+
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return;
+            CollectDescriptorStateControllers(desc, "baseAnimationLayers", controllers);
+            CollectDescriptorStateControllers(desc, "specialAnimationLayers", controllers);
+        }
+
+        static void CollectDescriptorStateControllers(Component desc, string fieldName, HashSet<AnimatorController> controllers)
+        {
+            FieldInfo field = desc.GetType().GetField(fieldName);
+            if (field == null) return;
+            Array arr = field.GetValue(desc) as Array;
+            if (arr == null) return;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                if (anim == null) continue;
+                AnimatorController ac = UnwrapController(anim.GetValue(layer) as RuntimeAnimatorController);
+                if (ac != null) controllers.Add(ac);
+            }
+        }
+
+        static AnimatorController UnwrapController(RuntimeAnimatorController runtime)
+        {
+            AnimatorController ac = runtime as AnimatorController;
+            if (ac != null) return ac;
+            AnimatorOverrideController ov = runtime as AnimatorOverrideController;
+            if (ov != null) return ov.runtimeAnimatorController as AnimatorController;
+            return null;
+        }
+
+        static bool ControllerIsEditableCopy(AnimatorController controller)
+        {
+            if (controller == null) return false;
+            string path = AssetDatabase.GetAssetPath(controller);
+            if (string.IsNullOrEmpty(path)) return true;
+            return path.Replace('\\', '/').StartsWith(GeneratedFolderPath + "/", StringComparison.Ordinal);
+        }
+
+        static void RetargetStateControllers(GameObject root, HashSet<Transform> excluded, Dictionary<AnimatorController, AnimatorController> copies)
+        {
+            Dictionary<AnimatorOverrideController, RuntimeAnimatorController> overrides = new Dictionary<AnimatorOverrideController, RuntimeAnimatorController>();
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                Animator animator = animators[i];
+                if (animator == null || IsExcluded(animator, excluded)) continue;
+                RuntimeAnimatorController next = RewireRuntimeController(animator.runtimeAnimatorController, copies, overrides);
+                if (next != null && next != animator.runtimeAnimatorController)
+                    animator.runtimeAnimatorController = next;
+            }
+
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return;
+            RetargetDescriptorControllers(desc, "baseAnimationLayers", copies, overrides);
+            RetargetDescriptorControllers(desc, "specialAnimationLayers", copies, overrides);
+        }
+
+        static void RetargetDescriptorControllers(Component desc, string fieldName, Dictionary<AnimatorController, AnimatorController> copies, Dictionary<AnimatorOverrideController, RuntimeAnimatorController> overrides)
+        {
+            FieldInfo field = desc.GetType().GetField(fieldName);
+            if (field == null) return;
+            Array arr = field.GetValue(desc) as Array;
+            if (arr == null) return;
+            bool changed = false;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                if (anim == null) continue;
+                RuntimeAnimatorController src = anim.GetValue(layer) as RuntimeAnimatorController;
+                RuntimeAnimatorController next = RewireRuntimeController(src, copies, overrides);
+                if (next == null || next == src) continue;
+                anim.SetValue(layer, next);
+                arr.SetValue(layer, i);
+                changed = true;
+            }
+            if (changed) field.SetValue(desc, arr);
+        }
+
+        static RuntimeAnimatorController RewireRuntimeController(RuntimeAnimatorController runtime, Dictionary<AnimatorController, AnimatorController> copies, Dictionary<AnimatorOverrideController, RuntimeAnimatorController> overrides)
+        {
+            if (runtime == null || copies == null) return runtime;
+            AnimatorController ac = runtime as AnimatorController;
+            if (ac != null)
+            {
+                AnimatorController copy;
+                if (copies.TryGetValue(ac, out copy) && copy != null) return copy;
+                return runtime;
+            }
+
+            AnimatorOverrideController ov = runtime as AnimatorOverrideController;
+            if (ov == null) return runtime;
+            AnimatorController baseAc = ov.runtimeAnimatorController as AnimatorController;
+            if (baseAc == null) return runtime;
+            AnimatorController copyBase;
+            if (!copies.TryGetValue(baseAc, out copyBase) || copyBase == null || copyBase == baseAc) return runtime;
+            if (overrides != null)
+            {
+                RuntimeAnimatorController cached;
+                if (overrides.TryGetValue(ov, out cached) && cached != null) return cached;
+            }
+            RuntimeAnimatorController next = CopyOverrideController(ov, copyBase);
+            if (overrides != null) overrides[ov] = next;
+            return next;
+        }
+
+        static RuntimeAnimatorController CopyOverrideController(AnimatorOverrideController source, AnimatorController newBase)
+        {
+            if (source == null) return newBase;
+            string path = AssetDatabase.GetAssetPath(source);
+            bool editable = string.IsNullOrEmpty(path)
+                || path.Replace('\\', '/').StartsWith(GeneratedFolderPath + "/", StringComparison.Ordinal);
+            AnimatorOverrideController dest = source;
+            if (!editable)
+            {
+                dest = UnityEngine.Object.Instantiate(source);
+                dest.name = source.name + "_KaleidoFX";
+                if (persistGenerated)
+                {
+                    dest.hideFlags = HideFlags.None;
+                    string folder = EnsureGeneratedFolder();
+                    string destPath = AssetDatabase.GenerateUniqueAssetPath(folder + "/" + SafeAssetName(source.name) + "_KaleidoFX.overrideController");
+                    AssetDatabase.CreateAsset(dest, destPath);
+                }
+                else dest.hideFlags = HideFlags.HideAndDontSave;
+            }
+            dest.runtimeAnimatorController = newBase;
+            return dest;
+        }
+
+        static Dictionary<AnimatorController, ControllerRole> CollectControllerRoles(GameObject root)
+        {
+            Dictionary<AnimatorController, ControllerRole> roles = new Dictionary<AnimatorController, ControllerRole>();
+            if (root == null) return roles;
+            Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (desc == null) return roles;
+            NoteControllerRoles(desc, "baseAnimationLayers", roles);
+            NoteControllerRoles(desc, "specialAnimationLayers", roles);
+            return roles;
+        }
+
+        static void NoteControllerRoles(Component desc, string fieldName, Dictionary<AnimatorController, ControllerRole> roles)
+        {
+            FieldInfo field = desc.GetType().GetField(fieldName);
+            if (field == null) return;
+            Array arr = field.GetValue(desc) as Array;
+            if (arr == null) return;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                object layer = arr.GetValue(i);
+                if (layer == null) continue;
+                FieldInfo anim = layer.GetType().GetField("animatorController");
+                FieldInfo type = layer.GetType().GetField("type");
+                if (anim == null) continue;
+                AnimatorController ac = UnwrapController(anim.GetValue(layer) as RuntimeAnimatorController);
+                if (ac == null) continue;
+                ControllerRole role;
+                if (!roles.TryGetValue(ac, out role))
+                {
+                    role = new ControllerRole();
+                    roles[ac] = role;
+                }
+                string typeName = type != null && type.GetValue(layer) != null ? type.GetValue(layer).ToString() : "";
+                if (typeName == "FX") role.fx = true;
+                if (typeName == "Additive") role.additive = true;
+            }
+        }
+
+        static bool LayerKeepsWriteDefaultsOn(AnimatorControllerLayer layer, bool additiveController)
+        {
+            if (additiveController) return true;
+            if (layer == null) return false;
+            if (layer.blendingMode == AnimatorLayerBlendingMode.Additive) return true;
+            if (MachineHasDirectBlendTree(layer.stateMachine)) return true;
+            return SyncedLayerHasDirectBlendTree(layer);
+        }
+
+        static bool SyncedLayerHasDirectBlendTree(AnimatorControllerLayer layer)
+        {
+            if (layer == null || layer.syncedLayerIndex < 0 || layer.stateMachine == null) return false;
+            return MachineHasSyncedDirectBlendTree(layer, layer.stateMachine);
+        }
+
+        static bool MachineHasSyncedDirectBlendTree(AnimatorControllerLayer layer, AnimatorStateMachine machine)
+        {
+            if (machine == null || machine.states == null) return false;
+            for (int i = 0; i < machine.states.Length; i++)
+            {
+                AnimatorState state = machine.states[i].state;
+                if (state != null && MotionHasDirectBlendTree(layer.GetOverrideMotion(state))) return true;
+            }
+            if (machine.stateMachines == null) return false;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+            {
+                if (MachineHasSyncedDirectBlendTree(layer, machine.stateMachines[i].stateMachine)) return true;
+            }
+            return false;
+        }
+
+        static bool MachineHasDirectBlendTree(AnimatorStateMachine machine)
+        {
+            if (machine == null) return false;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state != null && MotionHasDirectBlendTree(state.motion)) return true;
+                }
+            }
+            if (machine.stateMachines == null) return false;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+            {
+                if (MachineHasDirectBlendTree(machine.stateMachines[i].stateMachine)) return true;
+            }
+            return false;
+        }
+
+        static bool MotionHasDirectBlendTree(Motion motion)
+        {
+            BlendTree tree = motion as BlendTree;
+            if (tree == null) return false;
+            if (tree.blendType == BlendTreeType.Direct) return true;
+            ChildMotion[] children = tree.children;
+            if (children == null) return false;
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (MotionHasDirectBlendTree(children[i].motion)) return true;
+            }
+            return false;
+        }
+
+        static int ApplyLayerWriteDefaults(AnimatorController controller, bool userOn, bool additiveController)
+        {
+            if (controller == null || controller.layers == null) return 0;
+            int changed = 0;
+            AnimatorControllerLayer[] layers = controller.layers;
+            for (int i = 0; i < layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = layers[i];
+                if (layer == null) continue;
+                bool on = userOn || LayerKeepsWriteDefaultsOn(layer, additiveController);
+                changed += SetMachineWriteDefaults(layer.stateMachine, on);
+            }
+            if (changed > 0) EditorUtility.SetDirty(controller);
+            return changed;
+        }
+
+        static int SetMachineWriteDefaults(AnimatorStateMachine machine, bool on)
+        {
+            if (machine == null) return 0;
+            int changed = 0;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state == null || state.writeDefaultValues == on) continue;
+                    state.writeDefaultValues = on;
+                    EditorUtility.SetDirty(state);
+                    changed++;
+                }
+            }
+            if (machine.stateMachines == null) return changed;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                changed += SetMachineWriteDefaults(machine.stateMachines[i].stateMachine, on);
+            return changed;
+        }
+
+        static int CountRestPoseCurves(GameObject root, AnimatorController fx, HashSet<AnimatorController> others)
+        {
+            List<EditorCurveBinding> floats;
+            List<EditorCurveBinding> objects;
+            CollectRestPoseBindings(root, fx, others, out floats, out objects);
+            return (floats != null ? floats.Count : 0) + (objects != null ? objects.Count : 0);
+        }
+
+        static AnimationClip BuildRestPoseClip(GameObject root, AnimatorController fx, HashSet<AnimatorController> others)
+        {
+            List<EditorCurveBinding> floats;
+            List<EditorCurveBinding> objects;
+            CollectRestPoseBindings(root, fx, others, out floats, out objects);
+            if ((floats == null || floats.Count == 0) && (objects == null || objects.Count == 0)) return null;
+            AnimationClip clip = new AnimationClip();
+            clip.name = "KaleidoRestPose";
+            clip.frameRate = 60f;
+            int written = 0;
+            if (floats != null)
+            {
+                for (int i = 0; i < floats.Count; i++)
+                {
+                    float value;
+                    if (!AnimationUtility.GetFloatValue(root, floats[i], out value)) continue;
+                    AnimationUtility.SetEditorCurve(clip, floats[i], AnimationCurve.Constant(0f, 1f / 60f, value));
+                    written++;
+                }
+            }
+            if (objects != null)
+            {
+                for (int i = 0; i < objects.Count; i++)
+                {
+                    UnityEngine.Object value;
+                    if (!AnimationUtility.GetObjectReferenceValue(root, objects[i], out value)) continue;
+                    ObjectReferenceKeyframe[] keys = new ObjectReferenceKeyframe[1];
+                    keys[0].time = 0f;
+                    keys[0].value = value;
+                    AnimationUtility.SetObjectReferenceCurve(clip, objects[i], keys);
+                    written++;
+                }
+            }
+            if (written == 0)
+            {
+                UnityEngine.Object.DestroyImmediate(clip);
+                return null;
+            }
+            return clip;
+        }
+
+        static void CollectRestPoseBindings(GameObject root, AnimatorController fx, HashSet<AnimatorController> others, out List<EditorCurveBinding> floats, out List<EditorCurveBinding> objects)
+        {
+            floats = new List<EditorCurveBinding>();
+            objects = new List<EditorCurveBinding>();
+            if (root == null || fx == null) return;
+            HashSet<string> blocked = new HashSet<string>(StringComparer.Ordinal);
+            if (others != null)
+            {
+                foreach (AnimatorController other in others)
+                    CollectBindingKeys(other, blocked, false);
+            }
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            if (fx.layers == null) return;
+            for (int i = 0; i < fx.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = fx.layers[i];
+                if (layer == null || layer.name == "Kaleido Rest Pose") continue;
+                CollectOnStateBindings(layer, layer.stateMachine, blocked, seen, floats, objects);
+            }
+        }
+
+        static void CollectOnStateBindings(AnimatorControllerLayer layer, AnimatorStateMachine machine, HashSet<string> blocked, HashSet<string> seen, List<EditorCurveBinding> floats, List<EditorCurveBinding> objects)
+        {
+            if (machine == null) return;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state == null || !state.writeDefaultValues) continue;
+                    CollectMotionBindings(state.motion, blocked, seen, floats, objects);
+                    if (layer != null && layer.syncedLayerIndex >= 0)
+                        CollectMotionBindings(layer.GetOverrideMotion(state), blocked, seen, floats, objects);
+                }
+            }
+            if (machine.stateMachines == null) return;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                CollectOnStateBindings(layer, machine.stateMachines[i].stateMachine, blocked, seen, floats, objects);
+        }
+
+        static void CollectMotionBindings(Motion motion, HashSet<string> blocked, HashSet<string> seen, List<EditorCurveBinding> floats, List<EditorCurveBinding> objects)
+        {
+            if (motion == null) return;
+            BlendTree tree = motion as BlendTree;
+            if (tree != null)
+            {
+                ChildMotion[] children = tree.children;
+                if (children == null) return;
+                for (int i = 0; i < children.Length; i++)
+                    CollectMotionBindings(children[i].motion, blocked, seen, floats, objects);
+                return;
+            }
+            AnimationClip clip = motion as AnimationClip;
+            if (clip == null) return;
+            EditorCurveBinding[] floatBindings = AnimationUtility.GetCurveBindings(clip);
+            for (int i = 0; i < floatBindings.Length; i++)
+                KeepRestBinding(floatBindings[i], true, blocked, seen, floats, objects);
+            EditorCurveBinding[] objectBindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+            for (int i = 0; i < objectBindings.Length; i++)
+                KeepRestBinding(objectBindings[i], false, blocked, seen, floats, objects);
+        }
+
+        static void KeepRestBinding(EditorCurveBinding binding, bool isFloat, HashSet<string> blocked, HashSet<string> seen, List<EditorCurveBinding> floats, List<EditorCurveBinding> objects)
+        {
+            if (binding.type == typeof(Animator)) return;
+            string key = BindingKey(binding);
+            if (string.IsNullOrEmpty(key) || blocked.Contains(key) || !seen.Add(key)) return;
+            if (isFloat) floats.Add(binding);
+            else objects.Add(binding);
+        }
+
+        static void CollectBindingKeys(AnimatorController controller, HashSet<string> keys, bool onlyWriteDefaultsOn)
+        {
+            if (controller == null || controller.layers == null || keys == null) return;
+            for (int i = 0; i < controller.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = controller.layers[i];
+                if (layer != null) CollectBindingKeys(layer, layer.stateMachine, keys, onlyWriteDefaultsOn);
+            }
+        }
+
+        static void CollectBindingKeys(AnimatorControllerLayer layer, AnimatorStateMachine machine, HashSet<string> keys, bool onlyWriteDefaultsOn)
+        {
+            if (machine == null) return;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state == null) continue;
+                    if (onlyWriteDefaultsOn && !state.writeDefaultValues) continue;
+                    CollectMotionKeys(state.motion, keys);
+                    if (layer != null && layer.syncedLayerIndex >= 0)
+                        CollectMotionKeys(layer.GetOverrideMotion(state), keys);
+                }
+            }
+            if (machine.stateMachines == null) return;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                CollectBindingKeys(layer, machine.stateMachines[i].stateMachine, keys, onlyWriteDefaultsOn);
+        }
+
+        static void CollectMotionKeys(Motion motion, HashSet<string> keys)
+        {
+            if (motion == null || keys == null) return;
+            BlendTree tree = motion as BlendTree;
+            if (tree != null)
+            {
+                ChildMotion[] children = tree.children;
+                if (children == null) return;
+                for (int i = 0; i < children.Length; i++)
+                    CollectMotionKeys(children[i].motion, keys);
+                return;
+            }
+            AnimationClip clip = motion as AnimationClip;
+            if (clip == null) return;
+            EditorCurveBinding[] floatBindings = AnimationUtility.GetCurveBindings(clip);
+            for (int i = 0; i < floatBindings.Length; i++)
+            {
+                if (floatBindings[i].type == typeof(Animator)) continue;
+                string key = BindingKey(floatBindings[i]);
+                if (!string.IsNullOrEmpty(key)) keys.Add(key);
+            }
+            EditorCurveBinding[] objectBindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+            for (int i = 0; i < objectBindings.Length; i++)
+            {
+                if (objectBindings[i].type == typeof(Animator)) continue;
+                string key = BindingKey(objectBindings[i]);
+                if (!string.IsNullOrEmpty(key)) keys.Add(key);
+            }
+        }
+
+        static string BindingKey(EditorCurveBinding binding)
+        {
+            string typeName = binding.type != null ? binding.type.FullName : "";
+            return (binding.path ?? "") + "|" + typeName + "|" + (binding.propertyName ?? "");
+        }
+
+        static void InsertRestPoseLayer(AnimatorController controller, AnimationClip clip)
+        {
+            if (controller == null || clip == null) return;
+            if (controller.layers != null)
+            {
+                for (int i = 0; i < controller.layers.Length; i++)
+                {
+                    if (controller.layers[i].name == "Kaleido Rest Pose") return;
+                }
+            }
+            controller.AddLayer("Kaleido Rest Pose");
+            AnimatorControllerLayer[] layers = controller.layers;
+            if (layers == null || layers.Length == 0) return;
+            AnimatorControllerLayer created = layers[layers.Length - 1];
+            created.defaultWeight = 1f;
+            created.blendingMode = AnimatorLayerBlendingMode.Override;
+            AnimatorStateMachine machine = created.stateMachine;
+            if (machine != null)
+            {
+                AnimatorState state = machine.AddState("Rest Pose");
+                state.writeDefaultValues = false;
+                string path = AssetDatabase.GetAssetPath(controller);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    clip.hideFlags = HideFlags.None;
+                    AssetDatabase.AddObjectToAsset(clip, controller);
+                }
+                else clip.hideFlags = HideFlags.HideAndDontSave;
+                state.motion = clip;
+                machine.defaultState = state;
+            }
+            layers[layers.Length - 1] = created;
+            if (layers.Length > 1)
+            {
+                AnimatorControllerLayer[] ordered = new AnimatorControllerLayer[layers.Length];
+                ordered[0] = created;
+                for (int i = 0; i < layers.Length - 1; i++) ordered[i + 1] = layers[i];
+                controller.layers = ordered;
+            }
+            else controller.layers = layers;
+            EditorUtility.SetDirty(controller);
+        }
+
+        static int CountWriteDefaultChanges(AnimatorController controller, bool userOn, bool additiveController)
+        {
+            if (controller == null || controller.layers == null) return 0;
+            int n = 0;
+            for (int i = 0; i < controller.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = controller.layers[i];
+                if (layer == null || layer.name == "Kaleido Rest Pose") continue;
+                bool on = userOn || LayerKeepsWriteDefaultsOn(layer, additiveController);
+                n += CountWriteDefaultChanges(layer.stateMachine, on);
+            }
+            return n;
+        }
+
+        static int CountWriteDefaultChanges(AnimatorStateMachine machine, bool on)
+        {
+            if (machine == null) return 0;
+            int n = 0;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state != null && state.writeDefaultValues != on) n++;
+                }
+            }
+            if (machine.stateMachines == null) return n;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                n += CountWriteDefaultChanges(machine.stateMachines[i].stateMachine, on);
+            return n;
+        }
+
+        static int CountEmptyMotions(AnimatorController controller)
+        {
+            if (controller == null || controller.layers == null) return 0;
+            int n = 0;
+            for (int i = 0; i < controller.layers.Length; i++)
+            {
+                AnimatorControllerLayer layer = controller.layers[i];
+                if (layer != null) n += CountEmptyMotions(layer.stateMachine);
+            }
+            return n;
+        }
+
+        static int CountEmptyMotions(AnimatorStateMachine machine)
+        {
+            if (machine == null) return 0;
+            int n = 0;
+            if (machine.states != null)
+            {
+                for (int i = 0; i < machine.states.Length; i++)
+                {
+                    AnimatorState state = machine.states[i].state;
+                    if (state != null && state.motion == null) n++;
+                }
+            }
+            if (machine.stateMachines == null) return n;
+            for (int i = 0; i < machine.stateMachines.Length; i++)
+                n += CountEmptyMotions(machine.stateMachines[i].stateMachine);
+            return n;
         }
 
         static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)

@@ -179,6 +179,10 @@ namespace KaleidoVR.EditorTools
         public bool avatarOptimizePhysBones = true;
         public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
+        public bool avatarWriteDefaults = false;
+        public bool avatarWriteDefaultsOn = true;
+        public bool avatarFillEmptyStates = false;
+        public string avatarEmptyClipGuid = "";
         public bool avatarEnableMeshReadWrite = true;
         public bool avatarCapMenuIcons = true;
         public int avatarMenuIconSize = 256;
@@ -524,6 +528,10 @@ namespace KaleidoVR.EditorTools
         public bool avatarOptimizePhysBones = true;
         public bool avatarOptimizeContacts = true;
         public bool avatarOptimizeFxLayer = false;
+        public bool avatarWriteDefaults = false;
+        public bool avatarWriteDefaultsOn = true;
+        public bool avatarFillEmptyStates = false;
+        public AnimationClip avatarEmptyClip;
         public bool avatarEnableMeshReadWrite = true;
         public bool avatarCapMenuIcons = true;
         public int avatarMenuIconSize = 256;
@@ -597,6 +605,22 @@ namespace KaleidoVR.EditorTools
         public static void EnsurePrefsMigrated()
         {
             PrefsMigrate.Run();
+        }
+
+        public static string ClipGuid(AnimationClip clip)
+        {
+            if (clip == null) return "";
+            string path = AssetDatabase.GetAssetPath(clip);
+            if (string.IsNullOrEmpty(path)) return "";
+            return AssetDatabase.AssetPathToGUID(path) ?? "";
+        }
+
+        public static AnimationClip LoadClip(string guid)
+        {
+            if (string.IsNullOrEmpty(guid)) return null;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path)) return null;
+            return AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
         }
 
         public static int ClampMenuIconSize(int size)
@@ -929,6 +953,10 @@ namespace KaleidoVR.EditorTools
                 avatarOptimizePhysBones = avatarOptimizePhysBones,
                 avatarOptimizeContacts = avatarOptimizeContacts,
                 avatarOptimizeFxLayer = avatarOptimizeFxLayer,
+                avatarWriteDefaults = avatarWriteDefaults,
+                avatarWriteDefaultsOn = avatarWriteDefaultsOn,
+                avatarFillEmptyStates = avatarFillEmptyStates,
+                avatarEmptyClipGuid = ClipGuid(avatarEmptyClip),
                 avatarEnableMeshReadWrite = avatarEnableMeshReadWrite,
                 avatarCapMenuIcons = avatarCapMenuIcons,
                 avatarMenuIconSize = avatarMenuIconSize
@@ -1037,6 +1065,10 @@ namespace KaleidoVR.EditorTools
                 avatarOptimizePhysBones = p.avatarOptimizePhysBones;
                 avatarOptimizeContacts = p.avatarOptimizeContacts;
                 avatarOptimizeFxLayer = p.avatarOptimizeFxLayer;
+                avatarWriteDefaults = p.avatarWriteDefaults;
+                avatarWriteDefaultsOn = p.avatarWriteDefaultsOn;
+                avatarFillEmptyStates = p.avatarFillEmptyStates;
+                avatarEmptyClip = LoadClip(p.avatarEmptyClipGuid);
                 avatarEnableMeshReadWrite = p.avatarEnableMeshReadWrite;
                 avatarCapMenuIcons = p.avatarCapMenuIcons;
                 avatarMenuIconSize = ClampMenuIconSize(p.avatarMenuIconSize);
@@ -1160,6 +1192,10 @@ namespace KaleidoVR.EditorTools
             avatarOptimizePhysBones = GetBool("AvPb", true);
             avatarOptimizeContacts = GetBool("AvContact", true);
             avatarOptimizeFxLayer = GetBool("AvFx", false);
+            avatarWriteDefaults = GetBool("AvWD", false);
+            avatarWriteDefaultsOn = GetBool("AvWDOn", true);
+            avatarFillEmptyStates = GetBool("AvEmpty", false);
+            avatarEmptyClip = LoadClip(EditorPrefs.GetString(PrefsPrefix + "AvEmptyGuid", ""));
             avatarEnableMeshReadWrite = GetBool("AvMeshRW", true);
             avatarCapMenuIcons = GetBool("AvMenuIcon", true);
             avatarMenuIconSize = ClampMenuIconSize(GetInt("AvMenuIconSize", 256));
@@ -1276,6 +1312,9 @@ namespace KaleidoVR.EditorTools
             avatarOptimizePhysBones = true;
             avatarOptimizeContacts = true;
             avatarOptimizeFxLayer = false;
+            avatarWriteDefaults = false;
+            avatarWriteDefaultsOn = true;
+            avatarFillEmptyStates = false;
             avatarEnableMeshReadWrite = true;
             avatarCapMenuIcons = true;
             avatarMenuIconSize = 256;
@@ -1313,6 +1352,10 @@ namespace KaleidoVR.EditorTools
             SetBool("AvPb", avatarOptimizePhysBones);
             SetBool("AvContact", avatarOptimizeContacts);
             SetBool("AvFx", avatarOptimizeFxLayer);
+            SetBool("AvWD", avatarWriteDefaults);
+            SetBool("AvWDOn", avatarWriteDefaultsOn);
+            SetBool("AvEmpty", avatarFillEmptyStates);
+            EditorPrefs.SetString(PrefsPrefix + "AvEmptyGuid", ClipGuid(avatarEmptyClip));
             SetBool("AvMeshRW", avatarEnableMeshReadWrite);
             SetBool("AvMenuIcon", avatarCapMenuIcons);
             SetInt("AvMenuIconSize", ClampMenuIconSize(avatarMenuIconSize));
@@ -3324,6 +3367,26 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
+            window.avatarWriteDefaults = DrawToggle(window.avatarWriteDefaults, "Write Defaults", "Off by default.");
+            EditorGUI.BeginDisabledGroup(!window.avatarWriteDefaults);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(18);
+            GUILayout.Label("Set", GUILayout.Width(28));
+            int wdPick = window.avatarWriteDefaultsOn ? 0 : 1;
+            wdPick = EditorGUILayout.Popup(wdPick, new[] { "WD On", "WD Off" }, GUILayout.Width(90));
+            window.avatarWriteDefaultsOn = wdPick == 0;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.EndDisabledGroup();
+
+            window.avatarFillEmptyStates = DrawToggle(window.avatarFillEmptyStates, "Empty animator states", "Off by default.");
+            EditorGUI.BeginDisabledGroup(!window.avatarFillEmptyStates);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(18);
+            window.avatarEmptyClip = (AnimationClip)EditorGUILayout.ObjectField("Empty clip", window.avatarEmptyClip, typeof(AnimationClip), false);
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.EndDisabledGroup();
+
             DrawSmallRedWarning("Warning — can drop FX layers and unused curves. Can change how gestures and face play.");
             window.avatarOptimizeFxLayer = DrawToggle(window.avatarOptimizeFxLayer, "Optimize FX layer", "Off by default. On the upload copy only: drops empty layers and animation curves whose bindings are gone. Hand gesture clips stay as-is (detected by GestureLeft / GestureRight). MMD keeps layers 0–2.");
             EditorGUI.EndDisabledGroup();
