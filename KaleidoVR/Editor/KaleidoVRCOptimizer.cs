@@ -2155,7 +2155,7 @@ namespace KaleidoVR.EditorTools
             window.includeRenderers = EditorGUILayout.ToggleLeft("Scene  —  offscreen, probes, particles, shadows, 4-bone quality", window.includeRenderers);
             window.includeAudio = EditorGUILayout.ToggleLeft("Scene tab audio  —  load in background, Vorbis", window.includeAudio);
             window.includeAnimators = EditorGUILayout.ToggleLeft("Scene tab animators  —  cull when offscreen", window.includeAnimators);
-            window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, contacts, FX", window.includeAvatar);
+            window.includeAvatar = EditorGUILayout.ToggleLeft("On Upload  —  merge meshes, unused cleanup, blend shapes, PhysBones, contacts, FX, Write Defaults", window.includeAvatar);
             window.includeSpecial = EditorGUILayout.ToggleLeft("Special tab  —  texture compression, mesh compression, Humanoid, strip shapes, GPU instancing, lights, cameras, mono", window.includeSpecial);
             DrawWhy("Leave this off unless you intend those high-risk writes. Built-in profiles never include Special.");
 
@@ -3367,7 +3367,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
-            window.avatarWriteDefaults = DrawToggle(window.avatarWriteDefaults, "Write Defaults", "Off by default.");
+            window.avatarWriteDefaults = DrawToggle(window.avatarWriteDefaults, "Write Defaults", "Off by default. On Upload copies the controllers and sets states to the pick. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX so those properties can turn back off. Rank can Confirm On or Off on the project now.");
             EditorGUI.BeginDisabledGroup(!window.avatarWriteDefaults);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(18);
@@ -3379,13 +3379,14 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
             EditorGUI.EndDisabledGroup();
 
-            window.avatarFillEmptyStates = DrawToggle(window.avatarFillEmptyStates, "Empty animator states", "Off by default.");
+            window.avatarFillEmptyStates = DrawToggle(window.avatarFillEmptyStates, "Empty animator states", "Off by default. Fills states that have no motion on the upload copy. Leave the clip empty to use the shared empty clip. Rank Fix writes that shared clip on the project now.");
             EditorGUI.BeginDisabledGroup(!window.avatarFillEmptyStates);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(18);
             window.avatarEmptyClip = (AnimationClip)EditorGUILayout.ObjectField("Empty clip", window.avatarEmptyClip, typeof(AnimationClip), false);
             EditorGUILayout.EndHorizontal();
             EditorGUI.EndDisabledGroup();
+            DrawWhy("Optional. Leave Empty clip empty to use the shared empty clip. Pick a clip if you want your own. Rank Fix still writes the shared clip on the project.");
 
             DrawSmallRedWarning("Warning — can drop FX layers and unused curves. Can change how gestures and face play.");
             window.avatarOptimizeFxLayer = DrawToggle(window.avatarOptimizeFxLayer, "Optimize FX layer", "Off by default. On the upload copy only: drops empty layers and animation curves whose bindings are gone. Hand gesture clips stay as-is (detected by GestureLeft / GestureRight). MMD keeps layers 0–2.");
@@ -4315,8 +4316,8 @@ namespace KaleidoVR.EditorTools
             if (evalHiddenOpen)
             {
                 DrawWhy(window.IsQuestWorkspace
-                    ? "VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be fixed from this tab. GrabPass and blendshape load are reported only."
-                    : "VRChat rank does not count these. Orange rows need a look. Write Defaults, empty states, and mesh Read/Write can be fixed from this tab. GrabPass and blendshape load are reported only.");
+                    ? "VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be set on On Upload, or written from this tab. GrabPass and blendshape load are reported only."
+                    : "VRChat rank does not count these. Orange rows need a look. Write Defaults and empty states can be set on On Upload, or written from this tab. Mesh Read/Write can be fixed here. GrabPass and blendshape load are reported only.");
                 DrawStatRow("GrabPasses", report.grabPasses.ToString("N0") + "  " + report.grabPassQuality, report.grabPasses > 0);
                 if (report.grabPassShaders != null && report.grabPassShaders.Count > 0)
                 {
@@ -4467,6 +4468,7 @@ namespace KaleidoVR.EditorTools
             else if (report.writeDefaultsMixed) status = "Mixed — should be all on or all off  (" + onCount + " on, " + offCount + " off)";
             else status = report.writeDefaultsMostlyOn ? "On" : "Off";
             DrawStatRow("Write Defaults", status, report.writeDefaultsMixed);
+            DrawWhy("On Upload can set WD On or WD Off on the upload copy. Direct blend trees and additive layers stay on there, and WD Off adds a rest-pose layer on FX. Confirm here writes every state on the project now.");
             if (total == 0) return;
 
             bool alreadyOn = !report.writeDefaultsMixed && report.writeDefaultsMostlyOn;
@@ -4522,6 +4524,7 @@ namespace KaleidoVR.EditorTools
         {
             int count = report.emptyStateCount;
             DrawStatRow("Empty animator states", count.ToString("N0"), count > 0);
+            DrawWhy("On Upload can fill these on the upload copy, with the shared empty clip or one you pick. Fix here writes the shared empty clip on the project now.");
             if (report.emptyStates != null && report.emptyStates.Count > 0)
             {
                 evalEmptyOpen = EditorGUILayout.Foldout(evalEmptyOpen, "States with no motion", false);
@@ -7052,8 +7055,8 @@ namespace KaleidoVR.EditorTools
             }
             if (report.grabPasses > 0) report.notes.Add("GrabPass shaders are very expensive. VRChat rank does not count them. " + report.grabPasses + " found.");
             if (report.anyStateTransitions > 50) report.notes.Add("Any State transitions are checked every frame. Around 50 is a healthy cap. This avatar has " + report.anyStateTransitions + ".");
-            if (report.writeDefaultsMixed) report.notes.Add("Write Defaults is mixed across animator states. Unity wants all on or all off.");
-            if (report.emptyStateCount > 0) report.notes.Add(report.emptyStateCount + " animator state(s) have no motion. Use Fix on Rank to assign the shared empty clip.");
+            if (report.writeDefaultsMixed) report.notes.Add("Write Defaults is mixed across animator states. Unity wants all on or all off. Set it on On Upload, or Confirm on Rank.");
+            if (report.emptyStateCount > 0) report.notes.Add(report.emptyStateCount + " animator state(s) have no motion. Fill them on On Upload, or use Fix on Rank.");
             if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
             if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
             if (report.missingStreamingCount > 0) report.notes.Add(report.missingStreamingCount + " mipmapped texture(s) have streaming mip maps off. VRChat expects them on. Use Fix on Rank.");

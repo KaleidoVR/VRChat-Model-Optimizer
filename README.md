@@ -75,8 +75,8 @@ Fix and Confirm on this tab write into Unity right away. You do not need Apply a
 
 - **VRAM** — texture and mesh memory, plus an estimate after Apply. Rank does not count most of this.
 - **Hidden cost** — GrabPass, blendshape triangles, Any State transitions, animator layers, Write Defaults, empty states, mesh Read/Write. GrabPass and blendshape load are reported only.
-- Write Defaults — On / Off / Ignore, then Confirm. Writes every animator state on this avatar.
-- Empty animator states — Fix assigns the shared empty clip.
+- Write Defaults — On / Off / Ignore, then Confirm. Writes every animator state on this avatar. On Upload can set WD On or WD Off on the upload copy. Direct blend trees and additive layers stay on there. WD Off adds a rest-pose layer on FX.
+- Empty animator states — Fix assigns the shared empty clip. On Upload can fill them on the upload copy, with that clip or one you pick.
 - Mesh Read/Write — PC: On / Off / Ignore, then Confirm (writes the FBX). Quest: report only, shown in red. Quest upload is blocked while any mesh is off; Enable mesh Read / Write on On Upload copies those meshes readable on the clone only.
 - **Texture flags** — crunched textures, normals that are not BC5, animation-swap textures, streaming mip maps off. Fix writes streaming on.
 - Unity constraints — Fix runs the VRChat SDK converter so Play Mode matches what the client loads. Android disables leftover Unity constraints.
@@ -117,7 +117,7 @@ Off until you tick Apply on upload. Skipped in Play Mode. Runs last, after other
 
 **Contacts:** Remove unused contacts (on by default when Apply on upload is ticked). Disabled senders and receivers that never turn on. Enabled senders stay. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay.
 
-**Animator:** Optimize FX layer (off by default, with a warning). Empty layers and missing curves only. Hand gesture clips stay. MMD keeps layers 0–2.
+**Animator:** Write Defaults (off). WD On or WD Off. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX. Empty animator states (off). Leave the clip empty to use the shared empty clip, or pick your own. Rank can still Confirm or Fix the project. Optimize FX layer (off by default, with a warning). Empty layers and missing curves only. Hand gesture clips stay. MMD keeps layers 0–2.
 
 Dry Run On Upload, Create optimized copy in the scene, and Clear cache for `Assets/KaleidoVR/Generated`.
 
