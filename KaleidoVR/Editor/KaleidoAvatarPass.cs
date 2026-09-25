@@ -39,6 +39,7 @@ namespace KaleidoVR.EditorTools
         public bool fillEmptyStates = false;
         public AnimationClip emptyClip;
         public bool disableUpdateWhenOffscreen = false;
+        public bool disableReceiveShadows = false;
         public bool enableMeshReadWrite = true;
         public bool capMenuIcons = true;
         public int menuIconSize = 256;
@@ -167,6 +168,7 @@ namespace KaleidoVR.EditorTools
                 fillEmptyStates = EditorPrefs.GetBool(p + "AvEmpty", false),
                 emptyClip = LoadEmptyClip(EditorPrefs.GetString(p + "AvEmptyGuid", "")),
                 disableUpdateWhenOffscreen = EditorPrefs.GetBool(p + "AvUwo", false),
+                disableReceiveShadows = EditorPrefs.GetBool(p + "AvRecv", false),
                 enableMeshReadWrite = EditorPrefs.GetBool(p + "AvMeshRW", true)
                     && EditorPrefs.GetInt(p + "Workspace", 0) == 1,
                 capMenuIcons = EditorPrefs.GetBool(p + "AvMenuIcon", true),
@@ -199,6 +201,7 @@ namespace KaleidoVR.EditorTools
                 fillEmptyStates = window.avatarFillEmptyStates,
                 emptyClip = window.avatarEmptyClip,
                 disableUpdateWhenOffscreen = window.avatarDisableUpdateWhenOffscreen,
+                disableReceiveShadows = window.avatarDisableReceiveShadows,
                 enableMeshReadWrite = window.IsQuestWorkspace && window.avatarEnableMeshReadWrite,
                 capMenuIcons = window.avatarCapMenuIcons,
                 menuIconSize = KaleidoVRCOptimizer.ClampMenuIconSize(window.avatarMenuIconSize)
@@ -482,6 +485,8 @@ namespace KaleidoVR.EditorTools
                 ReportProgress("Disabling Update When Offscreen…", 0.74f);
                 if (settings.disableUpdateWhenOffscreen)
                     DisableUpdateWhenOffscreen(root, excluded, dryRun, result);
+                if (settings.disableReceiveShadows)
+                    DisableReceiveShadows(root, excluded, dryRun, result);
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
@@ -2942,6 +2947,22 @@ namespace KaleidoVR.EditorTools
             }
             if (changed > 0)
                 result.lines.Add("Update When Offscreen off on " + changed + " skinned mesh(es).");
+        }
+
+        static void DisableReceiveShadows(GameObject root, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || result == null) return;
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            int changed = 0;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || IsExcluded(renderer, excluded) || !renderer.receiveShadows) continue;
+                changed++;
+                if (!dryRun) renderer.receiveShadows = false;
+            }
+            if (changed > 0)
+                result.lines.Add("Receive shadows off on " + changed + " renderer(s).");
         }
 
         static AnimationClip LoadEmptyClip(string guid)
