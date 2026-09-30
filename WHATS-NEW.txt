@@ -1,5 +1,18 @@
 What's new
 
+1.0.71
+The Merge same-ratio blend shapes note now says it affects Face Tracking. It still starts off.
+On Upload can set Write Defaults. It starts off. WD On or WD Off. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX so those properties can turn back off. Rank can still Confirm On or Off on the project.
+On Upload can fill empty animator states. It starts off. Leave the clip empty and I use the shared empty clip. Pick a clip if you want your own. Rank Fix still writes that shared clip on the project.
+On Upload can turn Update When Offscreen off. It starts off. That writes the upload copy. Scene on PC can still write the project.
+On Upload can turn receive shadows off. It starts off. That writes the upload copy. Scene on PC can still write the project.
+UI — On Upload: Write Defaults sits under Animator. It starts off. WD On / WD Off sits under it.
+UI — On Upload: Empty animator states sits under Write Defaults. It starts off. Empty clip is optional.
+UI — On Upload: Disable Update When Offscreen sits under Meshes, after Allow shuffling material slots. It starts off.
+UI — On Upload: Disable receive shadows sits under that. It starts off.
+UI — Rank: Write Defaults and Empty animator states say you can do them on On Upload, or write the project from this tab.
+UI — Scene (PC): Disable Update When Offscreen and Disable receive shadows say On Upload can do the upload copy, and Apply here writes the project.
+
 1.0.70
 I stopped ticking Override for Windows, Mac, Linux when you cap texture max size. Maps that need to stay sharp were getting blotched and blurred — a freckles texture was the one that showed it. Max size writes the Default size only now. If a texture already had that override on, I still update that platform size.
 On Textures, On / Off / Ignore and Confirm sets that Unity override on every listed texture. Confirm writes now. You do not need Apply after that. It is all on or all off for the whole model. I may add per-texture control later. For now it stays your choice, and it starts off so those maps stay sharp.
