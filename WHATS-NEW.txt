@@ -1,5 +1,8 @@
 What's new
 
+1.0.73
+On Upload can drop unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero.
+
 1.0.72
 I fixed the texture sorts. They follow the option you pick, using this workspace's Current size.
 UI — Textures: Sort matches the option you pick. Largest VRAM first matches the size on each row.
