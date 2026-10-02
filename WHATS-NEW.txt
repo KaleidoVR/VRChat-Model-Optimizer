@@ -1,5 +1,9 @@
 What's new
 
+1.0.72
+I fixed the texture sorts. They follow the option you pick, using this workspace's Current size.
+UI — Textures: Sort matches the option you pick. Largest VRAM first matches the size on each row.
+
 1.0.71
 The Merge same-ratio blend shapes note now says it affects Face Tracking. It still starts off.
 On Upload can set Write Defaults. It starts off. WD On or WD Off. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX so those properties can turn back off. Rank can still Confirm On or Off on the project.

@@ -209,7 +209,7 @@ namespace KaleidoVR.EditorTools
 
     public class KaleidoVRCOptimizer : EditorWindow
     {
-        public static readonly string VERSION = "1.0.71";
+        public static readonly string VERSION = "1.0.72";
         public const float WindowMinWidth = 660f;
         public const float WindowMinHeight = 720f;
         public const string LOGO_FILE_NAME = "Kali_Logo.png";
@@ -2773,7 +2773,7 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
             DrawWhy("Revert undoes the last max-size write. Forward reapplies it. One texture change per click.");
 
-            List<KaleidoTextureUsage> rows = SortedTextureUsages(window);
+            List<KaleidoTextureUsage> rows = SortedTextureUsages(window, questPlatform);
             const float TextureListHeight = 400f;
             BeginOutlinedPanel(0f);
             EditorGUILayout.BeginHorizontal();
@@ -2820,9 +2820,10 @@ namespace KaleidoVR.EditorTools
                 string textureName = usage.texture != null ? usage.texture.name : Path.GetFileName(usage.path);
                 GUILayout.Label(new GUIContent(textureName, textureName), TextureNameClipStyle(), GUILayout.Width(TextureNameCol));
                 GUILayout.Label(KindLabel(usage.kind), TextureMetaClipStyle(), GUILayout.Width(TextureNameCol));
-                if (usage.vramBytes > 0 || !string.IsNullOrEmpty(usage.formatLabel))
+                long rowVram = WorkspaceVramBytes(usage, questPlatform);
+                if (rowVram > 0 || !string.IsNullOrEmpty(usage.formatLabel))
                 {
-                    string vram = usage.vramBytes > 0 ? KaleidoVRCOptimizerHelpers.FormatBytes(usage.vramBytes) : "";
+                    string vram = rowVram > 0 ? KaleidoVRCOptimizerHelpers.FormatBytes(rowVram) : "";
                     string fmt = string.IsNullOrEmpty(usage.formatLabel) ? "" : usage.formatLabel;
                     string extra = (fmt + "  " + vram).Trim();
                     if (usage.fromAnimationSwap) extra += "  swap";
@@ -2882,7 +2883,7 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.EndHorizontal();
         }
 
-        private static List<KaleidoTextureUsage> SortedTextureUsages(KaleidoVRCOptimizer window)
+        private static List<KaleidoTextureUsage> SortedTextureUsages(KaleidoVRCOptimizer window, bool questPlatform)
         {
             List<KaleidoTextureUsage> rows = new List<KaleidoTextureUsage>();
             if (window.textureUsages != null)
@@ -2894,27 +2895,126 @@ namespace KaleidoVR.EditorTools
             }
             rows.Sort(delegate (KaleidoTextureUsage a, KaleidoTextureUsage b)
             {
-                int areaA = Math.Max(0, a.sourceWidth) * Math.Max(0, a.sourceHeight);
-                int areaB = Math.Max(0, b.sourceWidth) * Math.Max(0, b.sourceHeight);
                 string nameA = a.texture != null ? a.texture.name : a.path;
                 string nameB = b.texture != null ? b.texture.name : b.path;
                 switch (window.textureSort)
                 {
-                    case 1: return areaA.CompareTo(areaB);
+                    case 1: return CompareResolution(a, b, questPlatform, false, nameA, nameB);
                     case 2: return string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
                     case 3: return string.Compare(nameB, nameA, StringComparison.OrdinalIgnoreCase);
                     case 4:
                         int kind = ((int)a.kind).CompareTo((int)b.kind);
                         return kind != 0 ? kind : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
                     case 5:
-                        int vram = b.vramBytes.CompareTo(a.vramBytes);
+                        int vram = WorkspaceVramBytes(b, questPlatform).CompareTo(WorkspaceVramBytes(a, questPlatform));
                         return vram != 0 ? vram : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
-                    default:
-                        int largest = areaB.CompareTo(areaA);
-                        return largest != 0 ? largest : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
+                    default: return CompareResolution(a, b, questPlatform, true, nameA, nameB);
                 }
             });
             return rows;
+        }
+
+        private static int CompareResolution(KaleidoTextureUsage a, KaleidoTextureUsage b, bool questPlatform, bool largestFirst, string nameA, string nameB)
+        {
+            long areaA = WorkspacePixelArea(a, questPlatform);
+            long areaB = WorkspacePixelArea(b, questPlatform);
+            int area = largestFirst ? areaB.CompareTo(areaA) : areaA.CompareTo(areaB);
+            return area != 0 ? area : string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static long WorkspacePixelArea(KaleidoTextureUsage usage, bool questPlatform)
+        {
+            int width;
+            int height;
+            WorkspacePixels(usage, questPlatform, out width, out height);
+            return (long)width * height;
+        }
+
+        private static long WorkspaceVramBytes(KaleidoTextureUsage usage, bool questPlatform)
+        {
+            if (usage == null) return 0;
+            int width;
+            int height;
+            WorkspacePixels(usage, questPlatform, out width, out height);
+            float bpp = WorkspaceBitsPerPixel(usage, questPlatform);
+            int mips = WorkspaceMipCount(usage, width, height);
+            long bytes = 0;
+            int w = Math.Max(1, width);
+            int h = Math.Max(1, height);
+            for (int i = 0; i < mips; i++)
+            {
+                bytes += (long)Math.Round(w * (double)h * bpp / 8d);
+                w = Math.Max(1, w / 2);
+                h = Math.Max(1, h / 2);
+            }
+            Texture texture = usage.texture;
+            if (texture is Cubemap) bytes *= 6;
+            Texture2DArray array = texture as Texture2DArray;
+            if (array != null) bytes *= Math.Max(1, array.depth);
+            return bytes;
+        }
+
+        private static void WorkspacePixels(KaleidoTextureUsage usage, bool questPlatform, out int width, out int height)
+        {
+            width = usage != null ? Math.Max(0, usage.sourceWidth) : 0;
+            height = usage != null ? Math.Max(0, usage.sourceHeight) : 0;
+            if (usage != null && usage.texture != null && (width <= 0 || height <= 0))
+            {
+                width = usage.texture.width;
+                height = usage.texture.height;
+            }
+            int cap = 0;
+            if (usage != null) cap = questPlatform ? usage.currentQuest : usage.currentPc;
+            if (cap > 0 && width > 0 && height > 0)
+            {
+                int longest = Math.Max(width, height);
+                if (longest > cap)
+                {
+                    float scale = cap / (float)longest;
+                    width = Math.Max(1, (int)Math.Round(width * scale));
+                    height = Math.Max(1, (int)Math.Round(height * scale));
+                }
+            }
+            else if (cap > 0)
+            {
+                width = cap;
+                height = cap;
+            }
+            width = Math.Max(1, width);
+            height = Math.Max(1, height);
+        }
+
+        private static float WorkspaceBitsPerPixel(KaleidoTextureUsage usage, bool questPlatform)
+        {
+            if (usage == null) return 8f;
+            TextureImporter importer = string.IsNullOrEmpty(usage.path) ? null : AssetImporter.GetAtPath(usage.path) as TextureImporter;
+            if (importer != null)
+            {
+                TextureImporterPlatformSettings platform = importer.GetPlatformTextureSettings(questPlatform ? "Android" : "Standalone");
+                if (platform != null && platform.overridden && platform.format != TextureImporterFormat.Automatic)
+                    return KaleidoVRCOptimizerEval.BitsPerPixel(platform.format);
+            }
+            if (usage.texture != null) return KaleidoVRCOptimizerEval.BitsPerPixel(usage.texture);
+            return 8f;
+        }
+
+        private static int WorkspaceMipCount(KaleidoTextureUsage usage, int width, int height)
+        {
+            bool mips = true;
+            if (usage != null && !string.IsNullOrEmpty(usage.path))
+            {
+                TextureImporter importer = AssetImporter.GetAtPath(usage.path) as TextureImporter;
+                if (importer != null) mips = importer.mipmapEnabled;
+            }
+            if (!mips) return 1;
+            int longest = Math.Max(1, Math.Max(width, height));
+            int count = 1;
+            while (longest > 1)
+            {
+                longest /= 2;
+                count++;
+            }
+            return count;
         }
 
         private static void DrawTextureSizeStatus(KaleidoVRCOptimizer window, KaleidoTextureUsage usage, bool questPlatform)
