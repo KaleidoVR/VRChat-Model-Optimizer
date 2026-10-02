@@ -1247,11 +1247,12 @@ namespace KaleidoVR.EditorTools
             return ShouldLeaveRenderer(renderer, excluded, root, null);
         }
 
-        static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root, ComponentRefInfo refs)
+        static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded, GameObject root, ComponentRefInfo refs, bool honorRefs = true)
         {
             if (renderer == null || IsExcluded(renderer, excluded) || IsSensitiveMesh(renderer)) return true;
             if (IsEditorOnly(renderer.gameObject)) return true;
             if (IsAttachedExtra(renderer, root)) return true;
+            if (!honorRefs) return false;
             if (refs != null && refs.Keeps(renderer)) return true;
             SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
             Mesh mesh = smr != null ? smr.sharedMesh : null;
@@ -1559,7 +1560,7 @@ namespace KaleidoVR.EditorTools
             for (int s = 0; s < skins.Length; s++)
             {
                 SkinnedMeshRenderer smr = skins[s];
-                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs)) continue;
+                if (smr == null || smr.sharedMesh == null || ShouldLeaveRenderer(smr, excluded, root, refs, false)) continue;
                 Mesh mesh = smr.sharedMesh;
                 if (mesh.blendShapeCount == 0) continue;
 
