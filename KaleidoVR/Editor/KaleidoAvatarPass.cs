@@ -2703,6 +2703,7 @@ namespace KaleidoVR.EditorTools
 
             Component[] pbs = root.GetComponentsInChildren(pbType, true);
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             FieldInfo rootField = pbType.GetField("rootTransform") ?? pbType.GetField("m_RootTransform");
 
             for (int i = 0; i < pbs.Length; i++)
@@ -2714,13 +2715,7 @@ namespace KaleidoVR.EditorTools
                 Transform pbRoot = rootField != null ? rootField.GetValue(pb) as Transform : pb.transform;
                 if (pbRoot == null) pbRoot = pb.transform;
                 if (refs != null && (refs.Keeps(pb) || refs.Keeps(pbRoot))) continue;
-                bool used = false;
-                for (int s = 0; s < skins.Length; s++)
-                {
-                    SkinnedMeshRenderer smr = skins[s];
-                    if (smr == null || smr.sharedMesh == null) continue;
-                    if (RendererUsesTransform(smr, pbRoot)) { used = true; break; }
-                }
+                bool used = PhysBoneRootIsUsed(pbRoot, skins, renderers);
                 string path = AnimationUtility.CalculateTransformPath(pb.transform, root.transform);
                 if (!used && !anim.IsEnabledAnimated(path, pbType))
                 {
@@ -2771,6 +2766,40 @@ namespace KaleidoVR.EditorTools
                     if (t == bone) return true;
                     t = t.parent;
                 }
+            }
+            return false;
+        }
+
+        static bool PhysBoneRootIsUsed(Transform pbRoot, SkinnedMeshRenderer[] skins, Renderer[] renderers)
+        {
+            if (pbRoot == null) return false;
+            if (skins != null)
+            {
+                for (int s = 0; s < skins.Length; s++)
+                {
+                    SkinnedMeshRenderer smr = skins[s];
+                    if (smr == null || smr.sharedMesh == null) continue;
+                    if (RendererUsesTransform(smr, pbRoot)) return true;
+                }
+            }
+            if (renderers != null)
+            {
+                for (int r = 0; r < renderers.Length; r++)
+                {
+                    Renderer renderer = renderers[r];
+                    if (renderer == null) continue;
+                    if (IsUnderOrEqual(renderer.transform, pbRoot)) return true;
+                }
+            }
+            return false;
+        }
+
+        static bool IsUnderOrEqual(Transform t, Transform ancestor)
+        {
+            while (t != null)
+            {
+                if (t == ancestor) return true;
+                t = t.parent;
             }
             return false;
         }
