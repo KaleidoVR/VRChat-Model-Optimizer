@@ -62,6 +62,8 @@ namespace KaleidoVR.EditorTools
         public int curvesRemoved;
         public bool ok = true;
         public string failReason;
+        public bool skippedUnfinished;
+        public string skipMessage;
 
         public string SummaryLine()
         {
@@ -434,9 +436,11 @@ namespace KaleidoVR.EditorTools
         {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
-            if (HasForeignUploadComponents(root))
+            if (HasUnfinishedUploadMarkers(root))
             {
-                result.lines.Add("On Upload skipped: other upload components are still on this copy.");
+                result.skippedUnfinished = true;
+                result.skipMessage = "On Upload skipped: unfinished upload markers are still on this copy.";
+                result.lines.Add(result.skipMessage);
                 latestRun = result;
                 return result;
             }
@@ -1215,7 +1219,9 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
-        static bool HasForeignUploadComponents(GameObject root)
+        // Unfinished assemble markers only (foreign IEditorOnly). Runtime third-party
+        // components stay; per-object HasExternalWork / IsOwnedType skips still apply.
+        static bool HasUnfinishedUploadMarkers(GameObject root)
         {
             if (root == null) return false;
             Component[] parts = root.GetComponentsInChildren<Component>(true);
@@ -1223,7 +1229,8 @@ namespace KaleidoVR.EditorTools
             {
                 Component c = parts[i];
                 if (c == null || c is Transform) continue;
-                if (!IsOwnedType(c.GetType())) return true;
+                if (IsOwnedType(c.GetType())) continue;
+                if (IsEditorMarker(c)) return true;
             }
             return false;
         }
