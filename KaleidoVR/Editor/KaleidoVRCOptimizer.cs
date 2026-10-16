@@ -4346,9 +4346,11 @@ namespace KaleidoVR.EditorTools
             if (report.hasOnUploadEstimate)
             {
                 DrawNowUploadHeader();
-                DrawWhy(report.onUploadAssembled
-                    ? "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged."
-                    : "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.");
+                DrawWhy(string.IsNullOrEmpty(report.onUploadStatusNote)
+                    ? (report.onUploadAssembled
+                        ? "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged."
+                        : "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.")
+                    : report.onUploadStatusNote);
             }
             string rank = window.IsQuestWorkspace ? report.questRank : report.pcRank;
             string uploadRank = window.IsQuestWorkspace ? report.onUploadQuestRank : report.onUploadPcRank;
