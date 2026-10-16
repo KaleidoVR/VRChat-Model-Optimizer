@@ -1,5 +1,15 @@
 What's new
 
+1.0.74
+On Upload no longer skips the whole pass just because a third-party runtime component is still on the copy. I only hold when unfinished upload markers remain. Cloth, IK, and other runtime scripts stay; merge and cleanup still leave what they touch alone.
+On Upload keeps PhysBones that still drive a basic mesh or anything under that PhysBone root, not only skinned meshes.
+Merge same-ratio blend shapes uses the real animation ratio when you turn that option on. It still starts off.
+On Upload only keeps bare-name object refs when that name is unique on the avatar, so loose strings stop pinning every matching bone.
+Optimize FX can drop Generated curves for blend shapes that are already gone.
+Rank says when assemble failed or unfinished markers blocked On Upload.
+UI — On Upload: Remove unused PhysBones (was Disable PhysBones when unused).
+UI — Rank: the On Upload note shows assemble failed or unfinished-marker skip when that happened.
+
 1.0.73
 On Upload can drop unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero.
 
