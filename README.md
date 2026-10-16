@@ -113,7 +113,7 @@ Off until you tick Apply on upload. Skipped in Play Mode. Runs last, after other
 
 **Cleanup:** Remove unused components (disabled ones no clip turns on; EditorOnly; audio sources stay). Remove unused GameObjects (off by default). Keep only weighted bones.
 
-**PhysBones:** Disable PhysBones when unused.
+**PhysBones:** Remove unused PhysBones.
 
 **Contacts:** Remove unused contacts (on by default when Apply on upload is ticked). Disabled senders and receivers that never turn on. Enabled senders stay. Receivers whose parameter still goes into FX, menus, or Expression Parameters stay.
 
