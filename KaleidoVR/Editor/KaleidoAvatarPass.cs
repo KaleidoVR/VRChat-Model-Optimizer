@@ -244,6 +244,11 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
+        public static KaleidoAvatarPassResult LatestRun
+        {
+            get { return latestRun; }
+        }
+
         static bool ClaimUploadPass(GameObject root)
         {
             if (root == null) return false;
@@ -446,7 +451,8 @@ namespace KaleidoVR.EditorTools
             }
             if (!dryRun && !ClaimUploadPass(root))
             {
-                result.lines.Add("On Upload already ran on this copy.");
+                result.skipMessage = "On Upload already ran on this copy.";
+                result.lines.Add(result.skipMessage);
                 latestRun = result;
                 return result;
             }

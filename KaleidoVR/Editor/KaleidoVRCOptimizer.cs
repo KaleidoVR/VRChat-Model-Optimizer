@@ -1690,6 +1690,7 @@ namespace KaleidoVR.EditorTools
         public List<string> missingStreamingMipmaps = new List<string>();
         public bool hasOnUploadEstimate;
         public bool onUploadAssembled;
+        public string onUploadStatusNote = "";
         public string onUploadPcRank = "—";
         public string onUploadQuestRank = "—";
         public int onUploadTriangles;
@@ -6908,6 +6909,7 @@ namespace KaleidoVR.EditorTools
         {
             report.hasOnUploadEstimate = false;
             report.onUploadAssembled = false;
+            report.onUploadStatusNote = "";
             if (window == null || report == null || roots == null || roots.Count == 0) return;
             KaleidoAvatarPassSettings settings = KaleidoAvatarPass.FromWindow(window);
             if (settings == null || !settings.applyOnUpload) return;
@@ -6917,6 +6919,9 @@ namespace KaleidoVR.EditorTools
             {
                 EditorUtility.DisplayProgressBar("KaleidoVR VRChat Model Optimizer", "Estimating On Upload…", 0.55f);
                 bool assembledAny = false;
+                string assembleFail = null;
+                bool skippedUnfinished = false;
+                string skipMessage = null;
                 for (int i = 0; i < roots.Count; i++)
                 {
                     GameObject root = roots[i];
@@ -6932,11 +6937,20 @@ namespace KaleidoVR.EditorTools
                             if (KaleidoAvatarPass.TryAssembleOtherUploadPasses(copy))
                                 assembledAny = true;
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
+                            if (string.IsNullOrEmpty(assembleFail))
+                                assembleFail = ex.Message;
                         }
-                        if (!KaleidoAvatarPass.UploadPassAlreadyRan(copy))
-                            KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
+                        KaleidoAvatarPassResult passResult = KaleidoAvatarPass.UploadPassAlreadyRan(copy)
+                            ? KaleidoAvatarPass.LatestRun
+                            : KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
+                        if (passResult != null && passResult.skippedUnfinished)
+                        {
+                            skippedUnfinished = true;
+                            if (string.IsNullOrEmpty(skipMessage))
+                                skipMessage = passResult.skipMessage;
+                        }
                     }
                     finally
                     {
@@ -6955,6 +6969,7 @@ namespace KaleidoVR.EditorTools
 
                 report.hasOnUploadEstimate = true;
                 report.onUploadAssembled = assembledAny;
+                report.onUploadStatusNote = BuildOnUploadStatusNote(assembledAny, assembleFail, skippedUnfinished, skipMessage);
                 report.onUploadPcRank = projected.pcRank;
                 report.onUploadQuestRank = projected.questRank;
                 report.onUploadTriangles = projected.triangles;
@@ -6975,12 +6990,16 @@ namespace KaleidoVR.EditorTools
                 report.onUploadUnityConstraints = projected.unityConstraints;
                 report.onUploadVrcConstraints = projected.vrcConstraints;
                 if (logEntries != null)
+                {
                     logEntries.Add("On Upload estimate" + (assembledAny ? " (assembled)" : "")
                         + ": slots " + report.materialSlots + "→" + report.onUploadMaterialSlots
                         + " mats " + report.uniqueMaterials + "→" + report.onUploadUniqueMaterials
                         + " skinned " + report.skinnedMeshes + "→" + report.onUploadSkinnedMeshes
                         + " shapes " + report.blendShapes + "→" + report.onUploadBlendShapes
                         + " pc " + report.pcRank + "→" + report.onUploadPcRank);
+                    if (!string.IsNullOrEmpty(report.onUploadStatusNote))
+                        logEntries.Add(report.onUploadStatusNote);
+                }
             }
             catch (Exception)
             {
@@ -6994,6 +7013,19 @@ namespace KaleidoVR.EditorTools
                 }
                 EditorUtility.ClearProgressBar();
             }
+        }
+
+        private static string BuildOnUploadStatusNote(bool assembled, string assembleFail, bool skippedUnfinished, string skipMessage)
+        {
+            if (skippedUnfinished)
+                return string.IsNullOrEmpty(skipMessage)
+                    ? "On Upload skipped: unfinished upload markers are still on this copy."
+                    : skipMessage;
+            if (!string.IsNullOrEmpty(assembleFail))
+                return "On Upload assemble failed: " + assembleFail + " Rank used the copy without that assemble.";
+            if (assembled)
+                return "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged.";
+            return "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.";
         }
 
         private static void NoteMeshReadWrite(Mesh mesh, string owner, KaleidoOptimizerReport report, HashSet<Mesh> seen)
