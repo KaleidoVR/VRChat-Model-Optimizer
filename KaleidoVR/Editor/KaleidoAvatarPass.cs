@@ -4102,6 +4102,7 @@ namespace KaleidoVR.EditorTools
                 string path = raw.Trim();
                 if (path.Length == 0) return;
                 if (path.StartsWith("blendShape.", StringComparison.OrdinalIgnoreCase)) return;
+                if (path.IndexOf(' ') >= 0 && path.IndexOf('/') < 0) return;
 
                 Transform found;
                 if (byPath != null && byPath.TryGetValue(path, out found))
@@ -4115,12 +4116,11 @@ namespace KaleidoVR.EditorTools
                     if (found != null) KeepTransform(found);
                     return;
                 }
+                // Bare names only when unique — avoids pinning every "Arm" from a tag string.
                 List<Transform> named;
-                if (byName != null && byName.TryGetValue(path, out named) && named != null)
-                {
-                    for (int i = 0; i < named.Count; i++)
-                        KeepTransform(named[i]);
-                }
+                if (byName == null || !byName.TryGetValue(path, out named) || named == null || named.Count != 1)
+                    return;
+                KeepTransform(named[0]);
             }
         }
 
