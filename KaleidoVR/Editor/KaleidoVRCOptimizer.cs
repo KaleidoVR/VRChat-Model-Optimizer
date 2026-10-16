@@ -3464,7 +3464,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("PhysBones", EditorStyles.boldLabel);
-            window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Disable PhysBones when unused", "Removes PhysBones that no remaining mesh uses, and colliders nothing references. Ones another component still points at stay.");
+            window.avatarOptimizePhysBones = DrawToggle(window.avatarOptimizePhysBones, "Remove unused PhysBones", "Removes PhysBones that no remaining skinned or basic mesh uses, and colliders nothing references. Ones another component still points at stay.");
 
             GUILayout.Space(8);
             GUILayout.Label("Contacts", EditorStyles.boldLabel);
