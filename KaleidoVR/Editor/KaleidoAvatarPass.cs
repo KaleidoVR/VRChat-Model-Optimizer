@@ -1584,16 +1584,16 @@ namespace KaleidoVR.EditorTools
                     }
                 }
 
-                Dictionary<int, int> ratioInto = settings.mergeSameRatioShapes
+                Dictionary<int, SameRatioMerge> ratioInto = settings.mergeSameRatioShapes
                     ? anim.SameRatioPairs(smr, root, mesh)
                     : null;
                 if (ratioInto != null)
                 {
                     List<int> skip = new List<int>();
-                    foreach (KeyValuePair<int, int> pair in ratioInto)
+                    foreach (KeyValuePair<int, SameRatioMerge> pair in ratioInto)
                     {
                         string na = mesh.GetBlendShapeName(pair.Key);
-                        string nb = mesh.GetBlendShapeName(pair.Value);
+                        string nb = mesh.GetBlendShapeName(pair.Value.into);
                         if (IsProtectedShape(na) || IsProtectedShape(nb)
                             || descriptorShapes.Contains(na) || descriptorShapes.Contains(nb)
                             || referencedShapes.Contains(na) || referencedShapes.Contains(nb))
@@ -1625,13 +1625,19 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static void StripShapes(Mesh mesh, List<int> drop, Dictionary<int, int> ratioInto)
+        sealed class SameRatioMerge
+        {
+            public int into;
+            public float ratio = 1f;
+        }
+
+        static void StripShapes(Mesh mesh, List<int> drop, Dictionary<int, SameRatioMerge> ratioInto)
         {
             Vector3[] verts = mesh.vertices;
             HashSet<int> remove = new HashSet<int>(drop);
             if (ratioInto != null)
             {
-                foreach (KeyValuePair<int, int> pair in ratioInto)
+                foreach (KeyValuePair<int, SameRatioMerge> pair in ratioInto)
                     remove.Add(pair.Key);
             }
 
@@ -1648,15 +1654,15 @@ namespace KaleidoVR.EditorTools
                 mesh.GetBlendShapeFrameVertices(i, 0, kv, kn, kt);
                 if (ratioInto != null)
                 {
-                    foreach (KeyValuePair<int, int> pair in ratioInto)
+                    foreach (KeyValuePair<int, SameRatioMerge> pair in ratioInto)
                     {
-                        if (pair.Value != i) continue;
+                        if (pair.Value == null || pair.Value.into != i) continue;
                         Vector3[] ev = new Vector3[verts.Length];
                         Vector3[] en = new Vector3[verts.Length];
                         Vector3[] et = new Vector3[verts.Length];
                         if (mesh.GetBlendShapeFrameCount(pair.Key) < 1) continue;
                         mesh.GetBlendShapeFrameVertices(pair.Key, 0, ev, en, et);
-                        float ratio = 1f;
+                        float ratio = pair.Value.ratio;
                         for (int p = 0; p < verts.Length; p++)
                         {
                             kv[p] += ev[p] * ratio;
@@ -4323,9 +4329,9 @@ namespace KaleidoVR.EditorTools
                 return false;
             }
 
-            public Dictionary<int, int> SameRatioPairs(SkinnedMeshRenderer smr, GameObject root, Mesh mesh)
+            public Dictionary<int, SameRatioMerge> SameRatioPairs(SkinnedMeshRenderer smr, GameObject root, Mesh mesh)
             {
-                Dictionary<int, int> map = new Dictionary<int, int>();
+                Dictionary<int, SameRatioMerge> map = new Dictionary<int, SameRatioMerge>();
                 string path = AnimationUtility.CalculateTransformPath(smr.transform, root.transform);
                 for (int a = 0; a < mesh.blendShapeCount; a++)
                 {
@@ -4338,23 +4344,27 @@ namespace KaleidoVR.EditorTools
                         string nb = mesh.GetBlendShapeName(b);
                         List<Keyframe[]> cb;
                         if (!shapeCurves.TryGetValue(path + "|" + nb, out cb) || cb.Count != ca.Count) continue;
-                        if (!SameRatio(ca, cb)) continue;
-                        map[b] = a;
+                        float ratio;
+                        if (!TrySameRatio(ca, cb, out ratio)) continue;
+                        SameRatioMerge merge = new SameRatioMerge();
+                        merge.into = a;
+                        merge.ratio = ratio;
+                        map[b] = merge;
                     }
                 }
                 return map;
             }
 
-            static bool SameRatio(List<Keyframe[]> a, List<Keyframe[]> b)
+            static bool TrySameRatio(List<Keyframe[]> a, List<Keyframe[]> b, out float ratio)
             {
+                ratio = 1f;
                 if (a.Count != b.Count) return false;
+                bool have = false;
                 for (int i = 0; i < a.Count; i++)
                 {
                     Keyframe[] ka = a[i];
                     Keyframe[] kb = b[i];
                     if (ka.Length != kb.Length || ka.Length == 0) return false;
-                    float ratio = 0f;
-                    bool have = false;
                     for (int k = 0; k < ka.Length; k++)
                     {
                         if (Mathf.Abs(ka[k].time - kb[k].time) > 0.0001f) return false;
@@ -4364,8 +4374,27 @@ namespace KaleidoVR.EditorTools
                             continue;
                         }
                         float r = kb[k].value / ka[k].value;
-                        if (!have) { ratio = r; have = true; }
+                        if (!have)
+                        {
+                            ratio = r;
+                            have = true;
+                        }
                         else if (Mathf.Abs(r - ratio) > 0.02f) return false;
+                    }
+                }
+                return have || AllNearZero(a);
+            }
+
+            static bool AllNearZero(List<Keyframe[]> curves)
+            {
+                if (curves == null) return true;
+                for (int i = 0; i < curves.Count; i++)
+                {
+                    Keyframe[] keys = curves[i];
+                    if (keys == null) continue;
+                    for (int k = 0; k < keys.Length; k++)
+                    {
+                        if (Mathf.Abs(keys[k].value) > 0.0001f) return false;
                     }
                 }
                 return true;
