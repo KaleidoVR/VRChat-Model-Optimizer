@@ -3827,6 +3827,16 @@ namespace KaleidoVR.EditorTools
             Transform t = string.IsNullOrEmpty(binding.path) ? root.transform : root.transform.Find(binding.path);
             if (t == null) return false;
             if (binding.type == typeof(GameObject) || binding.type == typeof(Transform)) return true;
+            if (binding.type == typeof(SkinnedMeshRenderer)
+                && !string.IsNullOrEmpty(binding.propertyName)
+                && binding.propertyName.StartsWith("blendShape.", StringComparison.Ordinal))
+            {
+                SkinnedMeshRenderer smr = t.GetComponent<SkinnedMeshRenderer>();
+                Mesh mesh = smr != null ? smr.sharedMesh : null;
+                if (mesh == null) return false;
+                string shape = binding.propertyName.Substring("blendShape.".Length);
+                return IndexOfBlendShape(mesh, shape) >= 0;
+            }
             return t.GetComponent(binding.type) != null;
         }
 
