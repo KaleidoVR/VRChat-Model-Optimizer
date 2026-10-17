@@ -841,6 +841,21 @@ namespace KaleidoVR.EditorTools
             HarvestMenuTree(FindExpressionsMenu(root), icons, null, new HashSet<int>());
         }
 
+        static Type ExpressionsMenuType()
+        {
+            return KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu");
+        }
+
+        static bool IsExpressionsMenu(UnityEngine.Object obj)
+        {
+            if (obj == null) return false;
+            Type menuType = ExpressionsMenuType();
+            if (menuType != null) return menuType.IsInstanceOfType(obj);
+            string n = obj.GetType().Name;
+            return !string.IsNullOrEmpty(n)
+                && n.IndexOf("ExpressionsMenu", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         static UnityEngine.Object FindExpressionsMenu(GameObject root)
         {
             if (root == null) return null;
@@ -848,14 +863,15 @@ namespace KaleidoVR.EditorTools
             if (desc == null) return null;
             FieldInfo menu = desc.GetType().GetField("expressionsMenu");
             if (menu == null) return null;
-            return menu.GetValue(desc) as UnityEngine.Object;
+            UnityEngine.Object value = menu.GetValue(desc) as UnityEngine.Object;
+            return IsExpressionsMenu(value) ? value : null;
         }
 
         static void HarvestMenuTree(UnityEngine.Object obj, HashSet<Texture2D> icons, List<UnityEngine.Object> menus, HashSet<int> visited)
         {
-            if (obj == null || visited == null) return;
+            if (obj == null || visited == null || !IsExpressionsMenu(obj)) return;
             if (!visited.Add(obj.GetInstanceID())) return;
-            if (menus != null && obj is ScriptableObject) menus.Add(obj);
+            if (menus != null) menus.Add(obj);
 
             List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
             SerializedObject so = new SerializedObject(obj);
@@ -871,7 +887,7 @@ namespace KaleidoVR.EditorTools
                     if (icons != null && p.name == "icon") icons.Add(tex);
                     continue;
                 }
-                if (next is ScriptableObject) nested.Add(next);
+                if (IsExpressionsMenu(next)) nested.Add(next);
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestMenuTree(nested[i], icons, menus, visited);
@@ -880,7 +896,24 @@ namespace KaleidoVR.EditorTools
         static void CapMenuIcons(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result)
         {
             if (root == null || settings == null || result == null || !settings.capMenuIcons) return;
+            try
+            {
+                CapMenuIconsCore(root, settings, dryRun, result);
+            }
+            catch (Exception ex)
+            {
+                result.lines.Add("Action / Expression Menu icons: skipped — " + ex.Message);
+            }
+        }
+
+        static void CapMenuIconsCore(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result)
+        {
             int size = KaleidoVRCOptimizer.ClampMenuIconSize(settings.menuIconSize);
+            if (FindExpressionsMenu(root) == null)
+            {
+                result.lines.Add("Action / Expression Menu icons: skipped — expression menu is not a finished VRC Expressions Menu yet.");
+                return;
+            }
 
             HashSet<Texture2D> icons = new HashSet<Texture2D>();
             CollectExpressionMenuIcons(root, icons);
@@ -960,7 +993,7 @@ namespace KaleidoVR.EditorTools
 
         static UnityEngine.Object PersistMenu(UnityEngine.Object src)
         {
-            if (src == null) return null;
+            if (!IsExpressionsMenu(src)) return null;
             if (!persistGenerated)
             {
                 UnityEngine.Object tmp = UnityEngine.Object.Instantiate(src);
@@ -1007,7 +1040,7 @@ namespace KaleidoVR.EditorTools
             FieldInfo menuField = desc.GetType().GetField("expressionsMenu");
             if (menuField == null) return;
             UnityEngine.Object rootMenu = menuField.GetValue(desc) as UnityEngine.Object;
-            if (rootMenu == null) return;
+            if (!IsExpressionsMenu(rootMenu)) return;
 
             List<UnityEngine.Object> menus = new List<UnityEngine.Object>();
             HarvestMenuTree(rootMenu, null, menus, new HashSet<int>());
@@ -1017,8 +1050,10 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < menus.Count; i++)
             {
                 UnityEngine.Object menu = menus[i];
-                if (menu == null) continue;
-                menuMap[menu] = MustCopyMenu(menu) ? PersistMenu(menu) : menu;
+                if (!IsExpressionsMenu(menu)) continue;
+                UnityEngine.Object copy = MustCopyMenu(menu) ? PersistMenu(menu) : menu;
+                if (!IsExpressionsMenu(copy)) continue;
+                menuMap[menu] = copy;
             }
 
             foreach (KeyValuePair<UnityEngine.Object, UnityEngine.Object> pair in menuMap)
@@ -1027,13 +1062,15 @@ namespace KaleidoVR.EditorTools
             }
 
             UnityEngine.Object newRoot;
-            if (menuMap.TryGetValue(rootMenu, out newRoot) && newRoot != null && newRoot != rootMenu)
-                menuField.SetValue(desc, newRoot);
+            if (!menuMap.TryGetValue(rootMenu, out newRoot) || newRoot == null || newRoot == rootMenu) return;
+            if (!IsExpressionsMenu(newRoot)) return;
+            if (!menuField.FieldType.IsInstanceOfType(newRoot)) return;
+            menuField.SetValue(desc, newRoot);
         }
 
         static void RemapMenuRefs(UnityEngine.Object menu, Dictionary<Texture2D, Texture2D> iconCopies, Dictionary<UnityEngine.Object, UnityEngine.Object> menuMap)
         {
-            if (menu == null) return;
+            if (!IsExpressionsMenu(menu)) return;
             SerializedObject so = new SerializedObject(menu);
             SerializedProperty p = so.GetIterator();
             bool changed = false;
@@ -1053,11 +1090,11 @@ namespace KaleidoVR.EditorTools
                 }
 
                 UnityEngine.Object mappedMenu;
-                if (next is ScriptableObject && menuMap != null && menuMap.TryGetValue(next, out mappedMenu) && mappedMenu != null && mappedMenu != next)
-                {
-                    p.objectReferenceValue = mappedMenu;
-                    changed = true;
-                }
+                if (!IsExpressionsMenu(next) || menuMap == null || !menuMap.TryGetValue(next, out mappedMenu))
+                    continue;
+                if (mappedMenu == null || mappedMenu == next || !IsExpressionsMenu(mappedMenu)) continue;
+                p.objectReferenceValue = mappedMenu;
+                changed = true;
             }
             if (!changed) return;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -2942,10 +2979,20 @@ namespace KaleidoVR.EditorTools
             AddDescriptorControllerParameters(desc, "specialAnimationLayers", names, seen);
 
             FieldInfo expr = desc.GetType().GetField("expressionParameters");
-            if (expr != null) HarvestParameterStrings(expr.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
+            if (expr != null)
+            {
+                UnityEngine.Object paramsObj = expr.GetValue(desc) as UnityEngine.Object;
+                if (IsExpressionParameters(paramsObj))
+                    HarvestParameterStrings(paramsObj, names, new HashSet<int>());
+            }
 
             FieldInfo menu = desc.GetType().GetField("expressionsMenu");
-            if (menu != null) HarvestParameterStrings(menu.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
+            if (menu != null)
+            {
+                UnityEngine.Object menuObj = menu.GetValue(desc) as UnityEngine.Object;
+                if (IsExpressionsMenu(menuObj))
+                    HarvestParameterStrings(menuObj, names, new HashSet<int>());
+            }
             return names;
         }
 
@@ -2980,9 +3027,25 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        static Type ExpressionParametersType()
+        {
+            return KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters");
+        }
+
+        static bool IsExpressionParameters(UnityEngine.Object obj)
+        {
+            if (obj == null) return false;
+            Type t = ExpressionParametersType();
+            if (t != null) return t.IsInstanceOfType(obj);
+            string n = obj.GetType().Name;
+            return !string.IsNullOrEmpty(n)
+                && n.IndexOf("ExpressionParameters", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         static void HarvestParameterStrings(UnityEngine.Object obj, HashSet<string> names, HashSet<int> visited)
         {
             if (obj == null || names == null || visited == null) return;
+            if (!IsExpressionsMenu(obj) && !IsExpressionParameters(obj)) return;
             if (!visited.Add(obj.GetInstanceID())) return;
 
             List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
@@ -3000,7 +3063,7 @@ namespace KaleidoVR.EditorTools
                 if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
                 UnityEngine.Object next = p.objectReferenceValue;
                 if (next == null || next is MonoScript) continue;
-                if (next is ScriptableObject) nested.Add(next);
+                if (IsExpressionsMenu(next) || IsExpressionParameters(next)) nested.Add(next);
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestParameterStrings(nested[i], names, visited);
