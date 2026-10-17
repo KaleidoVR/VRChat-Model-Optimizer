@@ -64,6 +64,7 @@ namespace KaleidoVR.EditorTools
         public string failReason;
         public bool skippedUnfinished;
         public string skipMessage;
+        public readonly List<string> leftoverMarkerTypes = new List<string>();
 
         public string SummaryLine()
         {
@@ -441,14 +442,6 @@ namespace KaleidoVR.EditorTools
         {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
-            if (HasUnfinishedUploadMarkers(root))
-            {
-                result.skippedUnfinished = true;
-                result.skipMessage = "On Upload skipped: unfinished upload markers are still on this copy.";
-                result.lines.Add(result.skipMessage);
-                latestRun = result;
-                return result;
-            }
             if (!dryRun && !ClaimUploadPass(root))
             {
                 result.skipMessage = "On Upload already ran on this copy.";
@@ -460,6 +453,7 @@ namespace KaleidoVR.EditorTools
             persistGenerated = persist && !dryRun;
             try
             {
+                NoteLeftoverUploadMarkers(root, result);
                 HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
                 AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
                 ComponentRefInfo refs = ComponentRefInfo.Build(root);
@@ -1225,20 +1219,50 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
-        // Unfinished assemble markers only (foreign IEditorOnly). Runtime third-party
-        // components stay; per-object HasExternalWork / IsOwnedType skips still apply.
-        static bool HasUnfinishedUploadMarkers(GameObject root)
+        // Foreign IEditorOnly leftovers. Do not abort the pass — HasExternalWork already
+        // leaves those objects alone while the rest of the avatar still optimizes.
+        static void NoteLeftoverUploadMarkers(GameObject root, KaleidoAvatarPassResult result)
         {
-            if (root == null) return false;
+            if (root == null || result == null) return;
+            List<string> names = CollectUnfinishedUploadMarkerTypes(root);
+            if (names.Count == 0) return;
+            for (int i = 0; i < names.Count; i++) result.leftoverMarkerTypes.Add(names[i]);
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Left alone objects with upload markers (");
+            sb.Append(names.Count);
+            sb.Append("): ");
+            for (int i = 0; i < names.Count; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                sb.Append(names[i]);
+                if (i >= 11)
+                {
+                    sb.Append(", …");
+                    break;
+                }
+            }
+            sb.Append(". Kaleido still runs on the rest.");
+            result.lines.Add(sb.ToString());
+        }
+
+        static List<string> CollectUnfinishedUploadMarkerTypes(GameObject root)
+        {
+            List<string> names = new List<string>();
+            if (root == null) return names;
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
             Component[] parts = root.GetComponentsInChildren<Component>(true);
             for (int i = 0; i < parts.Length; i++)
             {
                 Component c = parts[i];
                 if (c == null || c is Transform) continue;
                 if (IsOwnedType(c.GetType())) continue;
-                if (IsEditorMarker(c)) return true;
+                if (!IsEditorMarker(c)) continue;
+                string name = c.GetType().Name;
+                if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
+                names.Add(name);
             }
-            return false;
+            names.Sort(StringComparer.Ordinal);
+            return names;
         }
 
         static bool IsExternalRuntimeAsset(UnityEngine.Object obj)
