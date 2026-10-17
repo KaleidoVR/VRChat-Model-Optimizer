@@ -6,9 +6,11 @@ On Upload keeps PhysBones that still drive a basic mesh or anything under that P
 Merge same-ratio blend shapes uses the real animation ratio when you turn that option on. It still starts off.
 On Upload only keeps bare-name object refs when that name is unique on the avatar, so loose strings stop pinning every matching bone.
 Optimize FX can drop Generated curves for blend shapes that are already gone.
+Rank splits Assembled from On Upload. Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled).
 Rank says when assemble failed or unfinished markers blocked On Upload.
 UI — On Upload: Remove unused PhysBones (was Disable PhysBones when unused).
-UI — Rank: the On Upload note shows assemble failed or unfinished-marker skip when that happened.
+UI — Rank: Now / Assembled / On Upload / Change when Apply on upload is on.
+UI — Rank: a warning says when Kaleido skipped or assemble failed, so Change is not a Kaleido preview.
 
 1.0.73
 On Upload can drop unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero.
