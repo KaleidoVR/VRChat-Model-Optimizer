@@ -1692,6 +1692,8 @@ namespace KaleidoVR.EditorTools
         public bool onUploadAssembled;
         public bool onUploadSkippedUnfinished;
         public bool onUploadAssembleFailed;
+        public bool onUploadHadLeftoverMarkers;
+        public string onUploadLeftoverMarkers = "";
         public string onUploadStatusNote = "";
         public string assembledPcRank = "—";
         public string assembledQuestRank = "—";
@@ -6944,6 +6946,8 @@ namespace KaleidoVR.EditorTools
             report.onUploadAssembled = false;
             report.onUploadSkippedUnfinished = false;
             report.onUploadAssembleFailed = false;
+            report.onUploadHadLeftoverMarkers = false;
+            report.onUploadLeftoverMarkers = "";
             report.onUploadStatusNote = "";
             if (window == null || report == null || roots == null || roots.Count == 0) return;
             KaleidoAvatarPassSettings settings = KaleidoAvatarPass.FromWindow(window);
@@ -6959,6 +6963,7 @@ namespace KaleidoVR.EditorTools
                 string assembleFail = null;
                 bool skippedUnfinished = false;
                 string skipMessage = null;
+                List<string> leftoverMarkers = new List<string>();
 
                 // Assemble without Kaleido so Assembled / On Upload stay separate.
                 window.avatarApplyOnUpload = false;
@@ -7010,11 +7015,19 @@ namespace KaleidoVR.EditorTools
                     KaleidoAvatarPassResult passResult = KaleidoAvatarPass.UploadPassAlreadyRan(copy)
                         ? KaleidoAvatarPass.LatestRun
                         : KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
-                    if (passResult != null && passResult.skippedUnfinished)
+                    if (passResult == null) continue;
+                    if (passResult.skippedUnfinished)
                     {
                         skippedUnfinished = true;
                         if (string.IsNullOrEmpty(skipMessage))
                             skipMessage = passResult.skipMessage;
+                    }
+                    if (passResult.leftoverMarkerTypes == null) continue;
+                    for (int m = 0; m < passResult.leftoverMarkerTypes.Count; m++)
+                    {
+                        string marker = passResult.leftoverMarkerTypes[m];
+                        if (string.IsNullOrEmpty(marker) || leftoverMarkers.Contains(marker)) continue;
+                        leftoverMarkers.Add(marker);
                     }
                 }
 
@@ -7029,7 +7042,10 @@ namespace KaleidoVR.EditorTools
                 report.onUploadAssembled = assembledAny;
                 report.onUploadSkippedUnfinished = skippedUnfinished;
                 report.onUploadAssembleFailed = !string.IsNullOrEmpty(assembleFail);
-                report.onUploadStatusNote = BuildOnUploadStatusNote(assembledAny, assembleFail, skippedUnfinished, skipMessage);
+                report.onUploadHadLeftoverMarkers = leftoverMarkers.Count > 0;
+                report.onUploadLeftoverMarkers = FormatLeftoverMarkers(leftoverMarkers);
+                report.onUploadStatusNote = BuildOnUploadStatusNote(
+                    assembledAny, assembleFail, skippedUnfinished, skipMessage, leftoverMarkers);
                 CopyUploadColumns(report, projected, false);
                 if (logEntries != null)
                 {
@@ -7105,19 +7121,46 @@ namespace KaleidoVR.EditorTools
             report.onUploadVrcConstraints = src.vrcConstraints;
         }
 
-        private static string BuildOnUploadStatusNote(bool assembled, string assembleFail, bool skippedUnfinished, string skipMessage)
+        private static string FormatLeftoverMarkers(List<string> markers)
+        {
+            if (markers == null || markers.Count == 0) return "";
+            StringBuilder sb = new StringBuilder();
+            int shown = Math.Min(markers.Count, 12);
+            for (int i = 0; i < shown; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                sb.Append(markers[i]);
+            }
+            if (markers.Count > shown) sb.Append(", …");
+            return sb.ToString();
+        }
+
+        private static string BuildOnUploadStatusNote(
+            bool assembled,
+            string assembleFail,
+            bool skippedUnfinished,
+            string skipMessage,
+            List<string> leftoverMarkers)
         {
             if (skippedUnfinished)
             {
                 string reason = string.IsNullOrEmpty(skipMessage)
-                    ? "On Upload skipped: unfinished upload markers are still on this copy."
+                    ? "On Upload already ran on this copy."
                     : skipMessage;
-                return reason
-                    + " Assembled is after other upload passes. On Upload matches Assembled. Change (Kaleido) is — until that clears.";
+                return reason + " Assembled / On Upload may match. Rescan if the numbers look stuck.";
             }
             if (!string.IsNullOrEmpty(assembleFail))
                 return "On Upload assemble failed: " + assembleFail
                     + " Assembled is the copy without that assemble. On Upload is Kaleido on that copy. Change is Kaleido only.";
+
+            string leftover = FormatLeftoverMarkers(leftoverMarkers);
+            if (!string.IsNullOrEmpty(leftover))
+            {
+                string baseNote = assembled
+                    ? "Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only."
+                    : "Now is the scene. Assembled matches Now. On Upload is Kaleido on a hidden copy. Change is Kaleido only.";
+                return baseNote + " Kaleido left alone objects with upload markers: " + leftover + ".";
+            }
             if (assembled)
                 return "Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled).";
             return "Now is the scene. Assembled matches Now (no other upload passes). On Upload is Kaleido on a hidden copy. Change is Kaleido only.";
