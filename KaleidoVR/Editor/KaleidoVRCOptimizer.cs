@@ -2547,7 +2547,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
-            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. With Apply on upload on, Rank shows Now / Assembled / On Upload / Change. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only. Texture VRAM stays on Now.");
+            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. With Apply on upload on, Rank shows Now / Assembled / On Upload / Change. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only. Leftover upload markers are listed and left alone; Kaleido still runs on the rest. Texture VRAM stays on Now.");
             EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
             DrawRankColorKey(window);
             DrawStats(window);
@@ -4375,6 +4375,8 @@ namespace KaleidoVR.EditorTools
                     : report.onUploadStatusNote;
                 if (report.onUploadSkippedUnfinished || report.onUploadAssembleFailed)
                     EditorGUILayout.HelpBox(statusNote, MessageType.Warning);
+                else if (report.onUploadHadLeftoverMarkers)
+                    EditorGUILayout.HelpBox(statusNote, MessageType.Info);
                 else
                     DrawWhy(statusNote);
                 DrawNowUploadHeader();
