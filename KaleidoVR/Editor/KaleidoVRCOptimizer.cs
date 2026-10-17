@@ -1690,7 +1690,28 @@ namespace KaleidoVR.EditorTools
         public List<string> missingStreamingMipmaps = new List<string>();
         public bool hasOnUploadEstimate;
         public bool onUploadAssembled;
+        public bool onUploadSkippedUnfinished;
+        public bool onUploadAssembleFailed;
         public string onUploadStatusNote = "";
+        public string assembledPcRank = "—";
+        public string assembledQuestRank = "—";
+        public int assembledTriangles;
+        public int assembledMaterialSlots;
+        public int assembledUniqueMaterials;
+        public int assembledSkinnedMeshes;
+        public int assembledMeshRenderers;
+        public int assembledBlendShapes;
+        public int assembledBones;
+        public int assembledAnimators;
+        public int assembledLights;
+        public int assembledAudioSources;
+        public int assembledParticleSystems;
+        public int assembledPhysBones;
+        public int assembledPhysBoneColliders;
+        public int assembledContacts;
+        public int assembledConstraints;
+        public int assembledUnityConstraints;
+        public int assembledVrcConstraints;
         public string onUploadPcRank = "—";
         public string onUploadQuestRank = "—";
         public int onUploadTriangles;
@@ -6911,12 +6932,16 @@ namespace KaleidoVR.EditorTools
         {
             report.hasOnUploadEstimate = false;
             report.onUploadAssembled = false;
+            report.onUploadSkippedUnfinished = false;
+            report.onUploadAssembleFailed = false;
             report.onUploadStatusNote = "";
             if (window == null || report == null || roots == null || roots.Count == 0) return;
             KaleidoAvatarPassSettings settings = KaleidoAvatarPass.FromWindow(window);
             if (settings == null || !settings.applyOnUpload) return;
 
             List<GameObject> copies = new List<GameObject>();
+            List<GameObject> sources = new List<GameObject>();
+            bool prevApply = window.avatarApplyOnUpload;
             try
             {
                 EditorUtility.DisplayProgressBar("KaleidoVR VRChat Model Optimizer", "Estimating On Upload…", 0.55f);
@@ -6924,6 +6949,9 @@ namespace KaleidoVR.EditorTools
                 string assembleFail = null;
                 bool skippedUnfinished = false;
                 string skipMessage = null;
+
+                // Assemble without Kaleido so Assembled / On Upload stay separate.
+                window.avatarApplyOnUpload = false;
                 for (int i = 0; i < roots.Count; i++)
                 {
                     GameObject root = roots[i];
@@ -6944,23 +6972,41 @@ namespace KaleidoVR.EditorTools
                             if (string.IsNullOrEmpty(assembleFail))
                                 assembleFail = ex.Message;
                         }
-                        KaleidoAvatarPassResult passResult = KaleidoAvatarPass.UploadPassAlreadyRan(copy)
-                            ? KaleidoAvatarPass.LatestRun
-                            : KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
-                        if (passResult != null && passResult.skippedUnfinished)
-                        {
-                            skippedUnfinished = true;
-                            if (string.IsNullOrEmpty(skipMessage))
-                                skipMessage = passResult.skipMessage;
-                        }
                     }
                     finally
                     {
                         KaleidoAvatarPass.EndHiddenAssemble();
                     }
+                    sources.Add(root);
                     copies.Add(copy);
                 }
                 if (copies.Count == 0) return;
+
+                KaleidoOptimizerReport assembled = new KaleidoOptimizerReport();
+                GatherStats(copies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), assembled, new List<string>());
+                assembled.textureBytesEstimate = report.textureBytesEstimate;
+                assembled.uniqueTextures = report.uniqueTextures;
+                assembled.pcRank = RankAvatar(assembled, false);
+                assembled.questRank = RankAvatar(assembled, true);
+                CopyUploadColumns(report, assembled, true);
+
+                window.avatarApplyOnUpload = prevApply;
+                settings = KaleidoAvatarPass.FromWindow(window);
+                for (int i = 0; i < copies.Count; i++)
+                {
+                    GameObject copy = copies[i];
+                    GameObject root = sources[i];
+                    if (copy == null || root == null) continue;
+                    KaleidoAvatarPassResult passResult = KaleidoAvatarPass.UploadPassAlreadyRan(copy)
+                        ? KaleidoAvatarPass.LatestRun
+                        : KaleidoAvatarPass.Run(copy, settings, false, KaleidoAvatarPass.ExclusionsOnCopy(window, root, copy), false);
+                    if (passResult != null && passResult.skippedUnfinished)
+                    {
+                        skippedUnfinished = true;
+                        if (string.IsNullOrEmpty(skipMessage))
+                            skipMessage = passResult.skipMessage;
+                    }
+                }
 
                 KaleidoOptimizerReport projected = new KaleidoOptimizerReport();
                 GatherStats(copies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), projected, new List<string>());
@@ -6971,34 +7017,18 @@ namespace KaleidoVR.EditorTools
 
                 report.hasOnUploadEstimate = true;
                 report.onUploadAssembled = assembledAny;
+                report.onUploadSkippedUnfinished = skippedUnfinished;
+                report.onUploadAssembleFailed = !string.IsNullOrEmpty(assembleFail);
                 report.onUploadStatusNote = BuildOnUploadStatusNote(assembledAny, assembleFail, skippedUnfinished, skipMessage);
-                report.onUploadPcRank = projected.pcRank;
-                report.onUploadQuestRank = projected.questRank;
-                report.onUploadTriangles = projected.triangles;
-                report.onUploadMaterialSlots = projected.materialSlots;
-                report.onUploadUniqueMaterials = projected.uniqueMaterials;
-                report.onUploadSkinnedMeshes = projected.skinnedMeshes;
-                report.onUploadMeshRenderers = projected.meshRenderers;
-                report.onUploadBlendShapes = projected.blendShapes;
-                report.onUploadBones = projected.bones;
-                report.onUploadAnimators = projected.animators;
-                report.onUploadLights = projected.lights;
-                report.onUploadAudioSources = projected.audioSources;
-                report.onUploadParticleSystems = projected.particleSystems;
-                report.onUploadPhysBones = projected.physBones;
-                report.onUploadPhysBoneColliders = projected.physBoneColliders;
-                report.onUploadContacts = projected.contacts;
-                report.onUploadConstraints = projected.constraints;
-                report.onUploadUnityConstraints = projected.unityConstraints;
-                report.onUploadVrcConstraints = projected.vrcConstraints;
+                CopyUploadColumns(report, projected, false);
                 if (logEntries != null)
                 {
                     logEntries.Add("On Upload estimate" + (assembledAny ? " (assembled)" : "")
-                        + ": slots " + report.materialSlots + "→" + report.onUploadMaterialSlots
-                        + " mats " + report.uniqueMaterials + "→" + report.onUploadUniqueMaterials
-                        + " skinned " + report.skinnedMeshes + "→" + report.onUploadSkinnedMeshes
-                        + " shapes " + report.blendShapes + "→" + report.onUploadBlendShapes
-                        + " pc " + report.pcRank + "→" + report.onUploadPcRank);
+                        + ": slots " + report.materialSlots + "→" + report.assembledMaterialSlots + "→" + report.onUploadMaterialSlots
+                        + " mats " + report.uniqueMaterials + "→" + report.assembledUniqueMaterials + "→" + report.onUploadUniqueMaterials
+                        + " skinned " + report.skinnedMeshes + "→" + report.assembledSkinnedMeshes + "→" + report.onUploadSkinnedMeshes
+                        + " shapes " + report.blendShapes + "→" + report.assembledBlendShapes + "→" + report.onUploadBlendShapes
+                        + " pc " + report.pcRank + "→" + report.assembledPcRank + "→" + report.onUploadPcRank);
                     if (!string.IsNullOrEmpty(report.onUploadStatusNote))
                         logEntries.Add(report.onUploadStatusNote);
                 }
@@ -7009,6 +7039,7 @@ namespace KaleidoVR.EditorTools
             }
             finally
             {
+                window.avatarApplyOnUpload = prevApply;
                 for (int i = 0; i < copies.Count; i++)
                 {
                     if (copies[i] != null) UnityEngine.Object.DestroyImmediate(copies[i]);
@@ -7017,17 +7048,69 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        private static void CopyUploadColumns(KaleidoOptimizerReport report, KaleidoOptimizerReport src, bool assembled)
+        {
+            if (report == null || src == null) return;
+            if (assembled)
+            {
+                report.assembledPcRank = src.pcRank;
+                report.assembledQuestRank = src.questRank;
+                report.assembledTriangles = src.triangles;
+                report.assembledMaterialSlots = src.materialSlots;
+                report.assembledUniqueMaterials = src.uniqueMaterials;
+                report.assembledSkinnedMeshes = src.skinnedMeshes;
+                report.assembledMeshRenderers = src.meshRenderers;
+                report.assembledBlendShapes = src.blendShapes;
+                report.assembledBones = src.bones;
+                report.assembledAnimators = src.animators;
+                report.assembledLights = src.lights;
+                report.assembledAudioSources = src.audioSources;
+                report.assembledParticleSystems = src.particleSystems;
+                report.assembledPhysBones = src.physBones;
+                report.assembledPhysBoneColliders = src.physBoneColliders;
+                report.assembledContacts = src.contacts;
+                report.assembledConstraints = src.constraints;
+                report.assembledUnityConstraints = src.unityConstraints;
+                report.assembledVrcConstraints = src.vrcConstraints;
+                return;
+            }
+            report.onUploadPcRank = src.pcRank;
+            report.onUploadQuestRank = src.questRank;
+            report.onUploadTriangles = src.triangles;
+            report.onUploadMaterialSlots = src.materialSlots;
+            report.onUploadUniqueMaterials = src.uniqueMaterials;
+            report.onUploadSkinnedMeshes = src.skinnedMeshes;
+            report.onUploadMeshRenderers = src.meshRenderers;
+            report.onUploadBlendShapes = src.blendShapes;
+            report.onUploadBones = src.bones;
+            report.onUploadAnimators = src.animators;
+            report.onUploadLights = src.lights;
+            report.onUploadAudioSources = src.audioSources;
+            report.onUploadParticleSystems = src.particleSystems;
+            report.onUploadPhysBones = src.physBones;
+            report.onUploadPhysBoneColliders = src.physBoneColliders;
+            report.onUploadContacts = src.contacts;
+            report.onUploadConstraints = src.constraints;
+            report.onUploadUnityConstraints = src.unityConstraints;
+            report.onUploadVrcConstraints = src.vrcConstraints;
+        }
+
         private static string BuildOnUploadStatusNote(bool assembled, string assembleFail, bool skippedUnfinished, string skipMessage)
         {
             if (skippedUnfinished)
-                return string.IsNullOrEmpty(skipMessage)
+            {
+                string reason = string.IsNullOrEmpty(skipMessage)
                     ? "On Upload skipped: unfinished upload markers are still on this copy."
                     : skipMessage;
+                return reason
+                    + " Assembled is after other upload passes. On Upload matches Assembled. Change (Kaleido) is — until that clears.";
+            }
             if (!string.IsNullOrEmpty(assembleFail))
-                return "On Upload assemble failed: " + assembleFail + " Rank used the copy without that assemble.";
+                return "On Upload assemble failed: " + assembleFail
+                    + " Assembled is the copy without that assemble. On Upload is Kaleido on that copy. Change is Kaleido only.";
             if (assembled)
-                return "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged.";
-            return "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.";
+                return "Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled).";
+            return "Now is the scene. Assembled matches Now (no other upload passes). On Upload is Kaleido on a hidden copy. Change is Kaleido only.";
         }
 
         private static void NoteMeshReadWrite(Mesh mesh, string owner, KaleidoOptimizerReport report, HashSet<Mesh> seen)
