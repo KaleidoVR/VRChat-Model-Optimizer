@@ -55,7 +55,17 @@ namespace KaleidoVR.EditorTools
             }
             catch (TargetInvocationException ex)
             {
-                throw ex.InnerException ?? ex;
+                // Never abort the avatar build — other upload passes already finished.
+                Exception inner = ex.InnerException ?? ex;
+                Debug.LogError("[KaleidoVR] On Upload failed after assemble. Upload continues without that pass. " + inner.Message);
+                Debug.LogException(inner);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[KaleidoVR] On Upload failed after assemble. Upload continues without that pass. " + ex.Message);
+                Debug.LogException(ex);
+                return;
             }
             if (boxed == null) return;
             Type resultType = boxed.GetType();
@@ -64,7 +74,8 @@ namespace KaleidoVR.EditorTools
             bool ok = okField == null || (bool)okField.GetValue(boxed);
             if (ok) return;
             string reason = failField != null ? failField.GetValue(boxed) as string : null;
-            throw new InvalidOperationException(string.IsNullOrEmpty(reason) ? "On Upload failed." : reason);
+            Debug.LogError("[KaleidoVR] On Upload stopped. Upload continues without that pass. "
+                + (string.IsNullOrEmpty(reason) ? "On Upload failed." : reason));
         }
     }
 }
