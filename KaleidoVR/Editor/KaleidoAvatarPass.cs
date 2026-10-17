@@ -461,44 +461,44 @@ namespace KaleidoVR.EditorTools
                 if (settings.enableMeshReadWrite)
                 {
                     ReportProgress("Enabling mesh Read/Write…", 0.04f);
-                    EnableReadableMeshes(root, dryRun, result);
+                    RunUploadStep(result, "Read/Write", () => EnableReadableMeshes(root, dryRun, result));
                 }
 
                 ReportProgress("Cleaning unused objects…", 0.08f);
                 if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
-                    SweepUnused(root, settings, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Unused cleanup", () => SweepUnused(root, settings, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Processing blend shapes…", 0.22f);
                 if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
-                    ProcessBlendShapes(root, settings, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Blend shapes", () => ProcessBlendShapes(root, settings, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Trimming unused bones…", 0.38f);
                 if (settings.stripUnusedBones)
-                    StripUnusedBones(root, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Unused bones", () => StripUnusedBones(root, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Merging material slots…", 0.52f);
                 if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
-                    MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Material slots", () => MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Merging meshes…", 0.68f);
                 if (settings.mergeSkinnedMeshes)
-                    MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Merge skinned meshes", () => MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs));
                 if (settings.mergeBasicMeshes)
-                    MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Merge basic meshes", () => MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Disabling Update When Offscreen…", 0.74f);
                 if (settings.disableUpdateWhenOffscreen)
-                    DisableUpdateWhenOffscreen(root, excluded, dryRun, result);
+                    RunUploadStep(result, "Update When Offscreen", () => DisableUpdateWhenOffscreen(root, excluded, dryRun, result));
                 if (settings.disableReceiveShadows)
-                    DisableReceiveShadows(root, excluded, dryRun, result);
+                    RunUploadStep(result, "Receive shadows", () => DisableReceiveShadows(root, excluded, dryRun, result));
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
-                    SweepPhysBones(root, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "PhysBones", () => SweepPhysBones(root, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Cleaning contacts…", 0.87f);
                 if (settings.optimizeContacts)
-                    SweepContacts(root, anim, excluded, dryRun, result, refs);
+                    RunUploadStep(result, "Contacts", () => SweepContacts(root, anim, excluded, dryRun, result, refs));
 
                 ReportProgress("Optimizing FX…", 0.90f);
                 if (settings.optimizeFxLayer)
@@ -515,8 +515,11 @@ namespace KaleidoVR.EditorTools
                 ReportProgress("Saving generated meshes…", 0.98f);
                 if (persistGenerated)
                 {
-                    AssertMeshesSaved(root);
-                    AssetDatabase.SaveAssets();
+                    RunUploadStep(result, "Save generated meshes", () =>
+                    {
+                        AssertMeshesSaved(root);
+                        AssetDatabase.SaveAssets();
+                    }, fatal: true);
                 }
                 if (result.lines.Count == 0)
                     result.lines.Add("Avatar pass: nothing to change with the current toggles.");
@@ -535,6 +538,27 @@ namespace KaleidoVR.EditorTools
                 latestRun = result;
             }
             return result;
+        }
+
+        static void RunUploadStep(KaleidoAvatarPassResult result, string label, Action step, bool fatal = false)
+        {
+            if (result == null || step == null) return;
+            try
+            {
+                step();
+            }
+            catch (Exception ex)
+            {
+                string msg = string.IsNullOrEmpty(ex.Message) ? "failed." : ex.Message;
+                if (fatal)
+                {
+                    result.ok = false;
+                    result.failReason = msg;
+                    result.lines.Add("On Upload stopped: " + msg);
+                    return;
+                }
+                result.lines.Add(label + ": skipped — " + msg);
+            }
         }
 
         static void ReportProgress(string status, float t)
@@ -1301,15 +1325,6 @@ namespace KaleidoVR.EditorTools
             }
             names.Sort(StringComparer.Ordinal);
             return names;
-        }
-
-        static bool IsExternalRuntimeAsset(UnityEngine.Object obj)
-        {
-            if (obj == null) return false;
-            string path = AssetDatabase.GetAssetPath(obj);
-            if (!string.IsNullOrEmpty(path)) return false;
-            string n = obj.name;
-            return string.IsNullOrEmpty(n) || n.IndexOf("_Kaleido", StringComparison.Ordinal) < 0;
         }
 
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded)
@@ -3846,7 +3861,8 @@ namespace KaleidoVR.EditorTools
 
         static AnimatorController RewriteController(AnimatorController src, GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result, Dictionary<AnimatorController, AnimatorController> rewritten)
         {
-            if (src == null || IsExternalRuntimeAsset(src)) return src;
+            // Pathless assembled controllers are copied via PersistController (same idea as Write Defaults).
+            if (src == null) return src;
             AnimatorController cached;
             if (rewritten.TryGetValue(src, out cached)) return cached;
 
@@ -3928,13 +3944,22 @@ namespace KaleidoVR.EditorTools
             if (keep.Count != layers.Length) controller.layers = keep.ToArray();
         }
 
+        static bool ClipIsWritableAssembleCopy(AnimationClip clip)
+        {
+            if (clip == null) return false;
+            string path = AssetDatabase.GetAssetPath(clip);
+            if (string.IsNullOrEmpty(path)) return true;
+            path = path.Replace('\\', '/');
+            if (path.StartsWith(GeneratedFolderPath, StringComparison.Ordinal)) return true;
+            // Temp containers from other upload passes (serialized after assemble).
+            if (path.IndexOf("/__Generated", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (path.IndexOf("ZZZ_GeneratedAssets", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
         static void StripMissing(AnimationClip clip, GameObject root)
         {
-            if (clip == null) return;
-            string clipPath = AssetDatabase.GetAssetPath(clip);
-            if (!string.IsNullOrEmpty(clipPath)
-                && !clipPath.Replace('\\', '/').StartsWith(GeneratedFolderPath, StringComparison.Ordinal))
-                return;
+            if (clip == null || !ClipIsWritableAssembleCopy(clip)) return;
             EditorCurveBinding[] bindings = AnimationUtility.GetCurveBindings(clip);
             for (int i = 0; i < bindings.Length; i++)
             {
