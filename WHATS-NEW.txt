@@ -3,6 +3,8 @@ What's new
 1.0.74
 On Upload only caps icons on finished Expression Menus. Half-built menu assets from other upload passes stay alone.
 If On Upload hits an error after assemble, upload still goes through. I log it and leave the rest of the build alone.
+If one On Upload step fails, later steps still run. That step alone is skipped.
+Optimize FX can rewrite assembled FX controllers, including unsaved ones and clips from other upload-pass temp folders.
 If Optimize FX or animator Write Defaults / empty states fail on the assembled copy, that step alone is skipped. Merge and cleanup already done stay.
 On Upload no longer skips the whole pass when leftover upload markers are still on the copy. Those objects stay alone; Kaleido still runs merge and cleanup on the rest. Cloth, IK, and other runtime scripts stay; per-object leave-alone still applies.
 On Upload keeps PhysBones that still drive a basic mesh or anything under that PhysBone root, not only skinned meshes.
