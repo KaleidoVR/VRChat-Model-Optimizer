@@ -1,16 +1,16 @@
 What's new
 
 1.0.74
-On Upload no longer skips the whole pass just because a third-party runtime component is still on the copy. I only hold when unfinished upload markers remain. Cloth, IK, and other runtime scripts stay; merge and cleanup still leave what they touch alone.
+On Upload no longer skips the whole pass when leftover upload markers are still on the copy. Those objects stay alone; Kaleido still runs merge and cleanup on the rest. Cloth, IK, and other runtime scripts stay; per-object leave-alone still applies.
 On Upload keeps PhysBones that still drive a basic mesh or anything under that PhysBone root, not only skinned meshes.
 Merge same-ratio blend shapes uses the real animation ratio when you turn that option on. It still starts off.
 On Upload only keeps bare-name object refs when that name is unique on the avatar, so loose strings stop pinning every matching bone.
 Optimize FX can drop Generated curves for blend shapes that are already gone.
 Rank splits Assembled from On Upload. Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled).
-Rank says when assemble failed or unfinished markers blocked On Upload.
+Rank lists leftover upload marker types when they are present.
 UI — On Upload: Remove unused PhysBones (was Disable PhysBones when unused).
 UI — Rank: Now / Assembled / On Upload / Change when Apply on upload is on.
-UI — Rank: a warning says when Kaleido skipped or assemble failed, so Change is not a Kaleido preview.
+UI — Rank: leftover upload markers show as an info note; Kaleido still ran. Assemble failed stays a warning.
 
 1.0.73
 On Upload can drop unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero.
