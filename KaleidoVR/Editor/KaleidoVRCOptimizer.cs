@@ -2545,7 +2545,7 @@ namespace KaleidoVR.EditorTools
         private static void DrawRankTab(KaleidoVRCOptimizer window)
         {
             GUILayout.Label("Performance Snapshot", EditorStyles.boldLabel);
-            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. The On Upload column is a hidden copy and does not write the scene. When other upload passes are in the project, that copy is assembled first so the numbers match VRChat upload. Texture VRAM stays on Now; On Upload does not rewrite importers.");
+            DrawWhy("VRChat rank plus VRAM, GrabPass, animator cost, and texture flags. Scan or Dry Run fills this tab. Apply still waits for Dry Run. With Apply on upload on, Rank shows Now / Assembled / On Upload / Change. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only. Texture VRAM stays on Now.");
             EditorGUILayout.HelpBox("Fix and Confirm on this tab write into Unity right away. You do not need Apply after those. Scan again later only if you add assets or change the avatar.", MessageType.Info);
             DrawRankColorKey(window);
             DrawStats(window);
@@ -4366,16 +4366,21 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.HelpBox(report.summary, MessageType.None);
             if (report.hasOnUploadEstimate)
             {
-                DrawNowUploadHeader();
-                DrawWhy(string.IsNullOrEmpty(report.onUploadStatusNote)
+                string statusNote = string.IsNullOrEmpty(report.onUploadStatusNote)
                     ? (report.onUploadAssembled
-                        ? "On Upload is the hidden assembled copy, then Kaleido. The scene is unchanged."
-                        : "On Upload is Kaleido on a hidden copy. Other upload passes were not found in this project.")
-                    : report.onUploadStatusNote);
+                        ? "Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled)."
+                        : "Now is the scene. Assembled matches Now (no other upload passes). On Upload is Kaleido on a hidden copy. Change is Kaleido only.")
+                    : report.onUploadStatusNote;
+                if (report.onUploadSkippedUnfinished || report.onUploadAssembleFailed)
+                    EditorGUILayout.HelpBox(statusNote, MessageType.Warning);
+                else
+                    DrawWhy(statusNote);
+                DrawNowUploadHeader();
             }
             string rank = window.IsQuestWorkspace ? report.questRank : report.pcRank;
+            string assembledRank = window.IsQuestWorkspace ? report.assembledQuestRank : report.assembledPcRank;
             string uploadRank = window.IsQuestWorkspace ? report.onUploadQuestRank : report.onUploadPcRank;
-            DrawStatNowUpload("Rank", rank, uploadRank, report.hasOnUploadEstimate, IsProblemRank(rank));
+            DrawStatNowUpload("Rank", rank, assembledRank, uploadRank, report.hasOnUploadEstimate, IsProblemRank(rank));
             if (report.meshReadWriteDisabled)
             {
                 if (window.IsQuestWorkspace)
@@ -4383,21 +4388,21 @@ namespace KaleidoVR.EditorTools
                 else
                     EditorGUILayout.HelpBox("Mesh Read/Write is disabled on at least one mesh. VRChat ranks that avatar Very Poor. PC still uploads. Use On / Off under Hidden cost to write the importer now.", MessageType.Warning);
             }
-            DrawCountNowUpload("Triangles", report.triangles, report.onUploadTriangles, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Material Slots", report.materialSlots, report.onUploadMaterialSlots, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Unique Materials", report.uniqueMaterials, report.onUploadUniqueMaterials, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Skinned Meshes", report.skinnedMeshes, report.onUploadSkinnedMeshes, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Basic Meshes", report.meshRenderers, report.onUploadMeshRenderers, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Triangles", report.triangles, report.assembledTriangles, report.onUploadTriangles, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Material Slots", report.materialSlots, report.assembledMaterialSlots, report.onUploadMaterialSlots, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Unique Materials", report.uniqueMaterials, report.assembledUniqueMaterials, report.onUploadUniqueMaterials, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Skinned Meshes", report.skinnedMeshes, report.assembledSkinnedMeshes, report.onUploadSkinnedMeshes, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Basic Meshes", report.meshRenderers, report.assembledMeshRenderers, report.onUploadMeshRenderers, report.hasOnUploadEstimate);
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
-            DrawCountNowUpload("Blend Shapes", report.blendShapes, report.onUploadBlendShapes, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Bones (max on one mesh)", report.bones, report.onUploadBones, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Animators", report.animators, report.onUploadAnimators, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Lights", report.lights, report.onUploadLights, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Audio Sources", report.audioSources, report.onUploadAudioSources, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Particle Systems", report.particleSystems, report.onUploadParticleSystems, report.hasOnUploadEstimate);
-            DrawCountNowUpload("PhysBones", report.physBones, report.onUploadPhysBones, report.hasOnUploadEstimate);
-            DrawCountNowUpload("PhysBone Colliders", report.physBoneColliders, report.onUploadPhysBoneColliders, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Contacts", report.contacts, report.onUploadContacts, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Blend Shapes", report.blendShapes, report.assembledBlendShapes, report.onUploadBlendShapes, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Bones (max on one mesh)", report.bones, report.assembledBones, report.onUploadBones, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Animators", report.animators, report.assembledAnimators, report.onUploadAnimators, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Lights", report.lights, report.assembledLights, report.onUploadLights, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Audio Sources", report.audioSources, report.assembledAudioSources, report.onUploadAudioSources, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Particle Systems", report.particleSystems, report.assembledParticleSystems, report.onUploadParticleSystems, report.hasOnUploadEstimate);
+            DrawCountNowUpload("PhysBones", report.physBones, report.assembledPhysBones, report.onUploadPhysBones, report.hasOnUploadEstimate);
+            DrawCountNowUpload("PhysBone Colliders", report.physBoneColliders, report.assembledPhysBoneColliders, report.onUploadPhysBoneColliders, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Contacts", report.contacts, report.assembledContacts, report.onUploadContacts, report.hasOnUploadEstimate);
             DrawConstraintsRow(window, report);
 
             DrawEvalSections(window, report);
@@ -4554,17 +4559,20 @@ namespace KaleidoVR.EditorTools
             EditorGUILayout.LabelField(label, value, warn ? sizeUpStyle : EditorStyles.label);
         }
 
+        const float UploadColWidth = 72f;
+
         private static void DrawNowUploadHeader()
         {
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("", GUILayout.Width(EditorGUIUtility.labelWidth));
-            GUILayout.Label("Now", EditorStyles.miniBoldLabel, GUILayout.Width(88));
-            GUILayout.Label("On Upload", EditorStyles.miniBoldLabel, GUILayout.Width(88));
-            GUILayout.Label("Change", EditorStyles.miniBoldLabel, GUILayout.Width(80));
+            GUILayout.Label("Now", EditorStyles.miniBoldLabel, GUILayout.Width(UploadColWidth));
+            GUILayout.Label("Assembled", EditorStyles.miniBoldLabel, GUILayout.Width(UploadColWidth));
+            GUILayout.Label("On Upload", EditorStyles.miniBoldLabel, GUILayout.Width(UploadColWidth));
+            GUILayout.Label("Change", EditorStyles.miniBoldLabel, GUILayout.Width(UploadColWidth));
             EditorGUILayout.EndHorizontal();
         }
 
-        private static void DrawCountNowUpload(string label, int now, int upload, bool hasUpload)
+        private static void DrawCountNowUpload(string label, int now, int assembled, int upload, bool hasUpload)
         {
             if (!hasUpload)
             {
@@ -4573,14 +4581,15 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel(label);
-            EditorGUILayout.LabelField(now.ToString("N0"), GUILayout.Width(88));
-            EditorGUILayout.LabelField(upload.ToString("N0"), GUILayout.Width(88));
-            int delta = upload - now;
-            EditorGUILayout.LabelField(delta == 0 ? "—" : delta.ToString("N0"), GUILayout.Width(80));
+            EditorGUILayout.LabelField(now.ToString("N0"), GUILayout.Width(UploadColWidth));
+            EditorGUILayout.LabelField(assembled.ToString("N0"), GUILayout.Width(UploadColWidth));
+            EditorGUILayout.LabelField(upload.ToString("N0"), GUILayout.Width(UploadColWidth));
+            int delta = upload - assembled;
+            EditorGUILayout.LabelField(delta == 0 ? "—" : delta.ToString("N0"), GUILayout.Width(UploadColWidth));
             EditorGUILayout.EndHorizontal();
         }
 
-        private static void DrawStatNowUpload(string label, string now, string upload, bool hasUpload, bool warn)
+        private static void DrawStatNowUpload(string label, string now, string assembled, string upload, bool hasUpload, bool warn)
         {
             EnsureSizeStyles();
             if (!hasUpload)
@@ -4590,10 +4599,11 @@ namespace KaleidoVR.EditorTools
             }
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel(label);
-            EditorGUILayout.LabelField(now ?? "—", warn ? sizeUpStyle : EditorStyles.label, GUILayout.Width(88));
-            EditorGUILayout.LabelField(upload ?? "—", GUILayout.Width(88));
-            bool same = string.Equals(now, upload, StringComparison.Ordinal);
-            EditorGUILayout.LabelField(same ? "—" : (upload ?? "—"), GUILayout.Width(80));
+            EditorGUILayout.LabelField(now ?? "—", warn ? sizeUpStyle : EditorStyles.label, GUILayout.Width(UploadColWidth));
+            EditorGUILayout.LabelField(assembled ?? "—", GUILayout.Width(UploadColWidth));
+            EditorGUILayout.LabelField(upload ?? "—", GUILayout.Width(UploadColWidth));
+            bool same = string.Equals(assembled, upload, StringComparison.Ordinal);
+            EditorGUILayout.LabelField(same ? "—" : (upload ?? "—"), GUILayout.Width(UploadColWidth));
             EditorGUILayout.EndHorizontal();
         }
 
@@ -4837,9 +4847,9 @@ namespace KaleidoVR.EditorTools
 
         private static void DrawConstraintsRow(KaleidoVRCOptimizer window, KaleidoOptimizerReport report)
         {
-            DrawCountNowUpload("Constraints", report.constraints, report.onUploadConstraints, report.hasOnUploadEstimate);
-            DrawCountNowUpload("Unity constraints", report.unityConstraints, report.onUploadUnityConstraints, report.hasOnUploadEstimate);
-            DrawCountNowUpload("VRChat constraints", report.vrcConstraints, report.onUploadVrcConstraints, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Constraints", report.constraints, report.assembledConstraints, report.onUploadConstraints, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Unity constraints", report.unityConstraints, report.assembledUnityConstraints, report.onUploadUnityConstraints, report.hasOnUploadEstimate);
+            DrawCountNowUpload("VRChat constraints", report.vrcConstraints, report.assembledVrcConstraints, report.onUploadVrcConstraints, report.hasOnUploadEstimate);
             if (report.unityConstraints <= 0)
             {
                 if (report.vrcConstraints > 0)
