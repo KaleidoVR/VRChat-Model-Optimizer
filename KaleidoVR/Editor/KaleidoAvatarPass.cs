@@ -502,11 +502,11 @@ namespace KaleidoVR.EditorTools
 
                 ReportProgress("Optimizing FX…", 0.90f);
                 if (settings.optimizeFxLayer)
-                    OptimizeFx(root, settings, excluded, dryRun, result);
+                    TryOptimizeFx(root, settings, excluded, dryRun, result);
 
                 ReportProgress("Writing animator states…", 0.93f);
                 if (settings.writeDefaults || settings.fillEmptyStates)
-                    ApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
+                    TryApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
 
                 ReportProgress("Capping menu icons…", 0.96f);
                 if (settings.capMenuIcons)
@@ -523,10 +523,11 @@ namespace KaleidoVR.EditorTools
             }
             catch (Exception ex)
             {
+                // Never throw out of On Upload — NDMF / VRChat preprocess must keep going.
+                // CreatePreviewCopy and the upload hooks read result.ok / failReason.
                 result.ok = false;
                 result.failReason = ex.Message;
                 result.lines.Add("On Upload stopped: " + ex.Message);
-                if (persistGenerated) throw;
             }
             finally
             {
@@ -3771,6 +3772,33 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < machine.stateMachines.Length; i++)
                 n += CountEmptyMotions(machine.stateMachines[i].stateMachine);
             return n;
+        }
+
+        static void TryOptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || settings == null || result == null || !settings.optimizeFxLayer) return;
+            try
+            {
+                OptimizeFx(root, settings, excluded, dryRun, result);
+            }
+            catch (Exception ex)
+            {
+                result.lines.Add("Optimize FX: skipped — " + ex.Message);
+            }
+        }
+
+        static void TryApplyAnimatorStateOptions(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
+        {
+            if (root == null || settings == null || result == null) return;
+            if (!settings.writeDefaults && !settings.fillEmptyStates) return;
+            try
+            {
+                ApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
+            }
+            catch (Exception ex)
+            {
+                result.lines.Add("Animator states: skipped — " + ex.Message);
+            }
         }
 
         static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
