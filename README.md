@@ -69,7 +69,7 @@ Saved profiles live in this Unity editor. Tick which tabs a profile should overw
 
 VRChat rank plus triangles, materials, meshes, textures, blend shapes, bones, animators, lights, audio, particles, PhysBones, colliders, contacts, and leftover Unity constraints.
 
-When Apply on upload is on, Rank adds **Now / On Upload / Change**. On Upload is a hidden copy and does not write the scene. When other upload passes are in the project, that copy is assembled first so the numbers match VRChat upload. Texture VRAM stays on Now.
+When Apply on upload is on, Rank adds **Now / Assembled / On Upload / Change**. Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled). The scene is not written. Texture VRAM stays on Now.
 
 Fix and Confirm on this tab write into Unity right away. You do not need Apply after those.
 
