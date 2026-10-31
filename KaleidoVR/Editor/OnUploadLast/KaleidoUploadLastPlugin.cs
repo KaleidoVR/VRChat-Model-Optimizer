@@ -26,19 +26,29 @@ namespace KaleidoVR.EditorTools
 
         protected override void Configure()
         {
-            BuildPhase phase = BuildPhase.Optimizing;
-            FieldInfo finish = typeof(BuildPhase).GetField("PlatformFinish", BindingFlags.Public | BindingFlags.Static);
-            if (finish != null)
-            {
-                BuildPhase late = finish.GetValue(null) as BuildPhase;
-                if (late != null) phase = late;
-            }
-
-            InPhase(phase).Run("KaleidoVR On Upload", ctx =>
+            InPhase(ResolveUploadPhase()).Run("KaleidoVR On Upload", ctx =>
             {
                 if (ctx == null || ctx.AvatarRootObject == null) return;
                 InvokeAssembledUpload(ctx.AvatarRootObject);
             });
+        }
+
+        static BuildPhase ResolveUploadPhase()
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+            FieldInfo finish = typeof(BuildPhase).GetField("PlatformFinish", flags);
+            if (finish != null)
+            {
+                BuildPhase late = finish.GetValue(null) as BuildPhase;
+                if (late != null) return late;
+            }
+            PropertyInfo prop = typeof(BuildPhase).GetProperty("PlatformFinish", flags);
+            if (prop != null)
+            {
+                BuildPhase late = prop.GetValue(null, null) as BuildPhase;
+                if (late != null) return late;
+            }
+            return BuildPhase.Optimizing;
         }
 
         static void InvokeAssembledUpload(GameObject avatar)
