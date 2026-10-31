@@ -2,10 +2,10 @@ What's new
 
 1.0.74
 On Upload compiles again.
-On Upload drops unused blend shapes while other upload passes are still on the copy. A shape stays if a clip drives it, including override clips and synced layers, if another component names it, if the descriptor uses it, if it is a blink, wink, squint, or eyelid, or if its weight is not zero.
+On Upload does not rebuild a mesh to drop blend shapes. The original shapes stay so they can still move.
 Keep only weighted bones and Merge identical material slots leave a mesh alone when it still has blend shapes. Rewriting that mesh was clearing the shapes.
+UI — On Upload: Remove unused blend shapes says the mesh is left alone so blend shapes can still move.
 UI — On Upload: Keep only weighted bones and Merge identical material slots say a mesh that still has blend shapes is left alone.
-UI — On Upload: Remove unused blend shapes says a driven clip, a named component, the descriptor, blink / wink / squint / eyelid names, and a shape that still has weight stay.
 Rank counts Face Tracking Operations and Forwarded Parameters. The caps are the same on PC and mobile. Excellent is 2,000 operations and 10 forwarded parameters. Good is 4,000 and 20. Medium is 8,000 and 30. Poor is 16,000 and 40. Over that is Very Poor, and a viewer filtering by rank can replace the avatar with the fallback.
 UI — Rank: Face Tracking Operations and Forwarded Parameters sit under Blend Shapes. They use Now / Assembled / On Upload / Change when Apply on upload is on.
 On Upload only caps icons on finished Expression Menus. Half-built menu assets from other upload passes stay alone.
