@@ -4405,6 +4405,8 @@ namespace KaleidoVR.EditorTools
             DrawCountNowUpload("Basic Meshes", report.meshRenderers, report.assembledMeshRenderers, report.onUploadMeshRenderers, report.hasOnUploadEstimate);
             EditorGUILayout.LabelField("Unique Textures", report.uniqueTextures.ToString("N0"));
             DrawCountNowUpload("Blend Shapes", report.blendShapes, report.assembledBlendShapes, report.onUploadBlendShapes, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Face Tracking Operations", report.faceTrackingOps, report.assembledFaceTrackingOps, report.onUploadFaceTrackingOps, report.hasOnUploadEstimate);
+            DrawCountNowUpload("Forwarded Parameters", report.forwardedParameters, report.assembledForwardedParameters, report.onUploadForwardedParameters, report.hasOnUploadEstimate);
             DrawCountNowUpload("Bones (max on one mesh)", report.bones, report.assembledBones, report.onUploadBones, report.hasOnUploadEstimate);
             DrawCountNowUpload("Animators", report.animators, report.assembledAnimators, report.onUploadAnimators, report.hasOnUploadEstimate);
             DrawCountNowUpload("Lights", report.lights, report.assembledLights, report.onUploadLights, report.hasOnUploadEstimate);
@@ -7367,6 +7369,10 @@ namespace KaleidoVR.EditorTools
             if (report.blendshapeTriangles > 32000) report.notes.Add("Blendshape triangles are above 32k. Split so only one mesh keeps the shapes.");
             if (report.crunchedTextures != null && report.crunchedTextures.Count > 0) report.notes.Add(report.crunchedTextures.Count + " crunch-compressed texture(s). Crunch does not lower VRChat texture memory.");
             if (report.missingStreamingCount > 0) report.notes.Add(report.missingStreamingCount + " mipmapped texture(s) have streaming mip maps off. VRChat expects them on. Use Fix on Rank.");
+            if (report.faceTrackingOps > 16000) report.notes.Add("Face Tracking Operations are above 16,000. That is Very Poor on PC and mobile. A viewer filtering by rank can replace the avatar with the fallback.");
+            else if (report.faceTrackingOps > 2000) report.notes.Add("Face Tracking Operations are above Excellent (2,000). The same caps apply on PC and mobile.");
+            if (report.forwardedParameters > 40) report.notes.Add("Forwarded Parameters are above 40. That is Very Poor on PC and mobile. A viewer filtering by rank can replace the avatar with the fallback.");
+            else if (report.forwardedParameters > 10) report.notes.Add("Forwarded Parameters are above Excellent (10). The same caps apply on PC and mobile.");
             if (!quest && report.unityConstraints > 0) report.notes.Add(report.unityConstraints + " Unity constraint(s) are still on the avatar. Use Fix on Rank to convert them with the VRChat SDK so Play Mode matches what the client loads.");
         }
 
