@@ -1811,6 +1811,8 @@ namespace KaleidoVR.EditorTools
             }
             return false;
         }
+
+        static void RestoreBlendShapesIfCleared(Mesh mesh, List<BlendShapeCopy> shapes)
         {
             if (mesh == null || shapes == null || shapes.Count == 0) return;
             if (mesh.blendShapeCount >= shapes.Count) return;
