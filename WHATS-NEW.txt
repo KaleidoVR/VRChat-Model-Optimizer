@@ -1,6 +1,7 @@
 What's new
 
 1.0.74
+On Upload compiles again.
 On Upload leaves blend shapes alone while other upload passes are still on the copy. Those shapes stay so those passes can still bake them. Merge, cleanup, PhysBones, and contacts still run.
 After those passes finish, I still drop unused blend shapes. A shape stays if a clip drives it, including override clips and synced layers, if another component names it, if the descriptor uses it, or if it still has weight. A shape that stays keeps every frame.
 Merge identical material slots and Keep only weighted bones put the blend shapes back if that mesh rewrite clears them. If I cannot read the shape data, I leave that mesh alone.
