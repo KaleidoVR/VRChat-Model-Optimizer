@@ -226,6 +226,11 @@ namespace KaleidoVR.EditorTools
         static bool? persistOverride;
         static bool? splashOverride;
         static KaleidoAvatarPassResult latestRun;
+
+        public static KaleidoAvatarPassResult LatestRun
+        {
+            get { return latestRun; }
+        }
         static readonly List<GameObject> claimedUploadCopies = new List<GameObject>();
 
         public static bool SuppressUploadSplash
@@ -243,11 +248,6 @@ namespace KaleidoVR.EditorTools
                 if (claimedUploadCopies[i] == root) return true;
             }
             return false;
-        }
-
-        public static KaleidoAvatarPassResult LatestRun
-        {
-            get { return latestRun; }
         }
 
         static bool ClaimUploadPass(GameObject root)
@@ -442,10 +442,15 @@ namespace KaleidoVR.EditorTools
         {
             KaleidoAvatarPassResult result = new KaleidoAvatarPassResult();
             if (root == null || settings == null) return result;
+            if (HasForeignUploadComponents(root))
+            {
+                result.lines.Add("On Upload skipped: other upload components are still on this copy.");
+                latestRun = result;
+                return result;
+            }
             if (!dryRun && !ClaimUploadPass(root))
             {
-                result.skipMessage = "On Upload already ran on this copy.";
-                result.lines.Add(result.skipMessage);
+                result.lines.Add("On Upload already ran on this copy.");
                 latestRun = result;
                 return result;
             }
@@ -453,7 +458,6 @@ namespace KaleidoVR.EditorTools
             persistGenerated = persist && !dryRun;
             try
             {
-                NoteLeftoverUploadMarkers(root, result);
                 HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
                 AvatarAnimInfo anim = AvatarAnimInfo.Build(root);
                 ComponentRefInfo refs = ComponentRefInfo.Build(root);
@@ -461,52 +465,52 @@ namespace KaleidoVR.EditorTools
                 if (settings.enableMeshReadWrite)
                 {
                     ReportProgress("Enabling mesh Read/Write…", 0.04f);
-                    RunUploadStep(result, "Read/Write", () => EnableReadableMeshes(root, dryRun, result));
+                    EnableReadableMeshes(root, dryRun, result);
                 }
 
                 ReportProgress("Cleaning unused objects…", 0.08f);
                 if (settings.removeUnusedComponents || settings.removeUnusedGameObjects)
-                    RunUploadStep(result, "Unused cleanup", () => SweepUnused(root, settings, anim, excluded, dryRun, result, refs));
+                    SweepUnused(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Processing blend shapes…", 0.22f);
                 if (settings.optimizeBlendShapes || settings.mergeSameRatioShapes)
-                    RunUploadStep(result, "Blend shapes", () => ProcessBlendShapes(root, settings, anim, excluded, dryRun, result, refs));
+                    ProcessBlendShapes(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Trimming unused bones…", 0.38f);
                 if (settings.stripUnusedBones)
-                    RunUploadStep(result, "Unused bones", () => StripUnusedBones(root, anim, excluded, dryRun, result, refs));
+                    StripUnusedBones(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Merging material slots…", 0.52f);
                 if (settings.mergeIdenticalSlots || settings.shuffleMaterialSlots)
-                    RunUploadStep(result, "Material slots", () => MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result, refs));
+                    MergeSlotsOnRenderers(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Merging meshes…", 0.68f);
                 if (settings.mergeSkinnedMeshes)
-                    RunUploadStep(result, "Merge skinned meshes", () => MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs));
+                    MergeTogetherMeshes(root, settings, anim, excluded, dryRun, result, refs);
                 if (settings.mergeBasicMeshes)
-                    RunUploadStep(result, "Merge basic meshes", () => MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs));
+                    MergeBasicMeshes(root, settings, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Disabling Update When Offscreen…", 0.74f);
                 if (settings.disableUpdateWhenOffscreen)
-                    RunUploadStep(result, "Update When Offscreen", () => DisableUpdateWhenOffscreen(root, excluded, dryRun, result));
+                    DisableUpdateWhenOffscreen(root, excluded, dryRun, result);
                 if (settings.disableReceiveShadows)
-                    RunUploadStep(result, "Receive shadows", () => DisableReceiveShadows(root, excluded, dryRun, result));
+                    DisableReceiveShadows(root, excluded, dryRun, result);
 
                 ReportProgress("Cleaning PhysBones…", 0.82f);
                 if (settings.optimizePhysBones)
-                    RunUploadStep(result, "PhysBones", () => SweepPhysBones(root, anim, excluded, dryRun, result, refs));
+                    SweepPhysBones(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Cleaning contacts…", 0.87f);
                 if (settings.optimizeContacts)
-                    RunUploadStep(result, "Contacts", () => SweepContacts(root, anim, excluded, dryRun, result, refs));
+                    SweepContacts(root, anim, excluded, dryRun, result, refs);
 
                 ReportProgress("Optimizing FX…", 0.90f);
                 if (settings.optimizeFxLayer)
-                    TryOptimizeFx(root, settings, excluded, dryRun, result);
+                    OptimizeFx(root, settings, excluded, dryRun, result);
 
                 ReportProgress("Writing animator states…", 0.93f);
                 if (settings.writeDefaults || settings.fillEmptyStates)
-                    TryApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
+                    ApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
 
                 ReportProgress("Capping menu icons…", 0.96f);
                 if (settings.capMenuIcons)
@@ -515,22 +519,18 @@ namespace KaleidoVR.EditorTools
                 ReportProgress("Saving generated meshes…", 0.98f);
                 if (persistGenerated)
                 {
-                    RunUploadStep(result, "Save generated meshes", () =>
-                    {
-                        AssertMeshesSaved(root);
-                        AssetDatabase.SaveAssets();
-                    }, fatal: true);
+                    AssertMeshesSaved(root);
+                    AssetDatabase.SaveAssets();
                 }
                 if (result.lines.Count == 0)
                     result.lines.Add("Avatar pass: nothing to change with the current toggles.");
             }
             catch (Exception ex)
             {
-                // Never throw out of On Upload — NDMF / VRChat preprocess must keep going.
-                // CreatePreviewCopy and the upload hooks read result.ok / failReason.
                 result.ok = false;
                 result.failReason = ex.Message;
                 result.lines.Add("On Upload stopped: " + ex.Message);
+                if (persistGenerated) throw;
             }
             finally
             {
@@ -538,27 +538,6 @@ namespace KaleidoVR.EditorTools
                 latestRun = result;
             }
             return result;
-        }
-
-        static void RunUploadStep(KaleidoAvatarPassResult result, string label, Action step, bool fatal = false)
-        {
-            if (result == null || step == null) return;
-            try
-            {
-                step();
-            }
-            catch (Exception ex)
-            {
-                string msg = string.IsNullOrEmpty(ex.Message) ? "failed." : ex.Message;
-                if (fatal)
-                {
-                    result.ok = false;
-                    result.failReason = msg;
-                    result.lines.Add("On Upload stopped: " + msg);
-                    return;
-                }
-                result.lines.Add(label + ": skipped — " + msg);
-            }
         }
 
         static void ReportProgress(string status, float t)
@@ -866,21 +845,6 @@ namespace KaleidoVR.EditorTools
             HarvestMenuTree(FindExpressionsMenu(root), icons, null, new HashSet<int>());
         }
 
-        static Type ExpressionsMenuType()
-        {
-            return KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu");
-        }
-
-        static bool IsExpressionsMenu(UnityEngine.Object obj)
-        {
-            if (obj == null) return false;
-            Type menuType = ExpressionsMenuType();
-            if (menuType != null) return menuType.IsInstanceOfType(obj);
-            string n = obj.GetType().Name;
-            return !string.IsNullOrEmpty(n)
-                && n.IndexOf("ExpressionsMenu", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
         static UnityEngine.Object FindExpressionsMenu(GameObject root)
         {
             if (root == null) return null;
@@ -888,15 +852,14 @@ namespace KaleidoVR.EditorTools
             if (desc == null) return null;
             FieldInfo menu = desc.GetType().GetField("expressionsMenu");
             if (menu == null) return null;
-            UnityEngine.Object value = menu.GetValue(desc) as UnityEngine.Object;
-            return IsExpressionsMenu(value) ? value : null;
+            return menu.GetValue(desc) as UnityEngine.Object;
         }
 
         static void HarvestMenuTree(UnityEngine.Object obj, HashSet<Texture2D> icons, List<UnityEngine.Object> menus, HashSet<int> visited)
         {
-            if (obj == null || visited == null || !IsExpressionsMenu(obj)) return;
+            if (obj == null || visited == null) return;
             if (!visited.Add(obj.GetInstanceID())) return;
-            if (menus != null) menus.Add(obj);
+            if (menus != null && obj is ScriptableObject) menus.Add(obj);
 
             List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
             SerializedObject so = new SerializedObject(obj);
@@ -912,7 +875,7 @@ namespace KaleidoVR.EditorTools
                     if (icons != null && p.name == "icon") icons.Add(tex);
                     continue;
                 }
-                if (IsExpressionsMenu(next)) nested.Add(next);
+                if (next is ScriptableObject) nested.Add(next);
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestMenuTree(nested[i], icons, menus, visited);
@@ -921,24 +884,7 @@ namespace KaleidoVR.EditorTools
         static void CapMenuIcons(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result)
         {
             if (root == null || settings == null || result == null || !settings.capMenuIcons) return;
-            try
-            {
-                CapMenuIconsCore(root, settings, dryRun, result);
-            }
-            catch (Exception ex)
-            {
-                result.lines.Add("Action / Expression Menu icons: skipped — " + ex.Message);
-            }
-        }
-
-        static void CapMenuIconsCore(GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result)
-        {
             int size = KaleidoVRCOptimizer.ClampMenuIconSize(settings.menuIconSize);
-            if (FindExpressionsMenu(root) == null)
-            {
-                result.lines.Add("Action / Expression Menu icons: skipped — expression menu is not a finished VRC Expressions Menu yet.");
-                return;
-            }
 
             HashSet<Texture2D> icons = new HashSet<Texture2D>();
             CollectExpressionMenuIcons(root, icons);
@@ -1018,7 +964,7 @@ namespace KaleidoVR.EditorTools
 
         static UnityEngine.Object PersistMenu(UnityEngine.Object src)
         {
-            if (!IsExpressionsMenu(src)) return null;
+            if (src == null) return null;
             if (!persistGenerated)
             {
                 UnityEngine.Object tmp = UnityEngine.Object.Instantiate(src);
@@ -1065,7 +1011,7 @@ namespace KaleidoVR.EditorTools
             FieldInfo menuField = desc.GetType().GetField("expressionsMenu");
             if (menuField == null) return;
             UnityEngine.Object rootMenu = menuField.GetValue(desc) as UnityEngine.Object;
-            if (!IsExpressionsMenu(rootMenu)) return;
+            if (rootMenu == null) return;
 
             List<UnityEngine.Object> menus = new List<UnityEngine.Object>();
             HarvestMenuTree(rootMenu, null, menus, new HashSet<int>());
@@ -1075,10 +1021,8 @@ namespace KaleidoVR.EditorTools
             for (int i = 0; i < menus.Count; i++)
             {
                 UnityEngine.Object menu = menus[i];
-                if (!IsExpressionsMenu(menu)) continue;
-                UnityEngine.Object copy = MustCopyMenu(menu) ? PersistMenu(menu) : menu;
-                if (!IsExpressionsMenu(copy)) continue;
-                menuMap[menu] = copy;
+                if (menu == null) continue;
+                menuMap[menu] = MustCopyMenu(menu) ? PersistMenu(menu) : menu;
             }
 
             foreach (KeyValuePair<UnityEngine.Object, UnityEngine.Object> pair in menuMap)
@@ -1087,15 +1031,13 @@ namespace KaleidoVR.EditorTools
             }
 
             UnityEngine.Object newRoot;
-            if (!menuMap.TryGetValue(rootMenu, out newRoot) || newRoot == null || newRoot == rootMenu) return;
-            if (!IsExpressionsMenu(newRoot)) return;
-            if (!menuField.FieldType.IsInstanceOfType(newRoot)) return;
-            menuField.SetValue(desc, newRoot);
+            if (menuMap.TryGetValue(rootMenu, out newRoot) && newRoot != null && newRoot != rootMenu)
+                menuField.SetValue(desc, newRoot);
         }
 
         static void RemapMenuRefs(UnityEngine.Object menu, Dictionary<Texture2D, Texture2D> iconCopies, Dictionary<UnityEngine.Object, UnityEngine.Object> menuMap)
         {
-            if (!IsExpressionsMenu(menu)) return;
+            if (menu == null) return;
             SerializedObject so = new SerializedObject(menu);
             SerializedProperty p = so.GetIterator();
             bool changed = false;
@@ -1115,11 +1057,11 @@ namespace KaleidoVR.EditorTools
                 }
 
                 UnityEngine.Object mappedMenu;
-                if (!IsExpressionsMenu(next) || menuMap == null || !menuMap.TryGetValue(next, out mappedMenu))
-                    continue;
-                if (mappedMenu == null || mappedMenu == next || !IsExpressionsMenu(mappedMenu)) continue;
-                p.objectReferenceValue = mappedMenu;
-                changed = true;
+                if (next is ScriptableObject && menuMap != null && menuMap.TryGetValue(next, out mappedMenu) && mappedMenu != null && mappedMenu != next)
+                {
+                    p.objectReferenceValue = mappedMenu;
+                    changed = true;
+                }
             }
             if (!changed) return;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -1281,50 +1223,26 @@ namespace KaleidoVR.EditorTools
             return false;
         }
 
-        // Foreign IEditorOnly leftovers. Do not abort the pass — HasExternalWork already
-        // leaves those objects alone while the rest of the avatar still optimizes.
-        static void NoteLeftoverUploadMarkers(GameObject root, KaleidoAvatarPassResult result)
+        static bool HasForeignUploadComponents(GameObject root)
         {
-            if (root == null || result == null) return;
-            List<string> names = CollectUnfinishedUploadMarkerTypes(root);
-            if (names.Count == 0) return;
-            for (int i = 0; i < names.Count; i++) result.leftoverMarkerTypes.Add(names[i]);
-            StringBuilder sb = new StringBuilder();
-            sb.Append("Left alone objects with upload markers (");
-            sb.Append(names.Count);
-            sb.Append("): ");
-            for (int i = 0; i < names.Count; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                sb.Append(names[i]);
-                if (i >= 11)
-                {
-                    sb.Append(", …");
-                    break;
-                }
-            }
-            sb.Append(". Kaleido still runs on the rest.");
-            result.lines.Add(sb.ToString());
-        }
-
-        static List<string> CollectUnfinishedUploadMarkerTypes(GameObject root)
-        {
-            List<string> names = new List<string>();
-            if (root == null) return names;
-            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            if (root == null) return false;
             Component[] parts = root.GetComponentsInChildren<Component>(true);
             for (int i = 0; i < parts.Length; i++)
             {
                 Component c = parts[i];
                 if (c == null || c is Transform) continue;
-                if (IsOwnedType(c.GetType())) continue;
-                if (!IsEditorMarker(c)) continue;
-                string name = c.GetType().Name;
-                if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
-                names.Add(name);
+                if (!IsOwnedType(c.GetType())) return true;
             }
-            names.Sort(StringComparer.Ordinal);
-            return names;
+            return false;
+        }
+
+        static bool IsExternalRuntimeAsset(UnityEngine.Object obj)
+        {
+            if (obj == null) return false;
+            string path = AssetDatabase.GetAssetPath(obj);
+            if (!string.IsNullOrEmpty(path)) return false;
+            string n = obj.name;
+            return string.IsNullOrEmpty(n) || n.IndexOf("_Kaleido", StringComparison.Ordinal) < 0;
         }
 
         static bool ShouldLeaveRenderer(Renderer renderer, HashSet<Transform> excluded)
@@ -1645,6 +1563,7 @@ namespace KaleidoVR.EditorTools
             AddReferencedBlendShapes(root, referencedShapes);
             foreach (string name in referencedShapes) keep.Add(name);
 
+            bool remapped = false;
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
             {
@@ -1686,7 +1605,24 @@ namespace KaleidoVR.EditorTools
 
                 if (drop.Count == 0 && (ratioInto == null || ratioInto.Count == 0)) continue;
 
-                result.lines.Add(smr.name + ": left blend shapes in place so they can still move.");
+                result.shapesRemoved += drop.Count;
+                if (ratioInto != null) result.shapesMerged += ratioInto.Count;
+                result.lines.Add(smr.name + ": drop " + drop.Count + ", merge " + (ratioInto != null ? ratioInto.Count : 0) + " blend shapes");
+                if (dryRun) continue;
+
+                Dictionary<string, float> weights = SnapshotShapeWeights(smr);
+                Mesh copy = UnityEngine.Object.Instantiate(mesh);
+                copy.name = mesh.name + "_Kaleido";
+                StripShapes(copy, drop, ratioInto);
+                smr.sharedMesh = PersistMesh(copy);
+                RestoreShapeWeights(smr, weights);
+                if (RemapIndexedDescriptorShapes(smr, copy, indexMaps)) remapped = true;
+            }
+
+            if (remapped)
+            {
+                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+                if (desc != null) EditorUtility.SetDirty(desc);
             }
         }
 
@@ -2013,7 +1949,6 @@ namespace KaleidoVR.EditorTools
                 int keepCount = 0;
                 for (int i = 0; i < used.Length; i++) if (used[i]) keepCount++;
                 if (keepCount == 0 || keepCount == bones.Length) continue;
-                if (mesh.blendShapeCount > 0) continue;
 
                 result.bonesRemoved += bones.Length - keepCount;
                 result.lines.Add(smr.name + ": drop " + (bones.Length - keepCount) + " unused bones");
@@ -2100,7 +2035,6 @@ namespace KaleidoVR.EditorTools
                 }
 
                 if (newMats.Count >= mesh.subMeshCount) continue;
-                if (mesh.blendShapeCount > 0) continue;
                 result.slotsMerged += mesh.subMeshCount - newMats.Count;
                 result.lines.Add(smr.name + ": " + mesh.subMeshCount + " slots → " + newMats.Count);
                 if (dryRun) continue;
@@ -2770,7 +2704,6 @@ namespace KaleidoVR.EditorTools
 
             Component[] pbs = root.GetComponentsInChildren(pbType, true);
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             FieldInfo rootField = pbType.GetField("rootTransform") ?? pbType.GetField("m_RootTransform");
 
             for (int i = 0; i < pbs.Length; i++)
@@ -2782,7 +2715,13 @@ namespace KaleidoVR.EditorTools
                 Transform pbRoot = rootField != null ? rootField.GetValue(pb) as Transform : pb.transform;
                 if (pbRoot == null) pbRoot = pb.transform;
                 if (refs != null && (refs.Keeps(pb) || refs.Keeps(pbRoot))) continue;
-                bool used = PhysBoneRootIsUsed(pbRoot, skins, renderers);
+                bool used = false;
+                for (int s = 0; s < skins.Length; s++)
+                {
+                    SkinnedMeshRenderer smr = skins[s];
+                    if (smr == null || smr.sharedMesh == null) continue;
+                    if (RendererUsesTransform(smr, pbRoot)) { used = true; break; }
+                }
                 string path = AnimationUtility.CalculateTransformPath(pb.transform, root.transform);
                 if (!used && !anim.IsEnabledAnimated(path, pbType))
                 {
@@ -2833,40 +2772,6 @@ namespace KaleidoVR.EditorTools
                     if (t == bone) return true;
                     t = t.parent;
                 }
-            }
-            return false;
-        }
-
-        static bool PhysBoneRootIsUsed(Transform pbRoot, SkinnedMeshRenderer[] skins, Renderer[] renderers)
-        {
-            if (pbRoot == null) return false;
-            if (skins != null)
-            {
-                for (int s = 0; s < skins.Length; s++)
-                {
-                    SkinnedMeshRenderer smr = skins[s];
-                    if (smr == null || smr.sharedMesh == null) continue;
-                    if (RendererUsesTransform(smr, pbRoot)) return true;
-                }
-            }
-            if (renderers != null)
-            {
-                for (int r = 0; r < renderers.Length; r++)
-                {
-                    Renderer renderer = renderers[r];
-                    if (renderer == null) continue;
-                    if (IsUnderOrEqual(renderer.transform, pbRoot)) return true;
-                }
-            }
-            return false;
-        }
-
-        static bool IsUnderOrEqual(Transform t, Transform ancestor)
-        {
-            while (t != null)
-            {
-                if (t == ancestor) return true;
-                t = t.parent;
             }
             return false;
         }
@@ -2973,20 +2878,10 @@ namespace KaleidoVR.EditorTools
             AddDescriptorControllerParameters(desc, "specialAnimationLayers", names, seen);
 
             FieldInfo expr = desc.GetType().GetField("expressionParameters");
-            if (expr != null)
-            {
-                UnityEngine.Object paramsObj = expr.GetValue(desc) as UnityEngine.Object;
-                if (IsExpressionParameters(paramsObj))
-                    HarvestParameterStrings(paramsObj, names, new HashSet<int>());
-            }
+            if (expr != null) HarvestParameterStrings(expr.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
 
             FieldInfo menu = desc.GetType().GetField("expressionsMenu");
-            if (menu != null)
-            {
-                UnityEngine.Object menuObj = menu.GetValue(desc) as UnityEngine.Object;
-                if (IsExpressionsMenu(menuObj))
-                    HarvestParameterStrings(menuObj, names, new HashSet<int>());
-            }
+            if (menu != null) HarvestParameterStrings(menu.GetValue(desc) as UnityEngine.Object, names, new HashSet<int>());
             return names;
         }
 
@@ -3021,25 +2916,9 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        static Type ExpressionParametersType()
-        {
-            return KaleidoVRCOptimizerHelpers.FindTypeByFullName("VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters");
-        }
-
-        static bool IsExpressionParameters(UnityEngine.Object obj)
-        {
-            if (obj == null) return false;
-            Type t = ExpressionParametersType();
-            if (t != null) return t.IsInstanceOfType(obj);
-            string n = obj.GetType().Name;
-            return !string.IsNullOrEmpty(n)
-                && n.IndexOf("ExpressionParameters", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
         static void HarvestParameterStrings(UnityEngine.Object obj, HashSet<string> names, HashSet<int> visited)
         {
             if (obj == null || names == null || visited == null) return;
-            if (!IsExpressionsMenu(obj) && !IsExpressionParameters(obj)) return;
             if (!visited.Add(obj.GetInstanceID())) return;
 
             List<UnityEngine.Object> nested = new List<UnityEngine.Object>();
@@ -3057,7 +2936,7 @@ namespace KaleidoVR.EditorTools
                 if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
                 UnityEngine.Object next = p.objectReferenceValue;
                 if (next == null || next is MonoScript) continue;
-                if (IsExpressionsMenu(next) || IsExpressionParameters(next)) nested.Add(next);
+                if (next is ScriptableObject) nested.Add(next);
             }
             for (int i = 0; i < nested.Count; i++)
                 HarvestParameterStrings(nested[i], names, visited);
@@ -3767,33 +3646,6 @@ namespace KaleidoVR.EditorTools
             return n;
         }
 
-        static void TryOptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
-        {
-            if (root == null || settings == null || result == null || !settings.optimizeFxLayer) return;
-            try
-            {
-                OptimizeFx(root, settings, excluded, dryRun, result);
-            }
-            catch (Exception ex)
-            {
-                result.lines.Add("Optimize FX: skipped — " + ex.Message);
-            }
-        }
-
-        static void TryApplyAnimatorStateOptions(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
-        {
-            if (root == null || settings == null || result == null) return;
-            if (!settings.writeDefaults && !settings.fillEmptyStates) return;
-            try
-            {
-                ApplyAnimatorStateOptions(root, settings, excluded, dryRun, result);
-            }
-            catch (Exception ex)
-            {
-                result.lines.Add("Animator states: skipped — " + ex.Message);
-            }
-        }
-
         static void OptimizeFx(GameObject root, KaleidoAvatarPassSettings settings, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result)
         {
             Dictionary<AnimatorController, AnimatorController> rewritten = new Dictionary<AnimatorController, AnimatorController>();
@@ -3839,8 +3691,7 @@ namespace KaleidoVR.EditorTools
 
         static AnimatorController RewriteController(AnimatorController src, GameObject root, KaleidoAvatarPassSettings settings, bool dryRun, KaleidoAvatarPassResult result, Dictionary<AnimatorController, AnimatorController> rewritten)
         {
-            // Pathless assembled controllers are copied via PersistController (same idea as Write Defaults).
-            if (src == null) return src;
+            if (src == null || IsExternalRuntimeAsset(src)) return src;
             AnimatorController cached;
             if (rewritten.TryGetValue(src, out cached)) return cached;
 
@@ -4217,7 +4068,6 @@ namespace KaleidoVR.EditorTools
                 string path = raw.Trim();
                 if (path.Length == 0) return;
                 if (path.StartsWith("blendShape.", StringComparison.OrdinalIgnoreCase)) return;
-                if (path.IndexOf(' ') >= 0 && path.IndexOf('/') < 0) return;
 
                 Transform found;
                 if (byPath != null && byPath.TryGetValue(path, out found))
@@ -4231,11 +4081,12 @@ namespace KaleidoVR.EditorTools
                     if (found != null) KeepTransform(found);
                     return;
                 }
-                // Bare names only when unique — avoids pinning every "Arm" from a tag string.
                 List<Transform> named;
-                if (byName == null || !byName.TryGetValue(path, out named) || named == null || named.Count != 1)
-                    return;
-                KeepTransform(named[0]);
+                if (byName != null && byName.TryGetValue(path, out named) && named != null)
+                {
+                    for (int i = 0; i < named.Count; i++)
+                        KeepTransform(named[i]);
+                }
             }
         }
 
@@ -4253,7 +4104,6 @@ namespace KaleidoVR.EditorTools
         sealed class AvatarAnimInfo
         {
             public readonly HashSet<string> UsedBlendShapes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            readonly HashSet<int> seenClips = new HashSet<int>();
             readonly HashSet<string> enabled = new HashSet<string>(StringComparer.Ordinal);
             readonly HashSet<string> actives = new HashSet<string>(StringComparer.Ordinal);
             readonly HashSet<string> moved = new HashSet<string>(StringComparer.Ordinal);
@@ -4273,58 +4123,7 @@ namespace KaleidoVR.EditorTools
                     info.IngestController(animators[i].runtimeAnimatorController);
                 }
                 info.IngestDescriptorLayers(root);
-                info.IngestReferencedClips(root);
                 return info;
-            }
-
-            void IngestReferencedClips(GameObject root)
-            {
-                if (root == null) return;
-                HashSet<int> visited = new HashSet<int>();
-                Component[] parts = root.GetComponentsInChildren<Component>(true);
-                for (int i = 0; i < parts.Length; i++)
-                {
-                    Component c = parts[i];
-                    if (c == null || c is Transform) continue;
-                    IngestClipsOnObject(c, visited);
-                }
-            }
-
-            void IngestClipsOnObject(UnityEngine.Object obj, HashSet<int> visited)
-            {
-                if (obj == null || visited == null) return;
-                if (!visited.Add(obj.GetInstanceID())) return;
-                AnimationClip direct = obj as AnimationClip;
-                if (direct != null)
-                {
-                    IngestClip(direct);
-                    return;
-                }
-
-                List<ScriptableObject> nested = null;
-                SerializedObject so;
-                try { so = new SerializedObject(obj); }
-                catch (Exception) { return; }
-                SerializedProperty p = so.GetIterator();
-                while (p.Next(true))
-                {
-                    if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
-                    UnityEngine.Object value = p.objectReferenceValue;
-                    if (value == null || value is MonoScript) continue;
-                    AnimationClip clip = value as AnimationClip;
-                    if (clip != null)
-                    {
-                        IngestClip(clip);
-                        continue;
-                    }
-                    ScriptableObject asset = value as ScriptableObject;
-                    if (asset == null) continue;
-                    if (nested == null) nested = new List<ScriptableObject>();
-                    nested.Add(asset);
-                }
-                if (nested == null) return;
-                for (int i = 0; i < nested.Count; i++)
-                    IngestClipsOnObject(nested[i], visited);
             }
 
             void IngestDescriptorLayers(GameObject root)
@@ -4361,75 +4160,21 @@ namespace KaleidoVR.EditorTools
 
             void IngestController(RuntimeAnimatorController controller)
             {
-                if (controller == null) return;
-                AnimatorOverrideController ovr = controller as AnimatorOverrideController;
-                if (ovr != null)
-                {
-                    List<KeyValuePair<AnimationClip, AnimationClip>> pairs = new List<KeyValuePair<AnimationClip, AnimationClip>>();
-                    ovr.GetOverrides(pairs);
-                    for (int i = 0; i < pairs.Count; i++)
-                    {
-                        IngestClip(pairs[i].Key);
-                        IngestClip(pairs[i].Value);
-                    }
-                }
-
                 AnimatorController ac = controller as AnimatorController;
+                AnimatorOverrideController ovr = controller as AnimatorOverrideController;
                 if (ovr != null) ac = ovr.runtimeAnimatorController as AnimatorController;
-                if (ac == null)
-                {
-                    AnimationClip[] loose = controller.animationClips;
-                    if (loose == null) return;
-                    for (int i = 0; i < loose.Length; i++) IngestClip(loose[i]);
-                    return;
-                }
-
-                AnimationClip[] all = ac.animationClips;
-                if (all != null)
-                {
-                    for (int i = 0; i < all.Length; i++) IngestClip(all[i]);
-                }
+                if (ac == null) return;
                 AnimatorControllerLayer[] layers = ac.layers;
-                if (layers == null) return;
                 for (int i = 0; i < layers.Length; i++)
                 {
-                    AnimatorControllerLayer layer = layers[i];
-                    if (layer == null) continue;
-                    foreach (AnimationClip clip in CollectClips(layer.stateMachine))
+                    foreach (AnimationClip clip in CollectClips(layers[i].stateMachine))
                         IngestClip(clip);
-                    if (layer.syncedLayerIndex < 0 || layer.syncedLayerIndex >= layers.Length) continue;
-                    AnimatorControllerLayer source = layers[layer.syncedLayerIndex];
-                    if (source == null) continue;
-                    IngestSyncedOverrides(layer, source.stateMachine);
                 }
-            }
-
-            void IngestSyncedOverrides(AnimatorControllerLayer layer, AnimatorStateMachine machine)
-            {
-                if (layer == null || machine == null) return;
-                ChildAnimatorState[] states = machine.states;
-                if (states != null)
-                {
-                    for (int i = 0; i < states.Length; i++)
-                    {
-                        AnimatorState state = states[i].state;
-                        if (state == null) continue;
-                        Motion motion = null;
-                        try { motion = layer.GetOverrideMotion(state); }
-                        catch (Exception) { motion = null; }
-                        foreach (AnimationClip clip in ClipsFromMotion(motion))
-                            IngestClip(clip);
-                    }
-                }
-                ChildAnimatorStateMachine[] subs = machine.stateMachines;
-                if (subs == null) return;
-                for (int i = 0; i < subs.Length; i++)
-                    IngestSyncedOverrides(layer, subs[i].stateMachine);
             }
 
             void IngestClip(AnimationClip clip)
             {
-                if (clip == null || !seenClips.Add(clip.GetInstanceID())) return;
+                if (clip == null) return;
                 EditorCurveBinding[] bindings = AnimationUtility.GetCurveBindings(clip);
                 for (int i = 0; i < bindings.Length; i++)
                 {
