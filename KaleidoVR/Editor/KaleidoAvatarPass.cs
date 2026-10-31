@@ -1708,108 +1708,6 @@ namespace KaleidoVR.EditorTools
             }
         }
 
-        sealed class BlendShapeFrameData
-        {
-            public float weight;
-            public Vector3[] verts;
-            public Vector3[] normals;
-            public Vector3[] tangents;
-        }
-
-        sealed class BlendShapeCopy
-        {
-            public string name;
-            public readonly List<BlendShapeFrameData> frames = new List<BlendShapeFrameData>();
-        }
-
-        static List<BlendShapeCopy> CaptureBlendShapes(Mesh mesh)
-        {
-            List<BlendShapeCopy> shapes = new List<BlendShapeCopy>();
-            if (mesh == null || mesh.blendShapeCount == 0) return shapes;
-            int vertCount = mesh.vertexCount;
-            for (int i = 0; i < mesh.blendShapeCount; i++)
-            {
-                int frameCount = mesh.GetBlendShapeFrameCount(i);
-                if (frameCount < 1) continue;
-                BlendShapeCopy shape = new BlendShapeCopy();
-                shape.name = mesh.GetBlendShapeName(i);
-                for (int f = 0; f < frameCount; f++)
-                {
-                    BlendShapeFrameData frame = new BlendShapeFrameData();
-                    frame.weight = mesh.GetBlendShapeFrameWeight(i, f);
-                    frame.verts = new Vector3[vertCount];
-                    frame.normals = new Vector3[vertCount];
-                    frame.tangents = new Vector3[vertCount];
-                    mesh.GetBlendShapeFrameVertices(i, f, frame.verts, frame.normals, frame.tangents);
-                    shape.frames.Add(frame);
-                }
-                if (shape.frames.Count > 0) shapes.Add(shape);
-            }
-            return shapes;
-        }
-
-        static bool BlendShapesFit(Mesh mesh, List<BlendShapeCopy> shapes)
-        {
-            if (mesh == null || shapes == null) return false;
-            int verts = mesh.vertexCount;
-            for (int i = 0; i < shapes.Count; i++)
-            {
-                BlendShapeCopy shape = shapes[i];
-                if (shape == null || shape.frames == null || string.IsNullOrEmpty(shape.name)) return false;
-                for (int f = 0; f < shape.frames.Count; f++)
-                {
-                    BlendShapeFrameData frame = shape.frames[f];
-                    if (frame == null || frame.verts == null || frame.verts.Length != verts) return false;
-                    if (frame.normals == null || frame.normals.Length != verts) return false;
-                    if (frame.tangents == null || frame.tangents.Length != verts) return false;
-                }
-            }
-            return true;
-        }
-
-        static void ApplyBlendShapes(Mesh mesh, List<BlendShapeCopy> shapes)
-        {
-            if (!BlendShapesFit(mesh, shapes)) return;
-            mesh.ClearBlendShapes();
-            for (int i = 0; i < shapes.Count; i++)
-            {
-                BlendShapeCopy shape = shapes[i];
-                for (int f = 0; f < shape.frames.Count; f++)
-                {
-                    BlendShapeFrameData frame = shape.frames[f];
-                    mesh.AddBlendShapeFrame(shape.name, frame.weight, frame.verts, frame.normals, frame.tangents);
-                }
-            }
-        }
-
-        static bool BlendShapeCaptureHasMotion(List<BlendShapeCopy> shapes)
-        {
-            if (shapes == null || shapes.Count == 0) return false;
-            for (int i = 0; i < shapes.Count; i++)
-            {
-                BlendShapeCopy shape = shapes[i];
-                if (shape == null || shape.frames == null) continue;
-                for (int f = 0; f < shape.frames.Count; f++)
-                {
-                    BlendShapeFrameData frame = shape.frames[f];
-                    if (frame == null || frame.verts == null) continue;
-                    for (int v = 0; v < frame.verts.Length; v++)
-                    {
-                        Vector3 p = frame.verts[v];
-                        if (p.sqrMagnitude > 0.0000001f) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        static void RestoreBlendShapesIfCleared(Mesh mesh, List<BlendShapeCopy> shapes)
-        {
-            if (mesh == null || shapes == null || shapes.Count == 0) return;
-            if (mesh.blendShapeCount >= shapes.Count) return;
-            ApplyBlendShapes(mesh, shapes);
-        }
-
         static void StripShapes(Mesh mesh, List<int> drop, Dictionary<int, int> ratioInto)
         {
             Vector3[] verts = mesh.vertices;
@@ -1820,47 +1718,42 @@ namespace KaleidoVR.EditorTools
                     remove.Add(pair.Key);
             }
 
-            List<BlendShapeCopy> kept = new List<BlendShapeCopy>();
+            List<(string name, float frame, Vector3[] v, Vector3[] n, Vector3[] t)> kept = new List<(string, float, Vector3[], Vector3[], Vector3[])>();
             for (int i = 0; i < mesh.blendShapeCount; i++)
             {
                 if (remove.Contains(i)) continue;
-                int frameCount = mesh.GetBlendShapeFrameCount(i);
-                if (frameCount < 1) continue;
-                BlendShapeCopy shape = new BlendShapeCopy();
-                shape.name = mesh.GetBlendShapeName(i);
-                for (int f = 0; f < frameCount; f++)
+                string name = mesh.GetBlendShapeName(i);
+                if (mesh.GetBlendShapeFrameCount(i) < 1) continue;
+                Vector3[] kv = new Vector3[verts.Length];
+                Vector3[] kn = new Vector3[verts.Length];
+                Vector3[] kt = new Vector3[verts.Length];
+                float frame = mesh.GetBlendShapeFrameWeight(i, 0);
+                mesh.GetBlendShapeFrameVertices(i, 0, kv, kn, kt);
+                if (ratioInto != null)
                 {
-                    BlendShapeFrameData frame = new BlendShapeFrameData();
-                    frame.weight = mesh.GetBlendShapeFrameWeight(i, f);
-                    frame.verts = new Vector3[verts.Length];
-                    frame.normals = new Vector3[verts.Length];
-                    frame.tangents = new Vector3[verts.Length];
-                    mesh.GetBlendShapeFrameVertices(i, f, frame.verts, frame.normals, frame.tangents);
-                    if (f == 0 && ratioInto != null)
+                    foreach (KeyValuePair<int, int> pair in ratioInto)
                     {
-                        foreach (KeyValuePair<int, int> pair in ratioInto)
+                        if (pair.Value != i) continue;
+                        Vector3[] ev = new Vector3[verts.Length];
+                        Vector3[] en = new Vector3[verts.Length];
+                        Vector3[] et = new Vector3[verts.Length];
+                        if (mesh.GetBlendShapeFrameCount(pair.Key) < 1) continue;
+                        mesh.GetBlendShapeFrameVertices(pair.Key, 0, ev, en, et);
+                        float ratio = 1f;
+                        for (int p = 0; p < verts.Length; p++)
                         {
-                            if (pair.Value != i) continue;
-                            if (mesh.GetBlendShapeFrameCount(pair.Key) < 1) continue;
-                            Vector3[] ev = new Vector3[verts.Length];
-                            Vector3[] en = new Vector3[verts.Length];
-                            Vector3[] et = new Vector3[verts.Length];
-                            mesh.GetBlendShapeFrameVertices(pair.Key, 0, ev, en, et);
-                            for (int p = 0; p < verts.Length; p++)
-                            {
-                                frame.verts[p] += ev[p];
-                                frame.normals[p] += en[p];
-                                frame.tangents[p] += et[p];
-                            }
+                            kv[p] += ev[p] * ratio;
+                            kn[p] += en[p] * ratio;
+                            kt[p] += et[p] * ratio;
                         }
                     }
-                    shape.frames.Add(frame);
                 }
-                if (shape.frames.Count > 0) kept.Add(shape);
+                kept.Add((name, frame, kv, kn, kt));
             }
 
-            if (!BlendShapesFit(mesh, kept)) return;
-            ApplyBlendShapes(mesh, kept);
+            mesh.ClearBlendShapes();
+            for (int i = 0; i < kept.Count; i++)
+                mesh.AddBlendShapeFrame(kept[i].name, kept[i].frame, kept[i].v, kept[i].n, kept[i].t);
         }
 
         static void AddDescriptorShapes(GameObject root, HashSet<string> keep)
@@ -2138,6 +2031,7 @@ namespace KaleidoVR.EditorTools
                 int keepCount = 0;
                 for (int i = 0; i < used.Length; i++) if (used[i]) keepCount++;
                 if (keepCount == 0 || keepCount == bones.Length) continue;
+                if (mesh.blendShapeCount > 0) continue;
 
                 result.bonesRemoved += bones.Length - keepCount;
                 result.lines.Add(smr.name + ": drop " + (bones.Length - keepCount) + " unused bones");
@@ -2157,19 +2051,10 @@ namespace KaleidoVR.EditorTools
                     n++;
                 }
 
-                List<BlendShapeCopy> shapes = null;
-                if (mesh.blendShapeCount > 0)
-                {
-                    try { shapes = CaptureBlendShapes(mesh); }
-                    catch (Exception) { continue; }
-                    if (shapes == null || !BlendShapeCaptureHasMotion(shapes)) continue;
-                }
-
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoBones";
                 RemapMeshBoneWeights(copy, used, map);
                 copy.bindposes = newBind;
-                RestoreBlendShapesIfCleared(copy, shapes);
                 smr.sharedMesh = PersistMesh(copy);
                 smr.bones = newBones;
             }
@@ -2233,23 +2118,15 @@ namespace KaleidoVR.EditorTools
                 }
 
                 if (newMats.Count >= mesh.subMeshCount) continue;
+                if (mesh.blendShapeCount > 0) continue;
                 result.slotsMerged += mesh.subMeshCount - newMats.Count;
                 result.lines.Add(smr.name + ": " + mesh.subMeshCount + " slots → " + newMats.Count);
                 if (dryRun) continue;
-
-                List<BlendShapeCopy> shapes = null;
-                if (mesh.blendShapeCount > 0)
-                {
-                    try { shapes = CaptureBlendShapes(mesh); }
-                    catch (Exception) { continue; }
-                    if (shapes == null || !BlendShapeCaptureHasMotion(shapes)) continue;
-                }
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoSlots";
                 copy.subMeshCount = newMats.Count;
                 for (int i = 0; i < newMats.Count; i++) copy.SetTriangles(tris[i], i);
-                RestoreBlendShapesIfCleared(copy, shapes);
                 smr.sharedMesh = PersistMesh(copy);
                 smr.sharedMaterials = newMats.ToArray();
             }
