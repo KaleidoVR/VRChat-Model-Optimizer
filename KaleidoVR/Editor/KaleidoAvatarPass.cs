@@ -1631,15 +1631,6 @@ namespace KaleidoVR.EditorTools
 
         static void ProcessBlendShapes(GameObject root, KaleidoAvatarPassSettings settings, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
-            // Other upload passes still have their editor components. Their clips are not baked yet,
-            // so dropping shapes here removes the ones those passes are about to drive.
-            if (root != null && CollectUnfinishedUploadMarkerTypes(root).Count > 0)
-            {
-                if (result != null)
-                    result.lines.Add("Blend shapes left alone. Other upload passes are still on this copy.");
-                return;
-            }
-
             HashSet<string> keep = new HashSet<string>(anim.UsedBlendShapes, StringComparer.OrdinalIgnoreCase);
             if (settings.mmdCompatibility)
             {
