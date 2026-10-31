@@ -914,6 +914,296 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        public static void CountFaceTracking(GameObject root, out int operations, out int forwarded)
+        {
+            operations = 0;
+            forwarded = 0;
+            if (root == null) return;
+            try
+            {
+                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+                if (desc == null) return;
+                bool faceDisabled = false;
+                List<object> faceRoots = FindFaceTrackingRoots(desc, ref faceDisabled);
+                if (faceDisabled || faceRoots == null || faceRoots.Count == 0) return;
+
+                List<SkinnedMeshRenderer> meshes = new List<SkinnedMeshRenderer>();
+                HashSet<int> meshIds = new HashSet<int>();
+                for (int i = 0; i < faceRoots.Count; i++)
+                    CollectFaceMeshes(faceRoots[i], meshes, meshIds, 0);
+
+                HashSet<string> forwardedNames = new HashSet<string>(StringComparer.Ordinal);
+                int anonForward = 0;
+                for (int i = 0; i < faceRoots.Count; i++)
+                    CountFaceNode(faceRoots[i], meshes, forwardedNames, ref operations, ref anonForward, 0);
+                forwarded = forwardedNames.Count + anonForward;
+            }
+            catch (Exception)
+            {
+                operations = 0;
+                forwarded = 0;
+            }
+        }
+
+        static List<object> FindFaceTrackingRoots(Component desc, ref bool disabled)
+        {
+            List<object> roots = new List<object>();
+            if (desc == null) return roots;
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = desc.GetType().GetFields(flags);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                string name = field.Name ?? "";
+                if (name.IndexOf("face", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (name.IndexOf("track", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (field.FieldType == typeof(bool))
+                {
+                    object flag = field.GetValue(desc);
+                    bool looksLikeEnable = string.Equals(name, "enabled", StringComparison.OrdinalIgnoreCase)
+                        || name.IndexOf("enable", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (looksLikeEnable && flag is bool && !(bool)flag) disabled = true;
+                    continue;
+                }
+                object value = field.GetValue(desc);
+                if (value == null || value is string || value.GetType().IsEnum || value.GetType().IsPrimitive) continue;
+                roots.Add(value);
+            }
+            return roots;
+        }
+
+        static void CollectFaceMeshes(object node, List<SkinnedMeshRenderer> meshes, HashSet<int> meshIds, int depth)
+        {
+            if (node == null || meshes == null || meshIds == null || depth > 8) return;
+            SkinnedMeshRenderer smr = node as SkinnedMeshRenderer;
+            if (smr != null)
+            {
+                if (meshIds.Add(smr.GetInstanceID())) meshes.Add(smr);
+                return;
+            }
+            if (node is string || node.GetType().IsPrimitive || node.GetType().IsEnum) return;
+
+            Array array = node as Array;
+            if (array != null)
+            {
+                for (int i = 0; i < array.Length; i++)
+                    CollectFaceMeshes(array.GetValue(i), meshes, meshIds, depth + 1);
+                return;
+            }
+
+            if (node is UnityEngine.Object && !(node is Component)) return;
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = node.GetType().GetFields(flags);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                Type ft = field.FieldType;
+                if (ft == null || ft.IsPrimitive || ft.IsEnum || ft == typeof(string)) continue;
+                CollectFaceMeshes(field.GetValue(node), meshes, meshIds, depth + 1);
+            }
+        }
+
+        static void CountFaceNode(object node, List<SkinnedMeshRenderer> meshes, HashSet<string> forwardedNames, ref int operations, ref int anonForward, int depth)
+        {
+            if (node == null || depth > 8) return;
+            Type type = node.GetType();
+            if (type.IsPrimitive || type.IsEnum || type == typeof(string)) return;
+            if (node is SkinnedMeshRenderer) return;
+
+            Array array = node as Array;
+            if (array != null)
+            {
+                for (int i = 0; i < array.Length; i++)
+                    CountFaceNode(array.GetValue(i), meshes, forwardedNames, ref operations, ref anonForward, depth + 1);
+                return;
+            }
+
+            if (node is UnityEngine.Object && !(node is Component)) return;
+
+            if (TryCountFaceBehavior(node, forwardedNames, ref operations, ref anonForward)) return;
+            if (TryCountFaceMapping(node, meshes, ref operations)) return;
+
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = type.GetFields(flags);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                Type ft = field.FieldType;
+                if (ft == null || ft.IsPrimitive || ft.IsEnum || ft == typeof(string)) continue;
+                CountFaceNode(field.GetValue(node), meshes, forwardedNames, ref operations, ref anonForward, depth + 1);
+            }
+        }
+
+        static bool TryCountFaceBehavior(object node, HashSet<string> forwardedNames, ref int operations, ref int anonForward)
+        {
+            if (node == null || node.GetType().IsPrimitive) return false;
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = node.GetType().GetFields(flags);
+            bool behaviorEnum = false;
+            bool forward = false;
+            bool custom = false;
+            bool hasMeshList = false;
+            string expression = null;
+            string parameter = null;
+            int inputs = 0;
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                string name = field.Name ?? "";
+                if (field.FieldType == typeof(SkinnedMeshRenderer[])) hasMeshList = true;
+                if (field.FieldType.IsEnum)
+                {
+                    object value = field.GetValue(node);
+                    string label = value != null ? value.ToString() : "";
+                    if (IsBehaviorEnum(label)) behaviorEnum = true;
+                    if (label.IndexOf("Forward", StringComparison.OrdinalIgnoreCase) >= 0) forward = true;
+                    if (label.IndexOf("Custom", StringComparison.OrdinalIgnoreCase) >= 0) custom = true;
+                }
+                else if (field.FieldType == typeof(string))
+                {
+                    string text = field.GetValue(node) as string;
+                    if (string.IsNullOrEmpty(text)) continue;
+                    if (name.IndexOf("expression", StringComparison.OrdinalIgnoreCase) >= 0
+                        || name.IndexOf("formula", StringComparison.OrdinalIgnoreCase) >= 0)
+                        expression = text;
+                    else if (name.IndexOf("parameter", StringComparison.OrdinalIgnoreCase) >= 0
+                        || name.IndexOf("target", StringComparison.OrdinalIgnoreCase) >= 0)
+                        parameter = text;
+                }
+                else if (field.FieldType.IsArray && IsInputListName(name))
+                {
+                    Array list = field.GetValue(node) as Array;
+                    if (list != null) inputs += list.Length;
+                }
+            }
+            if (hasMeshList || !behaviorEnum) return false;
+            if (expression == null && inputs == 0 && !forward) return false;
+
+            if (custom && !string.IsNullOrEmpty(expression)) operations += CountExpressionOps(expression);
+            else if (inputs > 0) operations += inputs;
+            else if (!string.IsNullOrEmpty(expression)) operations += CountExpressionOps(expression);
+
+            if (forward)
+            {
+                if (!string.IsNullOrEmpty(parameter))
+                {
+                    if (forwardedNames != null) forwardedNames.Add(parameter);
+                }
+                else anonForward++;
+            }
+            return true;
+        }
+
+        static bool IsBehaviorEnum(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return false;
+            return label.IndexOf("Forward", StringComparison.OrdinalIgnoreCase) >= 0
+                || label.IndexOf("Custom", StringComparison.OrdinalIgnoreCase) >= 0
+                || label.IndexOf("Apply", StringComparison.OrdinalIgnoreCase) >= 0
+                || label.IndexOf("Limit", StringComparison.OrdinalIgnoreCase) >= 0
+                || string.Equals(label, "Max", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "Min", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "Add", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "Multiply", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool IsInputListName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return name.IndexOf("input", StringComparison.OrdinalIgnoreCase) >= 0
+                || name.IndexOf("key", StringComparison.OrdinalIgnoreCase) >= 0
+                || name.IndexOf("source", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        static bool TryCountFaceMapping(object node, List<SkinnedMeshRenderer> meshes, ref int operations)
+        {
+            if (node == null) return false;
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = node.GetType().GetFields(flags);
+            string shape = null;
+            bool hasMarker = false;
+            bool hasChildList = false;
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                if (field.FieldType.IsArray || (field.FieldType.IsGenericType && field.FieldType.GetGenericTypeDefinition() == typeof(List<>)))
+                {
+                    hasChildList = true;
+                    continue;
+                }
+                if (field.FieldType == typeof(float) || field.FieldType.IsEnum) hasMarker = true;
+                if (field.FieldType != typeof(string)) continue;
+                string name = field.Name ?? "";
+                if (name.IndexOf("set", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (name.IndexOf("blend", StringComparison.OrdinalIgnoreCase) < 0
+                    && name.IndexOf("shape", StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                string text = field.GetValue(node) as string;
+                if (!string.IsNullOrEmpty(text)) shape = text;
+            }
+            if (hasChildList || string.IsNullOrEmpty(shape) || !hasMarker) return false;
+            operations += MeshesWithShape(meshes, shape);
+            return true;
+        }
+
+        static int MeshesWithShape(List<SkinnedMeshRenderer> meshes, string shape)
+        {
+            if (meshes == null || string.IsNullOrEmpty(shape)) return 0;
+            int hits = 0;
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                SkinnedMeshRenderer smr = meshes[i];
+                Mesh mesh = smr != null ? smr.sharedMesh : null;
+                if (mesh == null) continue;
+                for (int s = 0; s < mesh.blendShapeCount; s++)
+                {
+                    if (!string.Equals(mesh.GetBlendShapeName(s), shape, StringComparison.Ordinal)) continue;
+                    hits++;
+                    break;
+                }
+            }
+            return hits;
+        }
+
+        static int CountExpressionOps(string expression)
+        {
+            if (string.IsNullOrEmpty(expression)) return 0;
+            int ops = 0;
+            int i = 0;
+            while (i < expression.Length)
+            {
+                char c = expression[i];
+                if (char.IsWhiteSpace(c)) { i++; continue; }
+                if (c == '(' || c == ')' || c == ',') { i++; continue; }
+                if (c == '+' || c == '-' || c == '*' || c == '/')
+                {
+                    ops++;
+                    i++;
+                    continue;
+                }
+                if (char.IsDigit(c) || c == '.')
+                {
+                    i++;
+                    while (i < expression.Length && (char.IsDigit(expression[i]) || expression[i] == '.')) i++;
+                    continue;
+                }
+                if (char.IsLetter(c) || c == '_')
+                {
+                    i++;
+                    while (i < expression.Length && (char.IsLetterOrDigit(expression[i]) || expression[i] == '_')) i++;
+                    ops++;
+                    continue;
+                }
+                i++;
+            }
+            return ops;
+        }
+
         static string FormatLabel(Texture texture)
         {
             if (texture is Texture2D t2d) return t2d.format.ToString();

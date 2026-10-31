@@ -1641,6 +1641,8 @@ namespace KaleidoVR.EditorTools
         public int unityConstraints;
         public int vrcConstraints;
         public int blendShapes;
+        public int faceTrackingOps;
+        public int forwardedParameters;
         public int bones;
         public int animators;
         public int lights;
@@ -1703,6 +1705,8 @@ namespace KaleidoVR.EditorTools
         public int assembledSkinnedMeshes;
         public int assembledMeshRenderers;
         public int assembledBlendShapes;
+        public int assembledFaceTrackingOps;
+        public int assembledForwardedParameters;
         public int assembledBones;
         public int assembledAnimators;
         public int assembledLights;
@@ -1722,6 +1726,8 @@ namespace KaleidoVR.EditorTools
         public int onUploadSkinnedMeshes;
         public int onUploadMeshRenderers;
         public int onUploadBlendShapes;
+        public int onUploadFaceTrackingOps;
+        public int onUploadForwardedParameters;
         public int onUploadBones;
         public int onUploadAnimators;
         public int onUploadLights;
@@ -6907,6 +6913,11 @@ namespace KaleidoVR.EditorTools
                 report.physBoneColliders += KaleidoVRCOptimizerHelpers.CountComponents(root, physBoneColliderType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactType);
                 report.contacts += KaleidoVRCOptimizerHelpers.CountComponents(root, contactSenderType);
+                int faceOps;
+                int forwarded;
+                KaleidoVRCOptimizerEval.CountFaceTracking(root, out faceOps, out forwarded);
+                report.faceTrackingOps += faceOps;
+                report.forwardedParameters += forwarded;
                 int unityConstraints;
                 int vrcConstraints;
                 KaleidoVRCOptimizerHelpers.CountConstraints(root, out unityConstraints, out vrcConstraints);
@@ -6939,7 +6950,7 @@ namespace KaleidoVR.EditorTools
 
             report.pcRank = RankAvatar(report, false);
             report.questRank = RankAvatar(report, true);
-            logEntries.Add("Triangles=" + report.triangles + " texEst=" + report.textureBytesEstimate + " pc=" + report.pcRank + " quest=" + report.questRank);
+            logEntries.Add("Triangles=" + report.triangles + " texEst=" + report.textureBytesEstimate + " faceOps=" + report.faceTrackingOps + " forwarded=" + report.forwardedParameters + " pc=" + report.pcRank + " quest=" + report.questRank);
         }
 
         private static void FillOnUploadEstimate(KaleidoVRCOptimizer window, List<GameObject> roots, KaleidoOptimizerReport report, List<string> logEntries)
@@ -7089,6 +7100,8 @@ namespace KaleidoVR.EditorTools
                 report.assembledSkinnedMeshes = src.skinnedMeshes;
                 report.assembledMeshRenderers = src.meshRenderers;
                 report.assembledBlendShapes = src.blendShapes;
+                report.assembledFaceTrackingOps = src.faceTrackingOps;
+                report.assembledForwardedParameters = src.forwardedParameters;
                 report.assembledBones = src.bones;
                 report.assembledAnimators = src.animators;
                 report.assembledLights = src.lights;
@@ -7110,6 +7123,8 @@ namespace KaleidoVR.EditorTools
             report.onUploadSkinnedMeshes = src.skinnedMeshes;
             report.onUploadMeshRenderers = src.meshRenderers;
             report.onUploadBlendShapes = src.blendShapes;
+            report.onUploadFaceTrackingOps = src.faceTrackingOps;
+            report.onUploadForwardedParameters = src.forwardedParameters;
             report.onUploadBones = src.bones;
             report.onUploadAnimators = src.animators;
             report.onUploadLights = src.lights;
@@ -7259,6 +7274,8 @@ namespace KaleidoVR.EditorTools
                 rank = Math.Max(rank, LimitRank(report.contacts, 2, 4, 8, 16));
                 rank = Math.Max(rank, LimitRank(report.constraints, 30, 60, 120, 150));
                 rank = Math.Max(rank, LimitRank(report.particleSystems, 0, 0, 0, 2));
+                rank = Math.Max(rank, LimitRank(report.faceTrackingOps, 2000, 4000, 8000, 16000));
+                rank = Math.Max(rank, LimitRank(report.forwardedParameters, 10, 20, 30, 40));
             }
             else
             {
@@ -7276,6 +7293,8 @@ namespace KaleidoVR.EditorTools
                 rank = Math.Max(rank, LimitRank(report.lights, 0, 0, 0, 1));
                 rank = Math.Max(rank, LimitRank(report.audioSources, 1, 4, 8, 8));
                 rank = Math.Max(rank, LimitRank(report.particleSystems, 0, 4, 8, 16));
+                rank = Math.Max(rank, LimitRank(report.faceTrackingOps, 2000, 4000, 8000, 16000));
+                rank = Math.Max(rank, LimitRank(report.forwardedParameters, 10, 20, 30, 40));
             }
 
             return RankName(rank);
