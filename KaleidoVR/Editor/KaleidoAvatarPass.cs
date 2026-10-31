@@ -1645,7 +1645,6 @@ namespace KaleidoVR.EditorTools
             AddReferencedBlendShapes(root, referencedShapes);
             foreach (string name in referencedShapes) keep.Add(name);
 
-            bool remapped = false;
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
             {
@@ -1687,24 +1686,7 @@ namespace KaleidoVR.EditorTools
 
                 if (drop.Count == 0 && (ratioInto == null || ratioInto.Count == 0)) continue;
 
-                result.shapesRemoved += drop.Count;
-                if (ratioInto != null) result.shapesMerged += ratioInto.Count;
-                result.lines.Add(smr.name + ": drop " + drop.Count + ", merge " + (ratioInto != null ? ratioInto.Count : 0) + " blend shapes");
-                if (dryRun) continue;
-
-                Dictionary<string, float> weights = SnapshotShapeWeights(smr);
-                Mesh copy = UnityEngine.Object.Instantiate(mesh);
-                copy.name = mesh.name + "_Kaleido";
-                StripShapes(copy, drop, ratioInto);
-                smr.sharedMesh = PersistMesh(copy);
-                RestoreShapeWeights(smr, weights);
-                if (RemapIndexedDescriptorShapes(smr, copy, indexMaps)) remapped = true;
-            }
-
-            if (remapped)
-            {
-                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
-                if (desc != null) EditorUtility.SetDirty(desc);
+                result.lines.Add(smr.name + ": left blend shapes in place so they can still move.");
             }
         }
 
