@@ -1,27 +1,14 @@
 What's new
 
 1.0.74
-On Upload compiles again.
-On Upload does not rebuild a mesh to drop blend shapes. The original shapes stay so they can still move.
-Keep only weighted bones and Merge identical material slots leave a mesh alone when it still has blend shapes. Rewriting that mesh was clearing the shapes.
-UI — On Upload: Remove unused blend shapes says the mesh is left alone so blend shapes can still move.
-UI — On Upload: Keep only weighted bones and Merge identical material slots say a mesh that still has blend shapes is left alone.
-Rank counts Face Tracking Operations and Forwarded Parameters. The caps are the same on PC and mobile. Excellent is 2,000 operations and 10 forwarded parameters. Good is 4,000 and 20. Medium is 8,000 and 30. Poor is 16,000 and 40. Over that is Very Poor, and a viewer filtering by rank can replace the avatar with the fallback.
-UI — Rank: Face Tracking Operations and Forwarded Parameters sit under Blend Shapes. They use Now / Assembled / On Upload / Change when Apply on upload is on.
-On Upload only caps icons on finished Expression Menus. Half-built menu assets from other upload passes stay alone.
+On Upload uses the 1.0.73 pass again.
+On Upload drops unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero. Eye Look indices are rewritten to the new mesh.
 If On Upload hits an error after assemble, upload still goes through. I log it and leave the rest of the build alone.
-If one On Upload step fails, later steps still run. That step alone is skipped.
-Optimize FX can rewrite assembled FX controllers, including unsaved ones.
-If Optimize FX or animator Write Defaults / empty states fail on the assembled copy, that step alone is skipped. Merge and cleanup already done stay.
-On Upload no longer skips the whole pass when leftover upload markers are still on the copy. Those objects stay alone; Kaleido still runs merge and cleanup on the rest. Cloth, IK, and other runtime scripts stay; per-object leave-alone still applies.
-On Upload keeps PhysBones that still drive a basic mesh or anything under that PhysBone root, not only skinned meshes.
-I put blend shape handling back to how it was before. Same-ratio merge stays 1:1. Optimize FX no longer drops blend shape curves when a shape looks missing.
-On Upload only keeps bare-name object refs when that name is unique on the avatar, so loose strings stop pinning every matching bone.
-Rank splits Assembled from On Upload. Now is the scene. Assembled is after other upload passes. On Upload is Assembled plus Kaleido. Change is Kaleido only (On Upload − Assembled).
-Rank lists leftover upload marker types when they are present.
-UI — On Upload: Remove unused PhysBones (was Disable PhysBones when unused).
+Rank counts Face Tracking Operations and Forwarded Parameters. The caps are the same on PC and mobile. Excellent is 2,000 operations and 10 forwarded parameters. Good is 4,000 and 20. Medium is 8,000 and 30. Poor is 16,000 and 40. Over that is Very Poor, and a viewer filtering by rank can replace the avatar with the fallback.
+UI — On Upload: Remove unused blend shapes, Keep only weighted bones, and Merge identical material slots match that pass again.
+UI — Rank: Face Tracking Operations and Forwarded Parameters sit under Blend Shapes. They use Now / Assembled / On Upload / Change when Apply on upload is on.
 UI — Rank: Now / Assembled / On Upload / Change when Apply on upload is on.
-UI — Rank: leftover upload markers show as an info note; Kaleido still ran. Assemble failed stays a warning.
+UI — On Upload: Remove unused PhysBones (was Disable PhysBones when unused).
 
 1.0.73
 On Upload can drop unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero.
