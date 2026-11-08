@@ -914,6 +914,88 @@ namespace KaleidoVR.EditorTools
             }
         }
 
+        public static bool FaceTrackingActive(GameObject root)
+        {
+            if (root == null) return false;
+            try
+            {
+                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+                if (desc == null) return false;
+                bool disabled = false;
+                List<object> roots = FindFaceTrackingRoots(desc, ref disabled);
+                return !disabled && roots != null && roots.Count > 0;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static void CollectFaceTrackingShapes(GameObject root, HashSet<string> keep)
+        {
+            if (root == null || keep == null) return;
+            try
+            {
+                Component desc = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+                if (desc == null) return;
+                bool disabled = false;
+                List<object> roots = FindFaceTrackingRoots(desc, ref disabled);
+                if (disabled || roots == null) return;
+                for (int i = 0; i < roots.Count; i++)
+                    CollectFaceShapeNames(roots[i], keep, 0);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        static void CollectFaceShapeNames(object node, HashSet<string> keep, int depth)
+        {
+            if (node == null || keep == null || depth > 8) return;
+            string direct = node as string;
+            if (direct != null)
+            {
+                if (IsFaceShapeName(direct)) keep.Add(direct);
+                return;
+            }
+            Type type = node.GetType();
+            if (type.IsPrimitive || type.IsEnum || node is SkinnedMeshRenderer) return;
+
+            Array array = node as Array;
+            if (array != null)
+            {
+                for (int i = 0; i < array.Length; i++)
+                    CollectFaceShapeNames(array.GetValue(i), keep, depth + 1);
+                return;
+            }
+            if (node is UnityEngine.Object && !(node is Component)) return;
+
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            FieldInfo[] fields = type.GetFields(flags);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                FieldInfo field = fields[i];
+                if (field == null || field.IsStatic) continue;
+                if (field.FieldType == typeof(string))
+                {
+                    string text = field.GetValue(node) as string;
+                    if (IsFaceShapeName(text)) keep.Add(text);
+                    continue;
+                }
+                Type ft = field.FieldType;
+                if (ft == null || ft.IsPrimitive || ft.IsEnum || ft == typeof(string)) continue;
+                CollectFaceShapeNames(field.GetValue(node), keep, depth + 1);
+            }
+        }
+
+        static bool IsFaceShapeName(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length > 80) return false;
+            if (text.IndexOf('\n') >= 0 || text.IndexOf('+') >= 0 || text.IndexOf('*') >= 0 || text.IndexOf('/') >= 0)
+                return false;
+            return true;
+        }
+
         public static void CountFaceTracking(GameObject root, out int operations, out int forwarded)
         {
             operations = 0;
