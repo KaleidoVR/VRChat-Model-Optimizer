@@ -1669,9 +1669,121 @@ namespace KaleidoVR.EditorTools
                 kept.Add((name, frame, kv, kn, kt));
             }
 
+            SkinningCopy skin = CaptureSkinning(mesh);
             mesh.ClearBlendShapes();
+            RestoreSkinning(mesh, skin);
             for (int i = 0; i < kept.Count; i++)
                 mesh.AddBlendShapeFrame(kept[i].name, kept[i].frame, kept[i].v, kept[i].n, kept[i].t);
+        }
+
+        sealed class BlendShapeFrameCopy
+        {
+            public string name;
+            public float frame;
+            public Vector3[] vertices;
+            public Vector3[] normals;
+            public Vector3[] tangents;
+        }
+
+        sealed class SkinningCopy
+        {
+            public Matrix4x4[] bindposes;
+            public BoneWeight[] weights;
+            public byte[] perVertex;
+            public BoneWeight1[] allWeights;
+        }
+
+        static List<BlendShapeFrameCopy> CaptureBlendShapeFrames(Mesh mesh)
+        {
+            List<BlendShapeFrameCopy> frames = new List<BlendShapeFrameCopy>();
+            if (mesh == null) return frames;
+            int verts = mesh.vertexCount;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                int count = mesh.GetBlendShapeFrameCount(i);
+                for (int f = 0; f < count; f++)
+                {
+                    BlendShapeFrameCopy frame = new BlendShapeFrameCopy();
+                    frame.name = mesh.GetBlendShapeName(i);
+                    frame.frame = mesh.GetBlendShapeFrameWeight(i, f);
+                    frame.vertices = new Vector3[verts];
+                    frame.normals = new Vector3[verts];
+                    frame.tangents = new Vector3[verts];
+                    mesh.GetBlendShapeFrameVertices(i, f, frame.vertices, frame.normals, frame.tangents);
+                    frames.Add(frame);
+                }
+            }
+            return frames;
+        }
+
+        static void RestoreBlendShapesIfCleared(Mesh mesh, List<BlendShapeFrameCopy> frames)
+        {
+            if (mesh == null || frames == null || frames.Count == 0 || mesh.blendShapeCount > 0) return;
+            for (int i = 0; i < frames.Count; i++)
+            {
+                BlendShapeFrameCopy frame = frames[i];
+                if (frame == null || frame.vertices == null || frame.vertices.Length != mesh.vertexCount) continue;
+                mesh.AddBlendShapeFrame(frame.name, frame.frame, frame.vertices, frame.normals, frame.tangents);
+            }
+        }
+
+        static SkinningCopy CaptureSkinning(Mesh mesh)
+        {
+            SkinningCopy copy = new SkinningCopy();
+            if (mesh == null) return copy;
+            copy.bindposes = mesh.bindposes;
+            copy.weights = mesh.boneWeights;
+            NativeArray<byte> per = default(NativeArray<byte>);
+            NativeArray<BoneWeight1> src = default(NativeArray<BoneWeight1>);
+            try
+            {
+                per = mesh.GetBonesPerVertex();
+                src = mesh.GetAllBoneWeights();
+                if (per.IsCreated && src.IsCreated && per.Length == mesh.vertexCount && src.Length > 0)
+                {
+                    copy.perVertex = per.ToArray();
+                    copy.allWeights = src.ToArray();
+                }
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                if (per.IsCreated) per.Dispose();
+                if (src.IsCreated) src.Dispose();
+            }
+            return copy;
+        }
+
+        static void RestoreSkinning(Mesh mesh, SkinningCopy saved)
+        {
+            if (mesh == null || saved == null) return;
+            if (saved.bindposes != null && saved.bindposes.Length > 0)
+                mesh.bindposes = saved.bindposes;
+            if (saved.perVertex != null && saved.allWeights != null
+                && saved.perVertex.Length == mesh.vertexCount && saved.allWeights.Length > 0)
+            {
+                NativeArray<byte> per = default(NativeArray<byte>);
+                NativeArray<BoneWeight1> all = default(NativeArray<BoneWeight1>);
+                try
+                {
+                    per = new NativeArray<byte>(saved.perVertex, Allocator.Temp);
+                    all = new NativeArray<BoneWeight1>(saved.allWeights, Allocator.Temp);
+                    mesh.SetBoneWeights(per, all);
+                    return;
+                }
+                catch (Exception)
+                {
+                }
+                finally
+                {
+                    if (per.IsCreated) per.Dispose();
+                    if (all.IsCreated) all.Dispose();
+                }
+            }
+            if (saved.weights != null && saved.weights.Length == mesh.vertexCount)
+                mesh.boneWeights = saved.weights;
         }
 
         static void AddDescriptorShapes(GameObject root, HashSet<string> keep)
@@ -1928,6 +2040,7 @@ namespace KaleidoVR.EditorTools
 
         static void StripUnusedBones(GameObject root, AvatarAnimInfo anim, HashSet<Transform> excluded, bool dryRun, KaleidoAvatarPassResult result, ComponentRefInfo refs)
         {
+            HashSet<Transform> human = CollectHumanoidBones(root);
             SkinnedMeshRenderer[] skins = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             for (int s = 0; s < skins.Length; s++)
             {
@@ -1942,7 +2055,8 @@ namespace KaleidoVR.EditorTools
                 for (int i = 0; i < bones.Length; i++)
                 {
                     if (bones[i] == null) continue;
-                    if (anim.IsTransformMoved(bones[i], root.transform)) used[i] = true;
+                    if (human != null && human.Contains(bones[i])) used[i] = true;
+                    else if (anim.IsTransformMoved(bones[i], root.transform)) used[i] = true;
                     else if (refs != null && refs.Keeps(bones[i])) used[i] = true;
                 }
 
@@ -1970,8 +2084,10 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoBones";
+                List<BlendShapeFrameCopy> shapes = CaptureBlendShapeFrames(copy);
                 RemapMeshBoneWeights(copy, used, map);
                 copy.bindposes = newBind;
+                RestoreBlendShapesIfCleared(copy, shapes);
                 smr.sharedMesh = PersistMesh(copy);
                 smr.bones = newBones;
             }
@@ -2041,8 +2157,12 @@ namespace KaleidoVR.EditorTools
 
                 Mesh copy = UnityEngine.Object.Instantiate(mesh);
                 copy.name = mesh.name + "_KaleidoSlots";
+                List<BlendShapeFrameCopy> shapes = CaptureBlendShapeFrames(copy);
+                SkinningCopy skin = CaptureSkinning(copy);
                 copy.subMeshCount = newMats.Count;
                 for (int i = 0; i < newMats.Count; i++) copy.SetTriangles(tris[i], i);
+                RestoreSkinning(copy, skin);
+                RestoreBlendShapesIfCleared(copy, shapes);
                 smr.sharedMesh = PersistMesh(copy);
                 smr.sharedMaterials = newMats.ToArray();
             }
