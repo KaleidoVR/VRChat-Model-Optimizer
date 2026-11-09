@@ -1838,6 +1838,7 @@ namespace KaleidoVR.EditorTools
                 if (val == null) continue;
                 CollectStringFields(val, keep);
             }
+            KaleidoVRCOptimizerEval.CollectFaceTrackingShapes(root, keep);
         }
 
         static void CollectIndexedDescriptorShapes(GameObject root, HashSet<string> keep, List<DescriptorShapeIndexMap> maps)
