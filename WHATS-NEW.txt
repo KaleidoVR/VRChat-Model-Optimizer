@@ -1,5 +1,15 @@
 What's new
 
+1.0.75
+When On Upload rebuilds a mesh, I keep the skinning and the blend shapes. Humanoid bones stay on that mesh.
+A disabled component stays if it is still on, a clip turns it on, or another component still points at it. A short clip path counts. If it is off and nothing uses it, I remove it.
+Remove unused blend shapes keeps every shape name stored on Face Tracking, even when the old viseme list is empty and no clip drives that shape. Unused shapes that are not part of Face Tracking are still removed.
+Write Defaults only runs when that toggle is on and Face Tracking is off. I do not add the rest-pose layer while Face Tracking is on. Empty animator states still fill when that toggle is on.
+I leave the expression parameter asset alone. If a step swaps it, I put the original back, so lerp, bit width, and signed or unsigned stay.
+UI — On Upload: Remove unused blend shapes says Face Tracking names stay.
+UI — On Upload: Remove unused components says it deletes disabled components that nothing turns on or uses. Audio sources stay.
+UI — On Upload: Write Defaults says it is left alone when Face Tracking is on.
+
 1.0.74
 On Upload uses the 1.0.73 pass again.
 On Upload drops unused blend shapes even when another component still points at that mesh. The renderer stays. A shape stays if a clip drives it, a component still has that exact name, the descriptor uses it, it is a blink, wink, squint, or eyelid, or its weight is not zero. Eye Look indices are rewritten to the new mesh.
