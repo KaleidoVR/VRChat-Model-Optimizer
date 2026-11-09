@@ -3513,7 +3513,7 @@ namespace KaleidoVR.EditorTools
 
             GUILayout.Space(8);
             GUILayout.Label("Animator", EditorStyles.boldLabel);
-            window.avatarWriteDefaults = DrawToggle(window.avatarWriteDefaults, "Write Defaults", "Off by default. On Upload copies the controllers and sets states to the pick. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX so those properties can turn back off. Rank can Confirm On or Off on the project now.");
+            window.avatarWriteDefaults = DrawToggle(window.avatarWriteDefaults, "Write Defaults", "Off by default. On Upload copies the controllers and sets states to the pick. Direct blend trees and additive layers stay on. WD Off adds a rest-pose layer on FX so those properties can turn back off. Left alone when Face Tracking is on. Rank can Confirm On or Off on the project now.");
             EditorGUI.BeginDisabledGroup(!window.avatarWriteDefaults);
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(18);
