@@ -1429,13 +1429,15 @@ namespace KaleidoVR.EditorTools
                 Behaviour b = behaviours[i];
                 if (b == null || b is Animator || b is AudioSource || IsExcluded(b, excluded)) continue;
                 if (IsEditorMarker(b) || !IsOwnedType(b.GetType())) continue;
-                if (b.enabled) continue;
+                if (b.enabled || ComponentIsOn(b)) continue;
                 string path = AnimationUtility.CalculateTransformPath(b.transform, root.transform);
-                if (anim.IsEnabledAnimated(path, b.GetType())) continue;
+                if (anim != null && anim.IsEnabledAnimated(path, b.GetType())) continue;
+                if (refs != null && refs.References(b)) continue;
                 remove.Add(b);
             }
 
             HashSet<Transform> skinKeep = CollectSkinBoneKeep(root);
+            HashSet<Transform> movedKeep = anim != null ? anim.CollectMoved(root.transform) : null;
 
             if (settings.removeUnusedComponents)
             {
@@ -1453,6 +1455,7 @@ namespace KaleidoVR.EditorTools
                     if (!IsEditorOnly(all[i].gameObject)) continue;
                     if (HasExternalWork(all[i].gameObject, true)) continue;
                     if (HasNonTransformComponents(all[i].gameObject)) continue;
+                    if (movedKeep != null && movedKeep.Contains(all[i])) continue;
                     if (HasRequiredRef(all[i], root, refs, skinKeep)) continue;
                     result.objectsRemoved++;
                     result.lines.Add("Remove EditorOnly: " + all[i].name);
@@ -1469,6 +1472,7 @@ namespace KaleidoVR.EditorTools
                     if (t == null || t == root.transform || excluded.Contains(t)) continue;
                     if (HasExternalWork(t.gameObject, true)) continue;
                     if (HasNonTransformComponents(t.gameObject)) continue;
+                    if (movedKeep != null && movedKeep.Contains(t)) continue;
                     if (t.gameObject.activeSelf) continue;
                     string path = AnimationUtility.CalculateTransformPath(t, root.transform);
                     if (anim.IsActiveAnimated(path)) continue;
@@ -1477,6 +1481,24 @@ namespace KaleidoVR.EditorTools
                     result.lines.Add("Remove unused object: " + t.name);
                     if (!dryRun) UnityEngine.Object.DestroyImmediate(t.gameObject);
                 }
+            }
+        }
+
+        static bool ComponentIsOn(Component c)
+        {
+            if (c == null) return false;
+            try
+            {
+                SerializedObject so = new SerializedObject(c);
+                SerializedProperty active = so.FindProperty("IsActive");
+                if (active == null) active = so.FindProperty("m_IsActive");
+                if (active == null) active = so.FindProperty("m_Active");
+                if (active == null) active = so.FindProperty("constraintActive");
+                return active != null && active.propertyType == SerializedPropertyType.Boolean && active.boolValue;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 
@@ -2843,7 +2865,7 @@ namespace KaleidoVR.EditorTools
                     if (RendererUsesTransform(smr, pbRoot)) { used = true; break; }
                 }
                 string path = AnimationUtility.CalculateTransformPath(pb.transform, root.transform);
-                if (!used && !anim.IsEnabledAnimated(path, pbType))
+                if (!used && (anim == null || !anim.IsEnabledAnimated(path, pbType)))
                 {
                     result.physBonesDisabled++;
                     result.lines.Add("Remove unused PhysBone: " + pb.name);
@@ -2873,6 +2895,7 @@ namespace KaleidoVR.EditorTools
                 if (IsEditorMarker(cols[i]) || !IsOwnedType(cols[i].GetType())) continue;
                 if (HasExternalWork(cols[i].gameObject, true)) continue;
                 if (refs != null && refs.Keeps(cols[i])) continue;
+                if (anim != null && anim.IsEnabledAnimated(AnimationUtility.CalculateTransformPath(cols[i].transform, root.transform), cols[i].GetType())) continue;
                 result.componentsRemoved++;
                 result.lines.Add("Remove unused PhysBone collider: " + cols[i].name);
                 if (!dryRun) UnityEngine.Object.DestroyImmediate(cols[i]);
@@ -2933,9 +2956,9 @@ namespace KaleidoVR.EditorTools
                 if (ContactLooksSensitive(contact)) continue;
 
                 string path = AnimationUtility.CalculateTransformPath(contact.transform, root.transform);
-                if (anim.IsEnabledAnimated(path, type)) continue;
+                if (anim != null && anim.IsEnabledAnimated(path, type)) continue;
 
-                if (contact.enabled) continue;
+                if (contact.enabled || ComponentIsOn(contact)) continue;
 
                 if (receiver && ReceiverParameterIsUsed(contact, usedParams)) continue;
 
@@ -4082,6 +4105,11 @@ namespace KaleidoVR.EditorTools
                 return Keeps(c.transform);
             }
 
+            public bool References(Component c)
+            {
+                return c != null && Components.Contains(c);
+            }
+
             public bool KeepsAsset(UnityEngine.Object asset)
             {
                 return asset != null && Assets.Contains(asset);
@@ -4299,7 +4327,12 @@ namespace KaleidoVR.EditorTools
                 for (int i = 0; i < bindings.Length; i++)
                 {
                     EditorCurveBinding b = bindings[i];
-                    if (b.propertyName == "m_Enabled") enabled.Add(b.path + "|" + b.type.FullName);
+                    if (b.propertyName == "m_Enabled"
+                        || b.propertyName == "IsActive"
+                        || b.propertyName == "m_IsActive"
+                        || b.propertyName == "m_Active"
+                        || b.propertyName == "constraintActive")
+                        enabled.Add(b.path + "|" + (b.type != null ? b.type.FullName : ""));
                     if (b.propertyName == "m_IsActive") actives.Add(b.path);
                     if (b.propertyName.StartsWith("m_LocalPosition", StringComparison.Ordinal)
                         || b.propertyName.StartsWith("m_LocalRotation", StringComparison.Ordinal)
@@ -4336,19 +4369,68 @@ namespace KaleidoVR.EditorTools
 
             public bool IsEnabledAnimated(string path, Type type)
             {
-                return enabled.Contains(path + "|" + (type != null ? type.FullName : ""));
+                if (type == null) return false;
+                string full = type.FullName ?? "";
+                string name = type.Name ?? "";
+                if (enabled.Contains((path ?? "") + "|" + full)) return true;
+                foreach (string key in enabled)
+                {
+                    int bar = key.LastIndexOf('|');
+                    if (bar <= 0) continue;
+                    string keyPath = key.Substring(0, bar);
+                    string keyType = key.Substring(bar + 1);
+                    if (!PathMatches(path, keyPath)) continue;
+                    if (keyType == full || keyType == name || keyType.EndsWith("." + name, StringComparison.Ordinal))
+                        return true;
+                }
+                return false;
             }
 
             public bool IsActiveAnimated(string path)
             {
-                return actives.Contains(path);
+                if (actives.Contains(path ?? "")) return true;
+                foreach (string animated in actives)
+                {
+                    if (PathMatches(path, animated)) return true;
+                }
+                return false;
             }
 
             public bool IsTransformMoved(Transform bone, Transform root)
             {
-                if (bone == null) return false;
+                if (bone == null || root == null) return false;
                 string path = AnimationUtility.CalculateTransformPath(bone, root);
-                return moved.Contains(path);
+                foreach (string animated in moved)
+                {
+                    if (PathMatches(path, animated)) return true;
+                }
+                return false;
+            }
+
+            static bool PathMatches(string fullPath, string animatedPath)
+            {
+                if (animatedPath == null) return false;
+                string full = fullPath ?? "";
+                if (string.Equals(full, animatedPath, StringComparison.Ordinal)) return true;
+                return animatedPath.Length > 0 && full.EndsWith("/" + animatedPath, StringComparison.Ordinal);
+            }
+
+            public HashSet<Transform> CollectMoved(Transform root)
+            {
+                HashSet<Transform> keep = new HashSet<Transform>();
+                if (root == null) return keep;
+                Transform[] all = root.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    Transform t = all[i];
+                    if (t == null || !IsTransformMoved(t, root)) continue;
+                    while (t != null && t != root)
+                    {
+                        if (!keep.Add(t)) break;
+                        t = t.parent;
+                    }
+                }
+                return keep;
             }
 
             public bool IsBlendShapeAnimated(SkinnedMeshRenderer smr, GameObject root, string name)
