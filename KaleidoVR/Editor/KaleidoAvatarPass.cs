@@ -456,6 +456,15 @@ namespace KaleidoVR.EditorTools
             }
 
             persistGenerated = persist && !dryRun;
+            UnityEngine.Object expressionParameters = null;
+            FieldInfo expressionField = null;
+            Component descriptor = root.GetComponent("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor");
+            if (descriptor != null)
+            {
+                expressionField = descriptor.GetType().GetField("expressionParameters");
+                if (expressionField != null)
+                    expressionParameters = expressionField.GetValue(descriptor) as UnityEngine.Object;
+            }
             try
             {
                 HashSet<Transform> excluded = CollectExclusions(root, extraExclusions);
@@ -534,6 +543,18 @@ namespace KaleidoVR.EditorTools
             }
             finally
             {
+                try
+                {
+                    if (expressionField != null && descriptor != null)
+                    {
+                        UnityEngine.Object now = expressionField.GetValue(descriptor) as UnityEngine.Object;
+                        if (now != expressionParameters)
+                            expressionField.SetValue(descriptor, expressionParameters);
+                    }
+                }
+                catch (Exception)
+                {
+                }
                 persistGenerated = false;
                 latestRun = result;
             }
