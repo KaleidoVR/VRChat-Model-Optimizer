@@ -3131,6 +3131,11 @@ namespace KaleidoVR.EditorTools
             if (root == null || settings == null || result == null) return;
             bool writeDefaults = settings.writeDefaults;
             bool fillEmpty = settings.fillEmptyStates;
+            if (writeDefaults && KaleidoVRCOptimizerEval.FaceTrackingActive(root))
+            {
+                result.lines.Add("Write Defaults left alone. Face Tracking is on.");
+                writeDefaults = false;
+            }
             if (!writeDefaults && !fillEmpty) return;
 
             AnimationClip clip = null;
